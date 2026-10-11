@@ -45,7 +45,7 @@ references.bib             bibliography (all entries resolved to published recor
 
 ## About this book
 
-This entire book was written by an artificial intelligence, and prompted, edited
-and reviewed by Raktim Mondol, who is responsible for its contents. Every
+This entire book was written by AI, and prompted, edited
+and reviewed by Dr Raktim Mondol, who is responsible for its contents. Every
 bibliographic entry was resolved against a published journal or conference
 record.
