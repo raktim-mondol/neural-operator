@@ -1,0 +1,543 @@
+% Chapter 9: Open Theoretical Problems and Mathematical Outlook
+% Part I of the book.
+% STATUS: book-standard prose (Part I).
+
+\chapter{Open Theoretical Problems and Mathematical Outlook}
+\label{ch:part1-open-theoretical-problems-and-mathematical}
+\label{sec:conclusion}
+% -----------------------------------------------------------------------------
+
+The eight chapters before this one assemble a theory in three layers, and
+each layer stops at a boundary the next cannot cross. \chapref{ch:part1-function-spaces-duality-and-sobolev-regula}
+and \chapref{ch:part1-partial-differential-equations-as-solution} fixed the
+stage: a partial differential equation (PDE) problem is a \emph{solution
+operator} $\mathcal{G}:\mathcal{A}\to\mathcal{U}$ between infinite-dimensional
+spaces, and the compact embeddings of Rellich--Kondrachov are what make images
+of bounded sets small enough to
+approximate at all.
+\chapref{ch:part1-operator-approximation-theory-and-universa} and
+\chapref{ch:part1-the-fourier-neural-operator-spectral-theor} supplied the
+approximation guarantees --- Theorem~\ref{thm:chen_chen} in its classical form,
+Theorem~\ref{thm:no_universality} for integral-kernel neural operators,
+Theorem~\ref{thm:fno_convergence} for the Fourier neural operator (FNO),
+\index{Fourier neural operator (FNO)!open problems}
+whose error splits into a spectral truncation term of order $k_{\max}^{-\alpha}$
+and a neural parametric term. \chapref{ch:part1-discretization-invariance-and-continuum-li}
+then made exact the sense in which a trained network is a continuum object whose
+grid realizations converge to it, \eqref{eq:limit_commute}, and
+\chapref{ch:part1-physics-informed-operators-and-sobolev-reg} aligned the
+training objective with those norms.
+
+None of these results reaches the remaining terms in the error budget of an
+actual surrogate. They are statements about \emph{approximation}, on a
+\emph{compact set}, for \emph{one application}. They say nothing about how many
+paired samples are needed to \emph{find} such a network from data; nothing about
+what happens when the solution leaves the Sobolev scale the proofs require, as
+at a shock; and nothing about what happens when the operator is applied not once
+but $K = T/\Delta t$ times in feedback --- which is how every weather,
+turbulence, or cardiac surrogate in this book is used. Those three
+gaps are the subject of this chapter,\index{open problems} and they are not
+matters of polish. The
+first needs a learning theory in which parameter count no longer
+tracks capacity and in which the samples are fields, not vectors; the
+second needs a substitute for the precompactness that smoothing was providing,
+because at a discontinuity the hypotheses of Theorem~\ref{thm:fno_convergence}
+are violated rather than merely tight; the third needs dynamical systems results
+--- absorbing sets, invariant measures, semicontinuity of attractors --- with no
+counterpart in the approximation literature.
+
+The reader should bring three pieces of background: empirical risk
+minimization and covering numbers; entropy solutions of scalar conservation
+laws; and the vocabulary of discrete dynamics (attractors, Lyapunov exponents,
+invariant
+measures). Section~\ref{sec:ch09-sample-complexity} treats sample complexity and
+the ``curse of regularity'' that replaces the finite-dimensional curse of
+dimensionality; Section~\ref{sec:ch09-shocks} computes how much of the
+Part~I machinery survives a jump discontinuity; Section~\ref{sec:ch09-rollouts}
+does the same for long autoregressive rollouts. This chapter introduces no new
+architecture and proves nothing Parts~II and~III depend on; it states what
+the book has not established, so that what follows is read with correct
+expectations.
+
+% -----------------------------------------------------------------------------
+\section{Sample Complexity and the Curse of Regularity}
+\label{sec:ch09-sample-complexity}
+% -----------------------------------------------------------------------------
+
+Fix an input probability measure $\mu$ on $\mathcal{A}$ and suppose we are handed
+$n$ paired samples $\{(a_i,\mathcal{G}(a_i))\}_{i=1}^n$, each field stored on a
+grid $\mathcal{M}_N$. Write $\mathcal{R}(\tilde{\mathcal{G}}) =
+\mathbb{E}_{a\sim\mu}\|\tilde{\mathcal{G}}(a)-\mathcal{G}(a)\|^2_{L^2(\Omega)}$
+for the population risk and $\hat{\mathcal{R}}$ for the empirical risk over
+those $n$ samples. Fix a hypothesis class $\mathcal{H}$ of candidate operators,
+and write $\mathcal{N}(\varepsilon,\mathcal{H},L^{2}(\mu))$ for the number of
+balls of radius $\varepsilon$ in the $L^{2}(\mu)$ metric that suffice to cover
+it. Symmetrization gives, up to an absolute constant and for
+bounded or sub-Gaussian losses, the bound
+\begin{equation}
+  \|\hat{\mathcal{G}}-\mathcal{G}\|_{L^2(\mu)}
+  \;\le\;
+  2\underbrace{\inf_{\tilde{\mathcal{G}}\in\mathcal{H}}\|\tilde{\mathcal{G}}-\mathcal{G}\|_{L^2(\mu)}}_{\text{approximation}}
+  \;+\;
+  2\underbrace{\Big(\varepsilon+\sqrt{\tfrac{\log \mathcal{N}(\varepsilon,\,\mathcal{H},\,L^2(\mu))}{n}}\Big)}_{\text{estimation, any }\varepsilon>0}.
+  \label{eq:ch09-risk}
+\end{equation}
+\index{sample complexity}\index{covering number}\index{estimation error!vs. approximation error}
+Here $\hat{\mathcal{G}}$ is a minimizer of $\hat{\mathcal{R}}$ over
+$\mathcal{H}$. The first term is precisely what
+\chapref{ch:part1-operator-approximation-theory-and-universa}
+and \chapref{ch:part1-the-fourier-neural-operator-spectral-theor} bound; nothing
+more is needed there. The second term is where infinite dimensionality asserts
+itself. In
+$\mathbb{R}^d$ the $\varepsilon$-covering number of a ball scales as
+$\varepsilon^{-d}$, so estimation error costs $\sqrt{d/n}$ up to logarithms: the
+ambient dimension enters, and enters mildly. In a function space the analogous
+quantity is finite only on sets that are compact in the metric being measured,
+and for the unit ball $B_{H^s}$ of the Sobolev scale of
+\chapref{ch:part1-function-spaces-duality-and-sobolev-regula}
+the asymptotics are
+\begin{equation}
+  \log \mathcal{N}(\varepsilon, B_{H^s}, L^2) \sim \varepsilon^{-d/s}.
+  \label{eq:ch09-entropy}
+\end{equation}
+\index{curse of dimensionality!in function space}\index{metric entropy}
+Balancing the two contributions in \eqref{eq:ch09-risk} --- setting
+$\varepsilon \approx \varepsilon^{-d/(2s)}n^{-1/2}$ --- gives the accuracy a
+uniform consistency argument can deliver from $n$ samples,
+\begin{equation}
+  \varepsilon_n \asymp n^{-s/(2s+d)},
+  \qquad\text{i.e.}\qquad
+  \mathcal{R}(\hat{\mathcal{G}}) = O\!\left(n^{-2s/(2s+d)}\right).
+  \label{eq:ch09-rate}
+\end{equation}
+The quantity that plays the role of the dimension is not $d$ but $d/s$: the
+exponent is set by how many derivatives the data measure controls, not by how
+many coordinates the PDE writes down. It is therefore better to speak
+of a \emph{curse of regularity} than of a curse of dimensionality in function
+space.\index{curse of regularity} In two dimensions, a class with one square
+integrable derivative ($s=1$) yields $\varepsilon_n \sim n^{-1/4}$; a class with
+jumps, which Section~\ref{sec:ch09-shocks} shows to lie in $H^s$ only for
+$s<1/2$, yields $n^{-1/6}$; and as $s\downarrow 0$ the polynomial exponent
+disappears.
+
+\begin{assumption}[Compact data measure]
+\label{ass:ch09-compact}
+The measure $\mu$ in \eqref{eq:ch09-risk} is supported on a set $K\subset
+\mathcal{A}$ whose $\varepsilon$-entropy in the input norm satisfies
+\eqref{eq:ch09-entropy} for some $s>0$.
+\end{assumption}
+Assumption~\ref{ass:ch09-compact} is not a formality: it is the statistical twin
+of the compactness hypothesis $K\subset\mathcal{A}$ compact in
+Theorem~\ref{thm:no_universality}, and both are supplied by the same smoothing
+properties catalogued in \chapref{ch:part1-partial-differential-equations-as-solution}.
+For measures carrying only an $L^2$ moment ($s=0$) the right-hand side of
+\eqref{eq:ch09-entropy} is infinite, no bound of the form \eqref{eq:ch09-rate}
+is available, and one must fall back on non-uniform or Bayesian formulations, as
+in \cite{stuart2010inverse}.
+
+What exactly is missing is worth naming separately, because the three pieces
+have different characters. \emph{First, upper bounds of the right shape.}
+Approximation bounds expressed through the compactness of the input set exist for
+both principal architectures \cite{kovachki2021universal,lanthaler2022error}, and
+\cite{lanthaler2022error} also attaches a statistical term explicit in the
+parameter count and in the Lipschitz constants of the realization. What is
+lacking is a bound for the operators Parts~II and~III learn ---
+viscous and inviscid Burgers, Darcy flow, two-dimensional Navier--Stokes
+vorticity --- whose approximation term is the spectral rate of
+Theorem~\ref{thm:fno_convergence} and whose estimation term is explicit in depth
+$L$, channel count $d_v$, and mode cutoff $k_{\max}$ rather than in a generic
+class $\mathcal{H}$ whose size the existence theorems leave unconstrained
+(Remark~\ref{rmk:ch09-universality}). \emph{Second, lower bounds.} For finite-dimensional
+nonparametric regression, matching minimax lower bounds are classical; for
+operator classes nothing of the form ``no estimator given $n$ paired grid
+samples from this class incurs error less than $\cdots$'' is known. Without
+them, we cannot tell whether \eqref{eq:ch09-rate} is an artifact of the entropy
+argument or a fact about the problem.\index{minimax lower bounds} The cleanest existing decomposition of
+this kind of error budget is in a linear, exactly tractable model
+\cite{subedi2024controlling}. \emph{Third, resolution-freeness.} The samples
+entering the estimation term of \eqref{eq:ch09-risk} are stored at $N$ grid
+points each, so a
+naive reading suggests that refining the grid improves that term. But
+the $N$ values of one realization are strongly dependent, and the number of
+effectively independent quantities in $a|_{\mathcal{M}_N}$ is set by
+\eqref{eq:ch09-entropy}, not by $N$. A bound in which the estimation term
+depends on the parameter count and the entropy of $\mu$ but not on $N$ would
+turn the flatness of the error across mesh densities in
+Figure~\ref{fig:super_resolution} --- constant relative error as the evaluation
+grid varies for a model trained at a single resolution, the phenomenon such a
+bound is meant to explain\index{discretization invariance!and generalization bounds} --- from an observation into a theorem.
+There is structural reason to expect such a bound: the FNO parameter count
+\begin{equation}
+  P \asymp L\,d_v^{2}\,(2k_{\max}+1)^{d}
+  \label{eq:ch09-paramcount}
+\end{equation}
+\index{parameter count!of a Fourier neural operator}
+contains no grid size, as the implementation of
+\chapref{ch:part2-fourier-neural-operators-fno-from-scratch} makes visible, and
+the gap between the grid network and its continuum realization is separately
+controlled, at the algebraic rate \eqref{eq:ch06-rate} of
+\chapref{ch:part1-discretization-invariance-and-continuum-li}. An architecture that attaches
+a learnable bias per grid point carries $N$ degrees of freedom per
+channel, so it forfeits the grid independence of \eqref{eq:ch09-paramcount} and
+must be excluded from any such statement.
+
+\begin{remark}[Universality without efficiency]
+\label{rmk:ch09-universality}
+Theorems~\ref{thm:chen_chen} and \ref{thm:no_universality} assert the
+\emph{existence} of a network with error below $\varepsilon$; neither bounds the
+$L$, $d_v$, or $k_{\max}$ needed to reach it, neither says the minimizer lies in
+the region an optimizer searches, and neither constrains the estimation term of
+\eqref{eq:ch09-risk} at all. Reading an existence theorem as a training
+guarantee is the most common misuse of Part~I, and \eqref{eq:ch09-rate} is the
+first place where a rate in $n$ rather than in $\varepsilon$ appears.
+\index{universal approximation!limits of}
+\end{remark}
+
+% -----------------------------------------------------------------------------
+\section{Discontinuities: Shock Propagation and the Gibbs Phenomenon}
+\label{sec:ch09-shocks}
+% -----------------------------------------------------------------------------
+
+\chapref{ch:part1-partial-differential-equations-as-solution} observed that the
+viscous Burgers equation $\partial_t u + u\,\partial_x u = \nu\,\partial_{xx}u$
+on the torus $\mathbb{T}$ maps initial data $u_0\in L^2(\mathbb{T})$ into
+$H^s(\mathbb{T})$ for every $s>0$ when $\nu>0$, and that as $\nu\to 0^+$ steep
+gradients form and energy is transferred to arbitrarily high spatial
+frequencies. With viscosity present, everything Part~I needs is available: the
+operator smooths, the smoothing order $\alpha$ of
+Theorem~\ref{thm:fno_convergence} is positive, and $k_{\max}^{-\alpha}$ decays.
+In the inviscid limit the solution develops true
+jump discontinuities and must be selected by an entropy condition, and the
+machinery no longer applies;\index{entropy condition} the finite-volume literature is the reference for
+this regime \cite{leveque2002finite}.
+
+The failure is computable. Take the model discontinuity
+$u = \mathbf{1}_{[0,1/2]}$ on $\mathbb{T}=[0,1)$ and let $P_{k_{\max}}$ denote
+the $L^2$ orthogonal projection onto the modes $|k|\le k_{\max}$, the projection
+used in the proof of Theorem~\ref{thm:fno_convergence}.
+
+\begin{proposition}[Spectral tail of a jump]
+\label{prop:ch09-jump}
+For $u=\mathbf{1}_{[0,1/2]}$ one has $\hat{u}(0)=\tfrac12$ and, for $k\ne 0$,
+$\hat{u}(k) = (1-e^{-\pi i k})/(2\pi i k)$,
+hence $|\hat{u}(k)| = (\pi|k|)^{-1}$ for odd $k$ and $\hat{u}(k)=0$ for even
+$k$. Consequently
+\begin{equation}
+  \|u - P_{k_{\max}} u\|_{L^2(\mathbb{T})}^{2}
+  = \sum_{|k|>k_{\max}}|\hat{u}(k)|^{2}
+  \;\le\; \frac{2}{\pi^{2}k_{\max}},
+  \qquad\text{so}\qquad
+  \|u-P_{k_{\max}}u\|_{L^2(\mathbb{T})} \le \frac{\sqrt{2}}{\pi}\,k_{\max}^{-1/2},
+  \label{eq:ch09-jump-tail}
+\end{equation}
+and $u\in H^s(\mathbb{T})$ if and only if $s<\tfrac12$.
+\end{proposition}
+\begin{proof}
+Direct integration over $[0,1/2]$ gives $\hat{u}(k)$, and
+$|1-e^{-\pi i k}| = |1-(-1)^k|$ is $2$ for odd $k$ and $0$ for even $k$. Parseval
+identifies the squared $L^2$ error with the tail sum, and
+$\sum_{|k|>k_{\max}}k^{-2}\le 2/k_{\max}$ for $k_{\max}\ge1$ gives
+\eqref{eq:ch09-jump-tail}.
+Membership in $H^s$ requires
+$\sum_k (1+k^2)^s|\hat u(k)|^2 \asymp \sum_{k\ \mathrm{odd}} k^{2s-2}<\infty$,
+i.e. $2s-2<-1$.
+\end{proof}
+\index{Gibbs phenomenon}\index{spectral truncation!failure at discontinuities}
+
+Two conclusions follow from Proposition~\ref{prop:ch09-jump}, of different
+severity. The first is a rate:
+$|\hat{u}(k)|\sim|k|^{-1}$ is the sharp decay a function of bounded variation can
+be forced to have --- membership in $L^2$ alone asks only that
+$\sum_k|\hat{u}(k)|^2$ converge, and fixes no pointwise rate at all --- and the
+tail it leaves behind decays like $k_{\max}^{-1/2}$, so the rate
+$k_{\max}^{-\alpha}$ of
+Theorem~\ref{thm:fno_convergence} must be read with $\alpha\le\tfrac12$ at a
+shock, and its constant $C_1$, priced by the $H^s$ norm of the target field for
+$s<\tfrac12$, blows up as $s\uparrow\tfrac12$.
+By \eqref{eq:ch09-entropy} the same penalty transfers to statistics: a data
+measure whose samples contain fronts has small $s$, and the achievable
+accuracy \eqref{eq:ch09-rate} degrades accordingly. The second conclusion is an
+obstruction, not a rate. For $M\ge1$ let $S_M u=\mathcal{F}^{-1}(P_M\mathcal{F}u)$
+denote the truncation of $u$ to the modes $|k|\le M$, the operator just used with
+$M=k_{\max}$. Then for a piecewise smooth $u$ with jump
+$[u]=u(x_0^+)-u(x_0^-)$ and midpoint $m=\tfrac12(u(x_0^+)+u(x_0^-))$,
+\begin{equation}
+  \lim_{M\to\infty}\ \sup_{x_0<x<x_0+c/M} S_M u(x)
+  \;=\; m + [u]\cdot\frac{1}{\pi}\int_0^{\pi}\frac{\sin t}{t}\,dt
+  \;=\; m+\Big(\tfrac12 + 0.08949\ldots\Big)[u],
+  \label{eq:ch09-gibbs}
+\end{equation}
+for a suitable constant $c>0$; the Wilbraham--Gibbs overshoot\index{Wilbraham--Gibbs constant} is a fixed
+$8.9\%$ of the jump height, confined to a layer of width $O(1/M)$ but of a
+height that does not shrink with $M$. Since the
+spectral branch of the FNO layer \eqref{eq:fno_layer} is exactly a trigonometric
+polynomial of degree $k_{\max}$, it cannot converge in $L^\infty$ to a
+discontinuous target. The pointwise bypass and the activation can carry a jump
+forward from the input, so a trained network is not excluded from representing a
+shock; what is excluded is doing so \emph{through the cheap, global,
+$\mathcal{O}(N\log N)$ path} that makes the architecture efficient in the first
+place. The Sobolev-regularized objective of
+\chapref{ch:part1-physics-informed-operators-and-sobolev-reg} inherits it too:
+$L^\infty$ is controlled only through an embedding requiring $s>d/2$,
+the one regularity \eqref{eq:ch09-jump-tail} denies a discontinuous field.
+
+Why, then, do the benchmarks of \chapref{ch:part2-canonical-pde-benchmarks-and-reference-wor}
+report relative $L^2$ errors below $1.5\%$ for Burgers once the shock has
+formed, on $N=128$ grids? Because that metric is forgiving of
+exactly the failure \eqref{eq:ch09-gibbs} describes: an overshoot of fixed
+height on a set of measure $O(1/M)$ contributes $O(M^{-1/2})$, vanishing as $M$
+grows, and a unit jump displaced by $\delta$ contributes
+$\|u(\cdot+\delta)-u\|_{L^2}=\sqrt{2\delta}$, small for sub-grid displacement.
+Both defects are invisible in aggregate energy yet physically wrong --- a
+saturation ringing outside $[0,1]$, an interface at the wrong place --- and no
+$L^2$ number reports either. That is the substance of Part~III's finding
+that a plain FNO struggles with sharp saturation fronts and needs a multi-scale
+variant \cite{wen2022ufno}. \index{Burgers equation!inviscid limit}\index{shock wave}
+
+The deepest difficulty is not the rate but the loss of compactness. The reason
+\chapref{ch:part1-function-spaces-duality-and-sobolev-regula} can offer
+precompact images is smoothing; the inviscid entropy solution operator supplies
+no smoothing in $L^2$. What it does supply is a different pair of spaces: for
+scalar conservation laws the entropy solution semigroup is a contraction in
+$L^1$, and uniform bounds on total variation give precompactness in $L^1$ by
+Helly's selection theorem; the finite-volume literature develops both facts
+\cite{leveque2002finite}. Stating the open problem
+\index{bounded variation}
+sharply: \emph{rebuild \eqref{eq:ch09-entropy}, and then
+Theorem~\ref{thm:no_universality}, over the pair $(BV, L^1)$ instead of $(H^s,
+L^2)$}, with three requirements attached, where $BV$ denotes the space of
+functions of bounded variation. First, a compactness hypothesis that
+is satisfied by the inviscid solution operators rather than their viscous
+regularizations. Second, architectures allowed to output $BV$ functions without
+ringing, which is what the three standard remedies aim at --- nonlinear
+filtering, wavelet representations, adaptive framelet decompositions.
+\index{wavelet representations}\index{framelet decompositions}
+The asymmetry is worth stating exactly, because it is what an adaptive basis
+buys: by \eqref{eq:ch09-jump-tail} a single jump reaches every band-limited mode,
+whereas in a localized multiscale basis only the $O(1)$ basis functions whose
+support meets the interface are affected at each scale, so of the $O(k_{\max})$
+functions of a dictionary matched to the same finest resolution only
+$O(\log k_{\max})$ are contaminated by the discontinuity. This is the regime
+where adapting the representation, not the mesh, is the lever. Adapting the mesh
+alone, as graph-based operators do \cite{li2023geometry}, or reorganizing the
+channel structure of a spectral layer by factorizing its multiplier array, buys
+geometric or parameter-count flexibility but no additional regularity, and leaves
+\eqref{eq:limit_commute} --- which asserts consistency, not accuracy ---
+untouched. Third, a training signal that selects the entropy solution rather
+than any weak solution: the physics-informed residual loss \eqref{eq:pino_loss}
+of \chapref{ch:part1-physics-informed-operators-and-sobolev-reg} penalizes
+$\mathcal{N}(\mathcal{G}_\theta(a);a)$ in a negative or $L^2$-type norm, and
+every weak solution satisfies that residual condition, so an entropy inequality
+must be added; whether doing so buys convergence to the physically selected
+solution is open.
+
+% -----------------------------------------------------------------------------
+\section{Infinite Time Horizons: Stability of Autoregressive Rollouts}
+\label{sec:ch09-rollouts}
+% -----------------------------------------------------------------------------
+
+For evolutionary problems the operator of interest is the time-$\Delta t$ map
+$\mathcal{G}_{\Delta t}: u(t)\mapsto u(t+\Delta t)$, applied recursively so that
+$u(T) = \mathcal{G}_{\Delta t}^{K}u_0$ with $K=T/\Delta t$. Every application in
+this book uses this form: the weather surrogate advances six-hour steps over
+days, the cardiac model is unrolled over long temporal horizons to track
+reentrant spiral waves, and the training
+recipes of \chapref{ch:part2-training-regimes-optimization-and-failure-} exist
+because naive feedback diverges. The pathwise error obeys an estimate that is
+elementary and carries all the difficulty. Let $\mathcal{G}_\theta$ be the
+trained network standing in for $\mathcal{G}_{\Delta t}$, let
+$v_{k+1}=\mathcal{G}_\theta(v_k)$ be the network trajectory and $u(t_k)$ the exact
+one at $t_k=k\Delta t$, let $e_k=\|v_k-u(t_k)\|$ with every norm below taken in
+$L^2(\Omega)$, and let
+\begin{equation}
+  \tau \;=\; \sup_{k}\ \big\|\mathcal{G}_{\theta}\big(u(t_k)\big)-u(t_{k+1})\big\|
+  \qquad\text{and}\qquad
+  \Lambda_\theta \;=\; \sup_{v\ne w}\frac{\|\mathcal{G}_\theta(v)-\mathcal{G}_\theta(w)\|}{\|v-w\|}.
+  \label{eq:ch09-onesided}
+\end{equation}
+The triangle inequality gives $e_{k+1}\le \Lambda_\theta e_k+\tau$, hence by
+induction the discrete Gr\"onwall bound
+\begin{equation}
+  e_K \;\le\; \Lambda_\theta^{K}e_0 \;+\; \tau\,\frac{\Lambda_\theta^{K}-1}{\Lambda_\theta-1},
+  \qquad\text{and}\qquad
+  e_K \le e_0 + K\tau\ \ \text{if}\ \ \Lambda_\theta=1.
+  \label{eq:ch09-gronwall}
+\end{equation}
+\index{autoregressive rollout}\index{Gr\"onwall inequality}
+Everything useful, and nothing proved, lives in $\Lambda_\theta$: a supremum over
+pairs of functions, as hard to evaluate as the dynamics it prices, whose upper
+bound Proposition~\ref{prop:ch09-lip} makes an explicit functional of the
+weights.
+
+\begin{proposition}[An explicit Lipschitz bound for a band-limited realization]
+\label{prop:ch09-lip}
+Let $\mathcal{G}_\theta=\mathcal{Q}\circ\mathcal{V}_{L-1}\circ\cdots\circ\mathcal{V}_0\circ\mathcal{P}$
+be an FNO on $L^2(\mathbb{T}^d;\mathbb{R}^{d_v})$, with $\mathcal{V}_\ell$ the
+layer of \eqref{eq:fno_layer}, elementwise activation of
+Lipschitz constant $\ell_\sigma$, local maps $W_\ell$, spectral symbols
+$R_{\phi,\ell}$ supported on $Z_{k_{\max}}$, and lift $\mathcal{P}$ and
+projection $\mathcal{Q}$ with
+Lipschitz constants $\Lambda_{\mathcal{P}}$ and $\Lambda_{\mathcal{Q}}$. Then, with
+$\|\cdot\|_2$ the matrix spectral norm,
+\begin{equation}
+  \Lambda_\theta
+  \;\le\;
+  \Lambda_{\mathcal{P}}\Lambda_{\mathcal{Q}}
+  \prod_{\ell=0}^{L-1}\ell_\sigma\Big(\|W_\ell\|_2+\sup_{k\in Z_{k_{\max}}}\|R_{\phi,\ell}(k)\|_2\Big).
+  \label{eq:ch09-lipschitz}
+\end{equation}
+\end{proposition}
+\begin{proof}
+Plancherel turns the spectral branch into a fiberwise multiplication:
+$\|\mathcal{F}^{-1}(R(k)\widehat{v}(k))\|_{L^2}^2=\sum_k\|R(k)\widehat{v}(k)\|_2^2
+\le \sup_k\|R(k)\|_2^2\,\|v\|_{L^2}^2$. The bypass $W_\ell v$ contributes
+$\|W_\ell\|_2\|v\|_{L^2}$, the bias is additive, and an elementwise Lipschitz
+activation is Lipschitz on $L^2$ with the same constant. Multiplying the
+per-layer constants and chaining the affine lift and projection proves
+\eqref{eq:ch09-lipschitz}.
+\end{proof}
+
+\index{Lyapunov stability}\index{global attractor}
+Equation~\eqref{eq:ch09-lipschitz} can be evaluated at any point in training, yet
+no loss in this book controls it: weight decay penalizes the individual factors,
+not the product across $L$ layers, and the objective is indifferent to
+whether the composed map expands or contracts. It is tempting to answer by
+requiring $\Lambda_\theta<1$, which by \eqref{eq:ch09-gronwall} bounds the error
+uniformly in $K$. That answer is not merely conservative; it is
+structurally wrong for the systems Part~III simulates.
+\chapref{ch:part1-partial-differential-equations-as-solution} recorded, as a
+hypothesis rather than a result proved there, that
+two-dimensional Navier--Stokes flow in vorticity--streamfunction form possesses a
+finite-dimensional global attractor\index{Navier--Stokes equations!global attractor} and maps bounded $L^2$ sets into compact
+smooth subsets. Dissipativity of that kind contracts \emph{volumes} in phase
+space, not \emph{distances}: the leading Lyapunov
+exponents of the time-$\Delta t$ map are positive --- nearby states separate
+exponentially, which is why forecasts have a horizon --- while their sum over
+sufficiently many directions is negative, which is why trajectories settle onto
+a finite-dimensional attractor. A network with $\Lambda_\theta<1$ cannot
+reproduce the first half of that sentence. The requirement that the learned
+discrete dynamical system inherit the dissipative structures and Lyapunov
+stability of the original PDE attractor, without which climate and turbulence
+forecasting is impossible, therefore cannot be met by a normwise contraction.
+\index{dissipative estimate}
+
+What is needed is dissipative rather than contractive, and the natural candidate
+is an absorbing estimate in a norm the architecture can control:
+\begin{equation}
+  \big\|\mathcal{G}_\theta(v)\big\|_{H^r} \;\le\; a\,\|v\|_{H^r}+b,
+  \qquad a<1
+  \;\;\Longrightarrow\;\;
+  \sup_{k\ge 0}\|v_k\|_{H^r}\le \max\Big(\|v_0\|_{H^r},\,\tfrac{b}{1-a}\Big).
+  \label{eq:ch09-absorbing}
+\end{equation}
+The implication is a one-line iteration. Precompactness of the image, however, is
+not free: the spectral branch is finite rank, but the local bypass $W_\ell v$
+transmits a full-resolution copy of the state, so compactness has to be bought
+from the estimate itself --- an absorbing bound in $H^{r}$ strictly above the
+norm in which the dynamics are measured, then injected down by the
+Rellich--Kondrachov compactness of
+\chapref{ch:part1-function-spaces-duality-and-sobolev-regula}, is what makes the
+image precompact. Given both, the classical criterion --- point dissipation plus
+asymptotic compactness yields a compact global attractor --- gives the network
+an attractor $\mathcal{A}_\theta$ inside the absorbing ball of
+\eqref{eq:ch09-absorbing}. Two things
+then remain unproved, and they are the problem. (i) The superposition map
+$v\mapsto\sigma(v)$ is bounded on $H^r$ for
+\index{superposition operator}
+$0<r<1$ when $\sigma$ is Lipschitz, but at higher regularity composition demands
+differentiability of $\sigma$ that the piecewise-linear activations of Part~II do
+not have, though a smooth activation such as $\tanh$ does, so
+\eqref{eq:ch09-absorbing} must be imposed in the strongest norm in which it can
+be verified --- for the architectures of Part~II typically $L^2$ or $H^1$, and
+whether that suffices in three dimensions touches the unresolved regularity
+theory of Navier--Stokes itself. (ii) Existence of
+$\mathcal{A}_\theta$ says nothing about its relation to the PDE attractor
+$\mathcal{A}$: upper semicontinuity, $\mathrm{dist}(\mathcal{A}_\theta,\mathcal{A})\to 0$,
+requires the approximation to hold in a \emph{neighborhood} of $\mathcal{A}$ with
+rate control on the approach to it, and Theorem~\ref{thm:no_universality}
+constrains only the sup over a prescribed compact set for a single application;
+lower semicontinuity --- that the learned
+system does not lose part of the true attractor --- requires recurrence
+properties of $\mathcal{G}_\theta$ that no architecture-level result provides.
+
+\index{invariant measure}\index{statistical stability}
+For a turbulent or climatic surrogate the reported quantity is typically not
+$e_K$ at all but the long-time average of a scalar observable $\varphi$ of the
+state, and the right error budget is then
+\begin{equation}
+  \left|\frac{1}{K}\sum_{k=0}^{K-1}\varphi(v_k)\;-\;\int\varphi\,d\nu\right|
+  \;\le\;
+  \underbrace{\left|\int\varphi\,d\nu_\theta-\int\varphi\,d\nu\right|}_{\text{bias of the learned invariant measure}}
+  \;+\;
+  \underbrace{\left|\frac1K\sum_k\varphi(v_k)-\int\varphi\,d\nu_\theta\right|}_{\text{fluctuation, governed by mixing}},
+  \label{eq:ch09-weak}
+\end{equation}
+where $\nu$ is the physical invariant measure and $\nu_\theta$ one for the
+learned map, furnished on the absorbing ball of \eqref{eq:ch09-absorbing} by a
+Krylov--Bogolyubov argument, uniquely or not. The bias term in
+\eqref{eq:ch09-weak} is a \emph{weak} error: it can be small when the pathwise
+error \eqref{eq:ch09-gronwall} is exponentially large, because two chaotic
+trajectories on the same attractor diverge while sharing its statistics. Making
+this precise requires statistical stability of $\theta\mapsto\nu_\theta$,
+established in detail for expanding one-dimensional maps and
+essentially open for deterministic function-space maps that are neither uniformly
+hyperbolic nor contractive.
+Part~III's headline numbers sit on the wrong side of this gap: the
+anomaly correlation reported for a six-hour step operator rolled out beyond day
+seven \cite{pathak2022fourcastnet} is a spatial correlation of two fields at one
+lead time, and nothing
+in Part~I licenses extrapolating it to the $K\to\infty$ regime that climate
+applications demand.\index{weather forecasting!error over long horizons}
+
+The engineering response, developed in
+\chapref{ch:part2-training-regimes-optimization-and-failure-} and
+Appendix~\ref{app:d}, is
+to train on the network's own unrolled trajectories rather than on teacher-forced
+steps --- pushforward regularization,\index{pushforward regularization} which adds terms
+$\sum_{k}\lambda_k\|\mathcal{G}_\theta^{k}(u_0)-u(k\Delta t)\|^2_{L^2}$ to the
+loss. It works empirically, and the intuition is right: it moves the
+guarantee from single applications of $\mathcal{G}_\theta$ to its
+powers, which is where \eqref{eq:ch09-gronwall} says the error is born. What it
+lacks is any theorem relating the weights $\lambda_k$, the unrolled horizon $K$,
+the truncation error $\tau$ of \eqref{eq:ch09-onesided}, and the
+Lipschitz product \eqref{eq:ch09-lipschitz}. Stating that relation --- what
+condition on $(\lambda_k,K)$ makes training to horizon $K$ imply bounded error to
+horizon $\alpha K$, or the existence of an invariant measure close to $\nu$ ---
+is the most concrete of the three problems here and the one most tightly
+constrained by available compute.
+
+\takeaway{Summary of Part I}{Operator learning lifts machine learning from
+Euclidean vectors to infinite-dimensional function spaces. Formalizing neural
+operators as compositions of local linear maps and non-local integral kernels
+buys approximation guarantees for the Fourier neural operator and DeepONet:
+universality on compact sets, spectral convergence rates for smooth solution
+operators, and discretization invariance in the continuum limit. The
+corresponding statements about estimation from finite data, about discontinuous
+solutions, and about infinite time horizons are the open problems catalogued
+above.}
+
+% -----------------------------------------------------------------------------
+% Bridge to Part II
+% -----------------------------------------------------------------------------
+Part~I ended where the guarantees do: a network exists that approximates the
+solution operator on a compact, smooth, single-step set, and we do not know how
+many samples find it, what it does to a jump, or what it does after ten thousand
+applications. Those three absences are not reasons to stop; they are the
+specification for what follows. Part~II of this book, opening with
+\chapref{ch:part2-the-practitioner-s-paradigm-infinite-dimen}, turns the
+continuum object into tensor programs that run on graphics processing units
+(GPUs): batched channel-first layouts for fields, positional coordinate
+embedding, relative $L^2$ losses that are invariant to grid density, and
+pointwise normalization across an ensemble --- each the grid-level counterpart
+of a continuum object from Part~I, and each a place where the
+assumptions of this chapter become visible in code. The unrolled loss discussed
+in Section~\ref{sec:ch09-rollouts} appears there as a training recipe rather than
+a theorem, the truncation priced by \eqref{eq:ch09-jump-tail} appears as a choice
+of \texttt{modes}, and the Lipschitz product \eqref{eq:ch09-lipschitz} appears as
+a divergence the practitioner must notice by hand. Read Part~II, therefore, as
+the empirical counterpart of a theory that is deliberately incomplete: what
+follows is not a workaround for the gaps in \eqref{eq:ch09-risk},
+\eqref{eq:ch09-gibbs}, and \eqref{eq:ch09-gronwall}, but the set of engineering
+decisions one must make while those three problems remain open.
+
+\vspace{1.5em}

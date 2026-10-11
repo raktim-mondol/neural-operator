@@ -1,0 +1,98 @@
+% NOTATION -- master table, complete. The functional-analysis and spectral-
+% truncation symbols of Part I, among them the retained mode set Z_{k_max} and
+% the smoothing order alpha of Ch. 5, whose Appendix B diffusivity namesake is
+% disambiguated in the same row; the tensor-layout symbols of Part II, used by
+% Chapters 10--16; and the physical symbols of Part III, used by
+% Chapters 17--24. Every symbol whose name is reused across parts carries its
+% ambiguity in its own row, as the chapters themselves print it.
+\chapter*{Notation and Conventions}
+\addcontentsline{toc}{chapter}{Notation and Conventions}
+\markboth{Notation and Conventions}{Notation and Conventions}
+
+Symbols are used consistently throughout the book. The conventions below are
+established in Part~I and reused without restatement in Parts~II and~III, where
+the second block of the table records the array conventions every implementation
+is written in and the third the physical quantities the application chapters
+solve for. Where the same letter carries two meanings in different parts, the row
+for the later meaning names the earlier one, so that no symbol in the book has a
+silent double reading.
+
+% {\raggedright\arraybackslash} on the definition column: the cells are narrow
+% single paragraphs and justification leaves rivers and underfull lines in them
+% (pattern used for every other table column in the book).
+{\small
+\begin{xltabular}{\textwidth}{@{}l>{\raggedright\arraybackslash}X@{}}
+\caption{\textbf{Notational conventions: the infinite-dimensional objects, the tensors that realize them, and the physical symbols the applications are written in.}}
+\label{tab:notation-master}\\
+\toprule
+\textbf{Symbol} & \textbf{Mathematical Definition and Context} \\
+\midrule
+\endfirsthead
+\multicolumn{2}{r}{\textit{Table~\ref{tab:notation-master}, continued}}\\
+\toprule
+\textbf{Symbol} & \textbf{Mathematical Definition and Context} \\
+\midrule
+\endhead
+\midrule
+\multicolumn{2}{r}{\textit{Table~\ref{tab:notation-master}, continued on the next page}}\\
+\endfoot
+\bottomrule
+\endlastfoot
+$\Omega \subset \mathbb{R}^d$ & Open, bounded domain with Lipschitz boundary $\partial\Omega$, or flat torus $\mathbb{T}^d$. \\
+$L^p(\Omega; \mathbb{R}^{d_v})$ & Lebesgue space of measurable functions with norm $\|u\|_{L^p} = (\int_\Omega |u(x)|^p dx)^{1/p}$. \\
+$H^s(\Omega) = W^{s,2}(\Omega)$ & Sobolev space of functions whose weak derivatives up to order $s$ reside in $L^2(\Omega)$. \\
+$C^k(\overline{\Omega})$ & Space of $k$-times continuously differentiable functions equipped with uniform norm. \\
+$X, Y, \mathcal{A}, \mathcal{U}$ & Real or complex Banach or Hilbert spaces. \\
+$\mathcal{L}(X, Y)$ & Space of bounded linear operators from $X$ to $Y$ with operator norm $\|T\|_{\mathcal{L}(X,Y)}$. \\
+$\langle \cdot, \cdot \rangle_{X^*, X}$ & Duality pairing between Banach space $X$ and its continuous topological dual $X^*$. \\
+$\mathcal{F}, \mathcal{F}^{-1}$ & Continuous or discrete Fourier transform and its inverse. \\
+$\mathbb{T}^d \cong [0, 1)^d$ & $d$-dimensional periodic torus identifying opposite boundaries. \\
+$D^\alpha u$ & Weak partial derivative for multi-index $\alpha \in \mathbb{N}_0^d$. \\
+$\mathcal{M}_N = \{x_j\}_{j=1}^{N}$, $P_N$ & A discretization of $\Omega$ and the restriction operator sending $a$ to its nodal values; \eqref{eq:ch21-grid-layout} and \eqref{eq:ch21-node-layout} are its two array forms. \\
+$Z_{k_{\max}}$, $k_{\max}$ & The retained mode set of Part~I, $Z_{k_{\max}} = \{k = (k_1, \dots, k_d) \in \mathbb{Z}^d : |k_j| \le k_{\max, j},\ j = 1, \dots, d\}$ of \eqref{eq:ch05-modeset} --- a box rather than the ball $\{|k| \le k_{\max}\}$, because a product of contiguous index ranges is what a batched transform can slice without gathering scattered entries. It contains $|Z_{k_{\max}}| = \prod_{j=1}^d (2k_{\max, j}+1)$ modes, one complex $d_v \times d_v$ multiplier each, and $k_{\max}$ without a subscript denotes the common cutoff, the case assumed in Theorem~\ref{thm:fno_convergence}. The partial sum $P_{k_{\max}}$ of \eqref{eq:ch05-projection} projects onto the span of $Z_{k_{\max}}$, so it is a spectral projection and not the nodal restriction $P_N$ above, and \eqref{eq:ch05-projection-bound} sums its tail over the ball while the retained set is the box --- different index sets, same exponent. Part~II's $Z_m$ of \eqref{eq:ch23-corners} is this same object realized on the half-spectrum, where the two corners carry the cutoffs $m_x, m_y$ in place of the symmetric ranges $|k_j| \le k_{\max, j}$. \\
+$\alpha$ & The smoothing order, or regularity gain, of an operator: Theorem~\ref{thm:fno_convergence} assumes $\mathcal{G} : H^s(\mathbb{T}^d; \mathbb{R}^{d_a}) \to H^{s+\alpha}(\mathbb{T}^d; \mathbb{R}^{d_u})$ with $\alpha > 0$, and that gain of derivatives is what makes $\mathcal{G}(K)$ precompact for a bounded $K$ and sets the exponent of the truncation term $C_1 k_{\max}^{-\alpha}$ in \eqref{eq:ch05-error-decomposition} --- the conservative rate, since a single field with $\|w\|_{H^{s+\alpha}}$ bounded loses $k_{\max}^{-(s+\alpha)}$ in \eqref{eq:ch05-projection-bound}. It is a hypothesis about the operator being learned, not a property of the architecture. Not the diffusivity $\alpha = 0.01$ of the periodic heat equation \eqref{eq:appb-pde} in Appendix~\ref{app:b}: there $\alpha$ is a coefficient of the equation, and the mode damping $e^{-\alpha (2\pi k)^2 T}$ of its solution operator \eqref{eq:appb-multiplier} decays faster than any power of $k$, so that number is not the smoothing order of the operator it defines. Nor the multi-index $\alpha \in \mathbb{N}_0^d$ of $D^\alpha u$ above. Three further readings are in use locally: the H\"older exponent of $C^{j,\alpha}$ in the supercritical Sobolev embedding, the miss level $\alpha$ of a conformal interval of coverage $1-\alpha$ in Part~III, and the rollout-horizon multiple $\alpha K$ of Part~II's pushforward training. \\
+\midrule
+\multicolumn{2}{l}{\textit{Tensor-layout conventions of Part~II}}\\
+\addlinespace
+$B$ & Batch size; the leading axis of every tensor, and the only one carrying no operator semantics. \\
+$C$ & Channel axis of a grid tensor --- the $d_a$ input or $d_u$ output components of Part~I, per node. \\
+$C_{\text{in}}, C_{\text{out}}$ & Channel counts at the two ends of one layer; \eqref{eq:ch21-augment} raises $C_{\text{in}}$ to $C_{\text{in}} + d$. \\
+$H, W$ & Height and width of a two-dimensional grid; in $d$ dimensions they are the $N_1, \dots, N_d$ of \eqref{eq:ch21-grid-layout}. \\
+$d_v$, $L$ & The lifted channel width --- Part~I's $d_v$ carried through the network as \texttt{hidden\_channels} --- and the number of operator layers. \\
+$N$, $N_{\text{nodes}}$ & Node count $\prod_j N_j$ of a discretization, and the per-sample node count of a mesh layout. \\
+$X \in \mathbb{R}^{B \times C \times N_1 \times \cdots \times N_d}$ & Structured-grid (channel-first) layout; $\prod_j N_j = N$, $C = d_a$ at the input and $C = d_u$ at the output. \\
+$X_{\text{nodes}} \in \mathbb{R}^{B \times N_{\text{nodes}} \times C}$ & Point-cloud (mesh) layout, with $X_{\text{coords}} \in \mathbb{R}^{B \times N_{\text{nodes}} \times d}$ carrying the positions $x_j$. \\
+$w_j$, $\Delta x$ & Quadrature weights --- cell volumes or Voronoi dual areas --- and the spacing of an equispaced grid, $w_j = \Delta x^d$. \\
+$m_x, m_y$ & Retained Fourier modes along $H$ and $W$; written $k_x, k_y$ in Figure~\ref{fig:fno_spectral} and \texttt{modes1}, \texttt{modes2} in the code. \\
+$Z_m$, $R^{(1)}, R^{(2)}$ & The retained mode set of \eqref{eq:ch23-corners} and the two complex weight tensors of \eqref{eq:ch23-Rtensors}, indexed by mode, not by grid point. \\
+$m$, $P$, $p$, $h$ & DeepONet's sensor count, query-point count, latent width (\texttt{latent\_p}), and hidden width (\texttt{hidden\_dim}). \\
+$r$, $\mathcal{N}_r(i)$, $N_{\text{edges}}$ & GNO neighborhood radius, the ball $\mathcal{B}_r(x_i)$ as a node set, and the edge count of \texttt{edge\_index}. \\
+$M$, $\mu(x)$, $\sigma(x)$ & Training-ensemble size and the pointwise mean and standard deviation of \eqref{eq:ch21-normalize}; the $\mu$ elsewhere in the book is the input \emph{measure} they estimate. \\
+\midrule
+\multicolumn{2}{l}{\textit{Physical symbols of Part~III}}\\
+\addlinespace
+$Q$, $Q^{\star}$ & Query count of a multi-query workload and its break-even value, \eqref{eq:ch31-ledger} and \eqref{eq:ch38-crossover}; Part~I writes the same quantity $M$ in \eqref{eq:ch01-cost-bookkeeping}. \\
+$\mathbf{u}$, $\rho$, $\mu$, $\mu_t$ & Velocity and density of the classical solvers Part~III compares against, their molecular viscosity $\mu$ and eddy viscosity $\mu_t$; a subscript $\alpha$ on $\mu_\alpha$ or $\rho_\alpha$ labels a \emph{phase}, not the measure $\mu$ or the mean $\mu(x)$ above. \\
+$\mathbf{K}(x)$, $\phi(x)$ & Heterogeneous permeability tensor and porosity of the two-phase Darcy system \eqref{eq:ch34-cons-w}; $\phi$ there is porosity, while $\phi$ in \eqref{eq:ch33-momentum} is latitude. \\
+$S_w$, $S_g$, $S_{\mathrm{CO}_2}$ & Phase saturations with $S_w + S_g = 1$; $S_{\mathrm{CO}_2}$ is the reservoir-engineering name for the gas saturation $S_g$, used in Figure~\ref{fig:vol3_sub}. \\
+$k_{r\alpha}$, $\lambda_\alpha$, $f_g$, $p_c$ & Relative permeability in $[0,1]$ from the van Genuchten or Brooks--Corey closure, the phase mobility $\lambda_\alpha = k_{r\alpha}/\mu_\alpha$, the fractional flow $f_g$ of \eqref{eq:ch34-mobility}, and the capillary pressure $p_g - p_w$. \\
+$\mathbf{u}_\alpha$, $q_\alpha$, $s$ & Darcy phase flux \eqref{eq:ch34-flux}, the well source or sink, and the front speed of the jump condition \eqref{eq:ch34-rh}, across which $[\,\cdot\,]$ denotes the jump. \\
+$V_m$, $C_m$, $\chi$, $I_{\text{ion}}$, $I_{\text{stim}}$ & Transmembrane voltage, membrane capacitance per unit area, surface-to-volume ratio, and the ionic and stimulus current densities of the monodomain equation \eqref{eq:monodomain}. \\
+$\mathbf{w}$, $k$, $a$, $b$, $\epsilon_0$, $\mu_1$, $\mu_2$ & Recovery variable of \eqref{eq:ch35-recovery} --- distinct from the quadrature weights $w_j$ above --- and the dimensionless Aliev--Panfilov kinetic constants of \eqref{eq:ch35-ion}; the $k$ there is a kinetic parameter, not the mode index of \eqref{eq:ch05-modeset} or the turbulent energy below. \\
+$\mathbf{D}(x)$, $\sigma_l$, $\sigma_t$, $\mathbf{f}_0$ & Cardiac diffusion tensor \eqref{eq:ch35-dtensor} built from longitudinal and transverse conductivities along the fiber direction $\mathbf{f}_0$; $\mathcal{D} = \mathbf{D}/(\chi C_m)$ and $D_{\max} = \max_x \rho_{\max}(\mathcal{D}(x))$ set the step \eqref{eq:ch35-cfl}. \\
+$h$, $\Delta t$, $T$, $W(h,T)$ & Mesh width, time step, simulated horizon, and the discretization work \eqref{eq:ch35-cost}; $h$ here is a length in micrometers, not the DeepONet hidden width of the block above. \\
+$Re$, $U_\infty$, $L$, $\delta$, $y^{+}$, $u_\tau$, $\tau_w$ & Reynolds number \eqref{eq:ch32-reynolds}, freestream speed, body length, boundary-layer thickness, wall-normal distance in viscous units and friction velocity \eqref{eq:ch32-yplus}, and wall shear stress \eqref{eq:ch32-wss}. \\
+$C_d$, $C_l$, $F_d$, $F_l$, $A_{\text{ref}}$ & Drag and lift coefficients with their forces and reference area, defined by the surface integral \eqref{eq:ch32-force-coeff}; $k$ and $\omega$ in the closure \eqref{eq:ch32-reynolds-stress} are turbulent kinetic energy and specific dissipation. \\
+$\mathbf{u}_h$, $w$, $\theta$, $f$, $\Omega_{\text{rot}}$ & Horizontal and vertical wind, potential temperature, Coriolis parameter $f = 2\Omega_{\text{rot}}\sin\phi$, and planetary rotation rate of \eqref{eq:ch33-momentum}--\eqref{eq:ch33-pottemp}; $\theta$ there is a field, not the network parameter of Part~II. \\
+$\mathcal{R}$, $\mathbf{M}$, $\mathcal{A}$, $p(\theta,s)$ & Radon transform, restriction to the $M$ measured view angles, sampled forward operator $\mathcal{A} = \mathbf{M}\mathcal{R}$, and sinogram of \eqref{eq:ch36-radon}, with detector position $s$, detector frequency $\omega$, and moments $m_k$ \eqref{eq:ch36-moment}; this $M$ counts views, not ensemble members. \\
+$\mathrm{ACC}$, $\mathrm{RQE}$, $\mathcal{T}$ & Anomaly correlation \eqref{eq:ch33-acc} and relative quantile error \eqref{eq:ch33-rqe}; $\mathcal{T}(w) = \int_\Omega w\,\mathrm{d}x$ the conserved total whose defect $\Delta_{\mathcal{T}}$ \eqref{eq:ch38-defect} measures. Image quality is reported as PSNR, SSIM, and RMSE in Hounsfield units (HU), \eqref{eq:ch36-metrics}. \\
+\end{xltabular}
+}
+
+% NOTE: the copy of the notation table that once opened Ch. 1 was removed; this
+% front-matter table is the single reference for the whole book.
+% The Part II tensor-layout block and the Part III physical block extend it with
+% the symbols as actually printed in the chapters they name. The two closing
+% rows of the Part I block, for the retained mode set and the smoothing order,
+% follow eq. (5.5) and Theorem 5.2 of Ch. 5 and the use of those symbols in
+% Ch. 2, Ch. 6, Appendix A and Appendix B.

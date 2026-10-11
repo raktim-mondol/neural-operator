@@ -1,0 +1,350 @@
+% APPENDIX A -- Functional-analysis and Sobolev-space reference. Part I of the book:
+% the statements collected here are those of Chapters 2, 4, 5 and 6.
+% STATUS: authored (back-matter pass); adversarially verified entry by entry against Chapters
+% 2-6 -- Lax--Milgram restated on a Hilbert space (coercivity alone does not give
+% surjectivity on a bare Banach space), the redundant 13-row audit table cut with its ledger
+% folded into the entries, the smoothing-gain and mode-set symbols credited to the chapters
+% that define them rather than to the notation table, sigma's double duty disambiguated, and
+% the prose tightened from 2,396 to 1,976 rendered words (1,739 excluding inline-math spans);
+% 22 numbered environments, 62 index entries, every hypothesis checked against the chapter
+% that invokes it.
+% Bibliography pass: the arXiv-only reference behind the discretization-error theorem was
+% deleted, and with it the external cite on that theorem, whose estimate is the book's own
+% \eqref{eq:ch06-rate} derived in \S\ref{sec:ch06-rates}; the general grid-refinement
+% convergence is now cited to kovachki2023neural. Every \cite was moved out of the
+% theorem/definition headers into the statement it supports.
+
+\chapter{Functional-Analysis and Sobolev-Space Reference}\label{app:a}
+
+Part~I states its theorems in a language it does not stop to justify. This appendix collects
+the classical results those theorems invoke, each with the hypotheses Part~I uses and nothing
+stronger: a statement list, not a textbook, with no proofs and no result that Chapters~1--9
+do not use. Where a chapter states no rate, the entry records the silence rather than
+inventing one. Notation follows Table~\ref{tab:notation-master}: $\Omega \subset \mathbb{R}^d$
+with the boundary regularity stated per entry, $\mathbb{T}^d = [0,1)^d$, coefficients
+$\hat{u}(k)$, Sobolev orders $s$ and $t$, hidden width $d_v$, and $\alpha$ and $Z_{k_{\max}}$
+as in Theorem~\ref{thm:fno_convergence} and \eqref{eq:ch05-modeset}; $\sigma$ is the activation
+in \S\ref{sec:appa-universality} and a Sobolev or H\"older exponent only where
+\eqref{eq:ch02-tail} and Proposition~\ref{prop:ch02-sobolev-embeddings} are quoted as printed.
+
+\section{Duality, Pairings, and Well-Posedness}
+\index{Gelfand triple}\index{evolution triple}\index{duality pairing}
+
+\begin{definition}[Gelfand triple]\label{def:appa-triple}
+A reflexive Banach space $V$ densely and continuously injected into a Hilbert space $H$, with
+$H$ identified with $H^*$ by Theorem~\ref{thm:appa-riesz}, gives
+$V \hookrightarrow H \cong H^* \hookrightarrow V^*$, where $\langle \cdot, \cdot
+\rangle_{V^*, V}$ extends the inner product of $H$ and, read in one direction only, a member
+of $V^*$ need not act on a member of $H$ outside $V$. The instance of \eqref{eq:ch02-triple},
+$V = H^1_0(\Omega)$, $H = L^2(\Omega)$, $V^* = H^{-1}(\Omega)$, is the setting of every weak
+form in \chapref{ch:part1-partial-differential-equations-as-solution}.
+\end{definition}
+
+\begin{theorem}[Riesz representation theorem]\label{thm:appa-riesz}
+For a real Hilbert space $H$ and every bounded linear $\ell \in H^*$ there is a unique
+$u_\ell \in H$ with $\ell(v) = \langle u_\ell, v \rangle_H$ for all $v \in H$, and
+$\|\ell\|_{H^*} = \|u_\ell\|_H$ \cite{brezis2011functional}: Theorem~\ref{thm:ch02-riesz-rep}.
+Isometry lets the residual $\mathcal{G}(a) - \mathcal{G}_\theta(a)$ be read as field or as
+functional without changing its size.
+\index{Riesz representation theorem}\index{duality!of Hilbert spaces}
+\end{theorem}
+
+\begin{remark}[Where the identification fails]\label{rem:appa-banach}
+$(L^p)^* \cong L^q$ for $1 \le p < \infty$, $1/p + 1/q = 1$ \cite{brezis2011functional}, and the
+restriction is real: the
+dual of $L^\infty$ strictly contains $L^1$. Reflexivity gives a weakly compact unit ball for
+$1 < p < \infty$; Banach--Alaoglu on $L^\infty = (L^1)^*$ gives weak-$*$ compactness only, so
+an $L^\infty$ bound on Darcy inputs controls no norm-convergent subsequence and fails the
+hypothesis of every universality theorem below.
+\index{Banach--Alaoglu theorem}\index{reflexive space}\index{input measure!$L^\infty$ bounds and compactness}
+\end{remark}
+
+\begin{theorem}[Lax--Milgram]\label{thm:appa-lax-milgram}
+Let $V$ be a real Hilbert space and $B : V \times V \to \mathbb{R}$ bounded,
+$|B(w,v)| \le M\|w\|_V\|v\|_V$, and coercive, $B(v,v) \ge \gamma\|v\|_V^2$. For each
+$\ell \in V^*$ there is a unique $u \in V$ with $B(u,v) = \ell(v)$ for all $v$ and
+$\|u\|_V \le \gamma^{-1}\|\ell\|_{V^*}$ \cite{brezis2011functional, evans2010partial}.
+Part~I takes $V = H^1_0(\Omega)$ with
+$\|v\|_V = \|\nabla v\|_{L^2}$ --- a norm only where Poincar\'e's inequality
+\eqref{eq:ch02-poincare} holds, which needs $\Omega$ bounded in one direction and fails at
+nonzero boundary trace --- $\gamma = a_{\min}$, $M = a_{\max}$ from
+Assumption~\ref{ass:ellipticity}, and $\ell = f \in H^{-1}(\Omega)$, giving Darcy existence,
+uniqueness, and \eqref{eq:ch03-bounded}.
+\index{Lax--Milgram theorem}\index{Poincar{\'e} inequality}\index{coercivity}
+\end{theorem}
+
+\section{The Sobolev Scale and the Embeddings the Convergence Proofs Consume}
+\index{Sobolev space!of fractional order}\index{Sobolev space!on the torus}
+
+\begin{definition}[Fourier characterization of $H^s(\mathbb{T}^d)$]
+\label{def:appa-hs}
+For $s \in \mathbb{R}$, $H^s(\mathbb{T}^d) = \{ u \in \mathcal{S}'(\mathbb{T}^d) :
+\|u\|_{H^s}^2 = \sum_k (1+|k|^2)^s |\hat{u}(k)|^2 < \infty \}$ \cite{brezis2011functional},
+the space \eqref{eq:ch02-hs-torus},
+with Parseval $\|u\|_{L^2}^2 = \sum_k |\hat{u}(k)|^2$ and
+$D^\alpha u \leftrightarrow (2\pi i k)^\alpha \hat{u}(k)$. Three consequences do the work:
+$H^{-s}$ is isometric to the dual of $H^s$ under $\sum_k \hat{u}(k)\overline{\hat{v}(k)}$;
+the scale interpolates, $\|u\|_{H^r} \le \|u\|_{H^s}^{\theta}\|u\|_{H^t}^{1-\theta}$ for
+$s < r < t$; and $|\hat{v}(k)| \le C(1+|k|^2)^{-s/2}\|v\|_{H^s}$, algebraic decay and no more,
+which is \eqref{eq:ch05-coefficient-decay}.
+\index{Parseval identity}\index{interpolation!of Sobolev norms}\index{Fourier coefficient decay}
+\end{definition}
+
+\begin{proposition}[Sobolev embeddings, three regimes]\label{prop:appa-embeddings}
+Let $\Omega$ be bounded with $C^1$ boundary, $k \in \mathbb{N}_0$, $1 \le p < \infty$. For
+$kp < d$, $W^{k,p} \hookrightarrow L^q$ continuously for $1 \le q \le p^* = dp/(d-kp)$ and
+compactly for $q < p^*$ \cite{evans2010partial, brezis2011functional}. For $kp = d$, every
+finite $q$, and no $L^\infty$. For $kp > d$,
+with $\sigma = k - d/p$, $W^{k,p} \hookrightarrow C^{j,\alpha}(\overline{\Omega})$
+continuously for every $j \ge 0$ and $0 < \alpha < 1$ with $j + \alpha \le \sigma$, the
+endpoint admissible only when $\sigma$ is not an integer, and compactly below $\sigma$. On
+$\mathbb{T}^d$ the same alternatives hold at fractional order; in particular
+$H^s(\mathbb{T}^d) \hookrightarrow L^\infty(\mathbb{T}^d)$ continuously if and only if
+$s > d/2$, with $|u(x)| \le C_{s,d}\|u\|_{H^s}$ and
+$C_{s,d}^2 = \sum_k (1+|k|^2)^{-s} < \infty$ exactly when $2s > d$, and
+$H^s(\Omega) \hookrightarrow C^k(\overline{\Omega})$ when $s > d/2 + k$. This is
+Proposition~\ref{prop:ch02-sobolev-embeddings} with \eqref{eq:ch02-eval}; its $C^1$ hypothesis
+overshoots the extension step, for which the strong local Lipschitz property suffices.
+The threshold $s > d/2$ makes the DeepONet readings and the sampling operator $P_N$ of
+Definition~\ref{def:ch06-discretization-invariance} bounded functionals, and turns an $H^s$
+loss into uniform control in
+\chapref{ch:part1-physics-informed-operators-and-sobolev-reg}.
+\index{Sobolev embedding theorem}\index{Morrey-type embedding}\index{embedding!compact}\index{point evaluation functional}
+\end{proposition}
+
+\begin{theorem}[Rellich--Kondrachov compact embedding]\label{thm:appa-rellich}
+For $\Omega$ bounded with $C^1$ boundary and $s > t \ge 0$, the injection
+$\iota : H^s(\Omega) \hookrightarrow H^t(\Omega)$ is compact \cite{brezis2011functional}. On
+$\mathbb{T}^d$ the content
+is quantitative and needs no boundary regularity: for $w \in H^\sigma(\mathbb{T}^d)$,
+$\sigma > t \ge 0$, and $P_K$ the orthogonal projection onto $\{k : |k_j| \le K\ \forall j\}$,
+$\|w - P_K w\|_{H^t} \le (1+K^2)^{(t-\sigma)/2}\|w\|_{H^\sigma}$, so a set bounded in $H^s$
+by $M$ lies within $(1+K^2)^{(t-s)/2}M$ of a bounded set in a finite-dimensional space. This
+is Theorem~\ref{thm:ch02-rellich} and \eqref{eq:ch02-tail}: it makes the Darcy solution set
+precompact in Corollary~\ref{cor:ch03-precompact}, and its tail exponent is the truncation
+rate of Theorem~\ref{thm:appa-fno-rate}.
+\index{Rellich--Kondrachov theorem}\index{compact embedding!proof on the torus}\index{spectral truncation!tail estimate}
+\end{theorem}
+
+\begin{remark}[Two thresholds the scale does not cross]\label{rem:appa-sharp}
+At $s = d/2$ nothing is controlled pointwise. A jump on $\mathbb{T}$ has
+$|\hat{u}(k)| \sim |k|^{-1}$ and lies in no $H^s(\mathbb{T})$ with $s \ge \tfrac{1}{2}$:
+Remark~\ref{rem:ch02-jumps}. Three failures ride on that boundary: an $L^\infty$ bound alone
+buys no Kolmogorov--Riesz translation control; hyperbolic propagation supplies no smoothing to
+trade for compactness; and non-periodic positional coordinates cap the continuum-limit
+exponent at $H^{1/2-\epsilon}$ (\S\ref{sec:ch06-rates}).
+\index{jump discontinuity!Sobolev regularity}
+\end{remark}
+
+\section{Compactness Certificates and Entropy}
+\index{compact set!in a normed space}\index{precompact set}
+
+Riesz's lemma puts a unit vector at distance more than $\theta$ from any proper closed
+subspace, so the closed unit ball of an infinite-dimensional normed space is never compact
+\cite{brezis2011functional}.
+
+\begin{theorem}[Arzel\`a--Ascoli and Kolmogorov--Riesz]\label{thm:appa-compactness}
+A subset of $C(\overline{\Omega})$ is relatively compact in the uniform norm if and only if it
+is uniformly bounded and equicontinuous \cite{brezis2011functional}. A family
+$\mathcal{F} \subset L^p(\mathbb{R}^d)$,
+$1 \le p < \infty$, is relatively compact if and only if it is bounded, uniformly tight
+($\sup_u \|u\|_{L^p(|x|>R)} \to 0$), and equicontinuous in the mean
+($\sup_u \|u(\cdot+h) - u(\cdot)\|_{L^p} \to 0$); a $W^{1,p}$ bound gives the last through
+$\|u(\cdot+h)-u\|_{L^p} \le |h|\|\nabla u\|_{L^p}$, an $H^s$ bound at a fractional rate. On
+$\mathbb{T}^d$ or bounded $\Omega$ tightness is automatic, so smoothness alone does the work
+and the criterion reads as uniform decay of high-frequency content --- which is why the
+compactness required by Theorems~\ref{thm:appa-chen-chen} and \ref{thm:appa-no-universality}
+is a hypothesis about the PDE, not the network.
+\index{Arzela--Ascoli theorem}\index{Kolmogorov--Riesz compactness criterion}\index{equicontinuity in the mean}\index{Riesz's lemma}
+\end{theorem}
+
+\begin{proposition}[Metric entropy of a Sobolev ball]\label{prop:appa-entropy}
+$\log \mathcal{N}(\varepsilon, B_{H^s}, L^2) \sim \varepsilon^{-d/s}$ for the unit ball
+$B_{H^s}$, $\mathcal{N}$ counting covering $L^2$ balls of radius $\varepsilon$: the
+replacement of the $\varepsilon^{-d}$ exponent of a ball in $\mathbb{R}^d$. Part~I uses it as
+the order of the estimation term in \eqref{eq:ch09-entropy}, and, inverted, as the price of
+$\mathcal{E}_{\text{sensor}}(m)$ in \eqref{eq:ch8-sensor-rate}.
+\index{metric entropy}\index{covering number}
+\end{proposition}
+
+\begin{lemma}[Aubin--Lions--Simon]\label{lem:appa-aubin-lions}
+If $X$ embeds compactly into a reflexive $B$ and $B$ continuously into a Banach space $F$,
+then $\{ u \in L^p(0,T;X) : \|u\|_{L^p(0,T;X)} \le C,\ \|\partial_t u\|_{L^r(0,T;F)} \le C \}$
+is relatively compact in $L^p(0,T;B)$ for $1 \le p < \infty$, $1 \le r \le \infty$, and in
+$C([0,T];B)$ for $p = \infty$ and $r > 1$ \cite{evans2010partial}. The instance of
+\eqref{eq:ch02-aubinlions} is
+$X = H^1_0$, $B = L^2$, $F = H^{-1}$, buying precompact trajectories in $L^2(0,T;H^s)$; the
+bound on $\partial_t u$ comes from the equation, not the architecture.
+\index{Aubin--Lions--Simon lemma}\index{Bochner space}
+\end{lemma}
+
+\section{Integral Operators and Spectral Decay}
+\index{Fredholm integral operator}\index{Green's function}
+
+\begin{theorem}[Compact integral operators]\label{thm:appa-hilbert-schmidt}
+If $\kappa \in L^2(\Omega \times \Omega)$, then
+$v \mapsto \int_\Omega \kappa(\cdot,y) v(y)\,dy$ is bounded and compact on $L^2(\Omega)$, with
+Hilbert--Schmidt norm $\|\kappa\|_{L^2(\Omega\times\Omega)}$ \cite{brezis2011functional}; a
+compact self-adjoint operator
+has an orthonormal eigenbasis with eigenvalues tending to zero.
+\chapref{ch:part1-partial-differential-equations-as-solution} instantiates the pair with the
+Dirichlet realization of $\mathcal{L}_a = -\nabla \cdot (a\nabla)$, self-adjoint with compact
+resolvent by Theorem~\ref{thm:appa-rellich}: $G_a = \sum_j \phi_j(x)\phi_j(y)/\lambda_j$ as in
+\eqref{eq:ch03-eigen} has squared Hilbert--Schmidt norm $\sum_j \lambda_j^{-2}$, finite for
+$d \le 3$ by Weyl's law $\lambda_j \sim c\,j^{2/d}$. The same passage asserts, unproved and
+uncited, that keeping the leading eigenpairs gives the best low-rank linear approximation of
+$\mathcal{L}_a^{-1}$ in operator norm --- the Eckart--Young--Schmidt statement.
+\index{Hilbert--Schmidt operator}\index{Weyl's law}\index{compact operator}\index{Eckart--Young theorem}
+\end{theorem}
+
+\begin{definition}[Covariance operator of a data measure]\label{def:appa-covariance}
+For a Borel probability measure $\mu$ on a separable Hilbert space $H$ with finite second
+moment, $C_\mu h = \int_H \langle h,u \rangle_H\, u\, d\mu(u)$ is self-adjoint, positive, and
+trace class, hence compact with eigenvalues $s_1 \ge s_2 \ge \dots \downarrow 0$. The decay of
+$(s_j)$ is what the analysis of \cite{lanthaler2022error} prices the terms of
+Theorem~\ref{thm:appa-deeponet-error} with.
+\index{covariance operator!spectral decay}\index{trace-class operator}
+\end{definition}
+
+\begin{remark}[The silence about rates]\label{rem:appa-silent}
+Part~I commits to the additive split \eqref{eq:ch04-error-split} and to nothing quantitative:
+no exponent for $\mathcal{E}_{\text{sensor}}(m)$ or $\mathcal{E}_{\text{basis}}(p)$, no
+constant, and this appendix supplies none. The sharpest claim the book makes about $C_\mu$ is
+the mean-square optimality of the leading eigenspace of the output covariance, recorded in
+\chapref{ch:part2-deeponet-engineering-branch-trunk-networks}; the taxonomy of
+\chapref{ch:part1-comparative-theoretical-taxonomy-of-archit} treats the sensor exponent
+\eqref{eq:ch8-sensor-rate} as an expectation, not a theorem.
+\end{remark}
+
+\section{Universality Statements}\label{sec:appa-universality}
+\index{universal approximation!for operators}
+
+\begin{theorem}[Chen and Chen]\label{thm:appa-chen-chen}
+Let $K_2 \subset \mathbb{R}^d$ and $K_1 \subset X$ be compact, $X$ a Banach space of
+continuous functions on $K_2$, $\mathcal{G} : K_1 \to C(K_2)$ continuous and nonlinear,
+$\sigma : \mathbb{R} \to \mathbb{R}$ continuous and non-polynomial. Then for every
+$\varepsilon > 0$ there are $m, n, p$, sensors $\{x_j\}_{j=1}^m \subset K_2$, coefficients
+$\{c_k^i, \xi_j^i, \theta_i\}$, and continuous $\{g_k\}_{k=1}^p$ on $K_2$ with
+\eqref{eq:chen_chen_form} uniform in $u \in K_1$ and $y \in K_2$ \cite{chen1995universal}:
+Theorem~\ref{thm:chen_chen},
+the branch--trunk form of \eqref{eq:ch04-deeponet}. Nothing but continuity and
+non-polynomiality is required of $\sigma$; compactness of $K_1$ is not stylistic, a bounded
+non-compact set failing Theorem~\ref{thm:appa-compactness}; and the result is existential, no
+bound on $m, n, p$ in terms of $\varepsilon$.
+\index{Chen and Chen theorem}\index{activation function!non-polynomial}
+\end{theorem}
+
+\begin{theorem}[Neural-operator universality]\label{thm:appa-no-universality}
+Let $\Omega \subset \mathbb{R}^d$ be compact, $\mathcal{A} = L^2(\Omega;\mathbb{R}^{d_a})$,
+$\mathcal{U} = L^2(\Omega;\mathbb{R}^{d_u})$, $K \subset \mathcal{A}$ compact,
+$\mathcal{G} : K \to \mathcal{U}$ continuous, $\sigma$ non-polynomial and Lipschitz. Then a
+network of the form \eqref{eq:no_composition}--\eqref{eq:fredholm_kernel}, of depth $L$ and
+width $d_v$ with kernels $\kappa_\ell \in C(\Omega \times \Omega; \mathbb{R}^{d_v \times d_v})$,
+satisfies $\sup_{a \in K}\|\mathcal{G}(a) - \mathcal{G}_\theta(a)\|_{L^2} < \varepsilon$
+\cite{kovachki2023neural}: Theorem~\ref{thm:no_universality}. Its classical inputs are
+finite-rank approximation on
+compact sets, Stone--Weierstrass density of separable sums in $C(\Omega \times \Omega)$, and
+the Cybenko construction applied pointwise. The theorem quantifies over kernels of $(x,y)$
+alone while \eqref{eq:fredholm_kernel} also conditions on $a(x), a(y)$: the implemented class
+is larger, and no rate is offered.
+\index{Stone--Weierstrass theorem}\index{Cybenko theorem}\index{universal approximation!neural operator}
+\end{theorem}
+
+\begin{theorem}[FNO universality and required size]\label{thm:appa-fno-universal}
+Universal approximation holds for the FNO class itself \cite{kovachki2021universal}, the error
+expressed through decay of
+the target operator's Fourier coefficients; for the solution operators of Darcy flow and of
+the incompressible Navier--Stokes equations the network size attaining error $\varepsilon$
+grows sub-log-linearly in $1/\varepsilon$, as
+\chapref{ch:part1-operator-approximation-theory-and-universa} reports it. Part~I reproduces
+neither the coefficient class nor the size bound, so neither appears here.
+\index{Fourier neural operator!error bounds}\index{universality!versus efficiency}
+\end{theorem}
+
+\begin{theorem}[DeepONet error decomposition]\label{thm:appa-deeponet-error}
+For $\mathcal{G} : \mathcal{A} \to \mathcal{U}$ between Sobolev spaces, the error of
+\eqref{eq:ch04-deeponet} splits as $\|\mathcal{G}(u) - \mathcal{G}_\theta(u)\| \le
+\mathcal{E}_{\text{sensor}}(m) + \mathcal{E}_{\text{basis}}(p) + \mathcal{E}_{\text{DNN}}(\theta)$
+\cite{lanthaler2022error}:
+the cost of compressing $u$ to $m$ readings, the projection error onto the $p$-dimensional
+span of the trunk outputs, and the optimization and parameterization error ---
+Theorem~\ref{thm:deeponet_error}, named encoding, approximation, and reconstruction in the
+cited analysis, the first two priced through Definition~\ref{def:appa-covariance}.
+\index{DeepONet!error decomposition}
+\end{theorem}
+
+\section{Truncation, Quadrature, and the Continuum Limit}
+\index{spectral truncation}
+
+\begin{theorem}[FNO spectral convergence bound]\label{thm:appa-fno-rate}
+Let $\mathcal{G} : H^s(\mathbb{T}^d;\mathbb{R}^{d_a}) \to
+H^{s+\alpha}(\mathbb{T}^d;\mathbb{R}^{d_u})$ be continuous and nonlinear with smoothing order
+$\alpha > 0$, let $K \subset H^s(\mathbb{T}^d)$ be bounded, let $R_\phi$ be parameterized up
+to $k_{\max}$ in each direction, and let $\mathcal{G}_{\text{FNO}}$ have depth $L$ and width
+$d_v$. Then $\sup_{u \in K}\|\mathcal{G}(u) -
+\mathcal{G}_{\text{FNO}}(u)\|_{L^2(\mathbb{T}^d)} \le C_1 k_{\max}^{-\alpha} +
+C_2 \mathcal{E}_{\text{NN}}(L,d_v)$ \cite{kovachki2021universal}, $C_1$ depending on the Sobolev
+norm bounds of
+$\mathcal{G}$ and $C_2$ independent of the spatial discretization: Theorem~\ref{thm:fno_convergence}.
+Three hypotheses are load-bearing. $K$ is bounded, not compact, usable only because smoothing
+composes with Theorem~\ref{thm:appa-rellich} to make $\mathcal{G}(K)$ precompact. The
+per-field projection \eqref{eq:ch05-projection-bound} decays like $k_{\max}^{-(s+\alpha)}$
+while the rate quoted uniformly over $K$ is the weaker $k_{\max}^{-\alpha}$, input size
+absorbed into $C_1$. And $\mathcal{E}_{\text{NN}}$ is asserted small but not rated: nothing in
+the bound involves sample count, grid, or optimizer.
+\index{FNO spectral convergence bound}\index{smoothing order}\index{neural parametric error}
+\end{theorem}
+
+\begin{proposition}[Periodic trapezoidal rule and aliasing]\label{prop:appa-alias}
+On nodes $x_j = j/N$ with equal weights,
+$N^{-1}\sum_j v(x_j) e^{-2\pi i k x_j} = \sum_{\ell} \hat{v}(k + \ell N)$ and
+$N^{-1}\sum_j f(x_j) = \sum_m \hat{f}(mN)$, the sums on $\mathbb{T}^d$ running over
+reciprocal-lattice shifts: \eqref{eq:ch06-alias}. Two readings, both used. If $\hat{v}$ is
+supported in $Z_{k_{\max}}$ and $N > 2k_{\max}$, every alias term with $\ell \ne 0$ vanishes
+and discrete and continuous coefficients coincide exactly, the mechanism of
+Proposition~\ref{prop:ch06-zeroshot}; if $v \in H^s(\mathbb{T})$, the aliased $L^2$ energy is
+of order $N^{-s}\|v\|_{H^s}$ by the decay of Definition~\ref{def:appa-hs}.
+\index{periodic trapezoidal rule}\index{aliasing!quadrature error}\index{Nyquist frequency}
+\end{proposition}
+
+\begin{theorem}[Discretization error of FNO]\label{thm:appa-discretization}
+Assume the activations possess bounded continuous derivatives up to order $s$, the input set
+$\mathcal{A}$ lies in $H^s(\mathbb{T}^d)$ with $s > d/2$, the retained modes satisfy
+$k_{\max} < N/2$, and the layer parameters are bounded in the natural norms. Then for every
+compact $\mathcal{A}_c \subset \mathcal{A}$, $\sup_{a \in \mathcal{A}_c}
+N^{-d/2}\|v_t(a) - v_t^N(a)\|_{\ell^2} \le C N^{-s}$, with $v_t$ and $v_t^N$ the continuum and
+grid states after $t$ layers and $C$ depending on the activation and parameter bounds, $d$,
+$s$, $t$, $\mathcal{A}_c$. This is the estimate \eqref{eq:ch06-rate}, stated and derived in the
+book's own notation in \S\ref{sec:ch06-rates} of
+\chapref{ch:part1-discretization-invariance-and-continuum-li}; the same rate holds at the
+continuum level after trigonometric interpolation, for $\Psi_{\text{FNO}}$ against
+$\Psi_{\text{FNO}}^N$. Alias accumulation under composition caps the exponent at the least
+regular object in the pipeline --- just below $H^{3/2}$ for a rectified linear unit,
+$H^{1/2-\epsilon}$ with non-periodic positional coordinates appended. The constant grows with
+$t$, and the theorem constrains a fixed $\theta$, not the one training returns. What
+\cite{kovachki2023neural} supplies in general is the corresponding convergence of a neural
+operator's grid realization to its continuum limit as the grid is refined, with no exponent;
+\eqref{eq:ch06-rate} is the sharpening of that statement under the regularity hypotheses above.
+\index{discretization error!algebraic rate}\index{ReLU activation!rate saturation}\index{trigonometric interpolation}
+\end{theorem}
+
+\begin{remark}[The three-way bookkeeping, and what no entry says]\label{rem:appa-three-way}
+For a discrete-Fourier-transform least-squares estimator of the linear FNO layer,
+Subedi and Tewari \cite{subedi2024controlling} prove matching upper and lower bounds for the split
+\eqref{eq:ch06-decomp} into statistical, truncation, and discretization terms: the second is
+the first term of Theorem~\ref{thm:appa-fno-rate}, the third is
+Theorem~\ref{thm:appa-discretization}, the first the generalization error whose sharp form is
+open and listed in \chapref{ch:part1-open-theoretical-problems-and-mathematical}. Against that
+ledger Theorem~\ref{thm:appa-fno-rate} folds the statistical term into
+$\mathcal{E}_{\text{NN}}$ and suppresses the discretization term, being about continuum
+layers. Nothing here concerns optimization, and no entry leaves the periodic uniform grid;
+other domains go to graph-based constructions \cite{li2023geometry}.
+\index{error decomposition!statistical, truncation, and discretization}
+\end{remark}
+
+Four facts are underneath all of it: a smoothing gain $\alpha > 0$, the compact injection of
+Theorem~\ref{thm:appa-rellich}, the threshold $s > d/2$ that makes point values meaningful,
+and the algebraic tail of Definition~\ref{def:appa-hs}. Every exponent Part~I reports ---
+$k_{\max}^{-\alpha}$, $N^{-s}$, $\varepsilon^{-d/s}$ --- is one of the four; no theorem here
+produces the constants multiplying them; and where a fifth was needed, a rate for the
+covariance decay of Definition~\ref{def:appa-covariance}, the book states none.

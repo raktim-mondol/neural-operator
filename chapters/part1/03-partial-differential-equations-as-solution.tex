@@ -1,0 +1,480 @@
+% Chapter 3: Partial Differential Equations as Solution Operators
+% Part I of the book.
+% STATUS: book-standard prose (Part I)
+
+\chapter{Partial Differential Equations as Solution Operators}
+\label{ch:part1-partial-differential-equations-as-solution}
+\label{sec:pde_operators}
+% -----------------------------------------------------------------------------
+
+A partial differential equation (PDE) does not, by itself, pose a learning
+problem. What a surrogate is asked to reproduce is not the residual but the
+consequence
+of the residual's vanishing: the field selected by the prescribed data. Write a
+model problem as $\mathcal{P}(u; a) = 0$, where $\mathcal{P} : \mathcal{U} \times
+\mathcal{A} \to \mathcal{Z}$ is a generally nonlinear differential expression
+taking values in a residual space $\mathcal{Z}$, $a \in \mathcal{A}$ denotes the
+input parameters --- an initial state, a boundary trace, a forcing term, or a
+spatially varying coefficient --- and $u \in \mathcal{U}$ denotes the solution.
+The object one actually samples and approximates is then not $\mathcal{P}$ but the
+\index{solution operator}\textbf{solution
+operator} $\mathcal{G} : \mathcal{A} \to \mathcal{U}$ carrying each admissible
+datum to the solution it determines. The differential expression is a
+verification device; the operator is the target. Spaces, norms, and duality
+pairings follow the conventions fixed in
+\chapref{ch:part1-function-spaces-duality-and-sobolev-regula} and collected in
+Table~\ref{tab:notation-master}.
+
+Recasting a residual as a map is not a notational convenience; it is where the
+mathematics enters. Three questions must be answered before $\mathcal{G}$ exists
+as an object of study: does every admissible input admit at least one solution,
+is that solution unique, and does it depend continuously on the input --- small
+perturbations of $a$ in the norm of $\mathcal{A}$ producing small changes of
+$\mathcal{G}(a)$ in the norm of $\mathcal{U}$? These are the three
+\index{well-posedness}\index{Hadamard well-posedness}conditions of Hadamard
+well-posedness, and each answer is a statement about a specific \emph{pair} of
+norms, never about the equation in the abstract. The same evolution problem is
+Lipschitz between one choice of spaces and discontinuous between another, and
+the choice is not free: it is dictated by whatever the data of the physical
+problem naturally control. A second distinction, which must be kept precise,
+runs through every example below. A \index{solution operator!forward (time-evolution)}forward
+solution operator maps a state at one time to a state at a later time, so
+domain and codomain coincide; a
+\index{coefficient-to-state map}\textbf{coefficient-to-state map} takes a
+parameter field as input and a state as output, so the two spaces differ and the
+map is typically smoothing. The two impose different demands on an architecture.
+
+We treat three families in turn: the elliptic Darcy problem, which supplies the
+cleanest complete answer; the Green-kernel representation, which exposes why
+solution operators are nonlocal; and the parabolic and hyperbolic evolution
+problems, where the answer deteriorates as viscosity vanishes. Every estimate
+derived here becomes a hypothesis in \chapref{ch:part1-operator-approximation-theory-and-universa},
+so constants and spaces are recorded with intent.
+
+\section{Elliptic Problems and Darcy Flow}
+\index{Darcy flow}Stationary flow of a single phase through a saturated porous
+medium is described by two relations: mass conservation, $\nabla \cdot \mathbf{q} = f$,
+and Darcy's empirical law for the flux, $\mathbf{q} = -a \nabla u$, where $u$ is
+the pressure potential and $a$ the permeability. Eliminating $\mathbf{q}$ yields
+the steady-state diffusion problem on a bounded domain
+$\Omega \subset \mathbb{R}^d$,
+\begin{equation}
+  \label{eq:darcy}
+  \begin{cases}
+    -\nabla \cdot \big( a(x) \nabla u(x) \big) = f(x), & x \in \Omega, \\
+    u(x) = 0, & x \in \partial\Omega.
+  \end{cases}
+\end{equation}
+Here $a \in \mathcal{A} = L^\infty(\Omega)$ is the permeability coefficient and
+$f \in H^{-1}(\Omega)$ is a fixed source. Two different maps live on
+\eqref{eq:darcy}, and conflating them is a common error. Holding $a$ fixed, the
+forcing-to-state map $f \mapsto u$ is \emph{linear}, because the differential
+expression is linear in $u$; superposition holds and the representation is the
+Green kernel of the next section. Holding $f$ fixed and letting $a$ vary --- the
+problem this book takes as its elliptic model and the benchmark used throughout
+\partref{part:2} --- the coefficient-to-state map $a \mapsto u$ is genuinely
+\emph{nonlinear}, because $a$ multiplies $\nabla u$ inside the divergence
+operator. Nothing in \eqref{eq:darcy} linearizes the second map.
+
+A classical solution of \eqref{eq:darcy} is unavailable when $a$ is merely
+essentially bounded: $\nabla \cdot (a \nabla u)$ need not exist pointwise. The
+standard remedy, and the one that makes the estimate below transparent, is to
+test against $v \in H^1_0(\Omega)$ and integrate by parts, the boundary term
+dropping out because the test functions vanish on $\partial\Omega$. This yields
+the weak formulation: find $u \in H^1_0(\Omega)$ such that
+\begin{equation}
+  \label{eq:ch03-weakform}
+  B_a(u, v) \coloneqq \int_\Omega a(x) \nabla u \cdot \nabla v \, dx = \langle f, v \rangle_{H^{-1}, H^1_0} \quad \forall v \in H^1_0(\Omega).
+\end{equation}
+The bilinear form in \eqref{eq:ch03-weakform} is well defined on
+$H^1_0 \times H^1_0$ since $a \in L^\infty$ and $\nabla u, \nabla v \in L^2$;
+it is bounded for every such $a$, but coercive only once the coefficient is
+bounded away from zero, which is the content of the next hypothesis.
+
+\begin{assumption}[Uniform Ellipticity]
+\label{ass:ellipticity}
+There exist constants $0 < a_{\min} \le a_{\max} < \infty$ such that the
+admissible coefficient class is
+\begin{equation}
+  \mathcal{A}_{\text{adm}} = \left\{ a \in L^\infty(\Omega) : a_{\min} \le a(x) \le a_{\max} \quad \text{a.e. } x \in \Omega \right\}.
+  \label{eq:ch03-adm}
+\end{equation}
+\end{assumption}
+
+\index{uniform ellipticity}Assumption~\ref{ass:ellipticity} is the hypothesis
+that does the work, and it is worth stating why. For $a \in \mathcal{A}_{\text{adm}}$
+given by \eqref{eq:ch03-adm}, the form satisfies the pair of estimates
+\begin{equation}
+  B_a(v,v) \ge a_{\min} \|\nabla v\|_{L^2}^2
+  \quad \text{and} \quad
+  |B_a(w, v)| \le a_{\max} \|\nabla w\|_{L^2} \|\nabla v\|_{L^2},
+  \label{eq:ch03-coercive}
+\end{equation}
+that is, coercivity with constant $a_{\min}$ and continuity with constant
+$a_{\max}$. Both follow from moving the pointwise bounds on $a$ outside the
+integral in \eqref{eq:ch03-weakform}, and the coercive half of
+\eqref{eq:ch03-coercive} is precisely what fails if $a$ is allowed to approach
+zero on a set of positive measure. On $H^1_0(\Omega)$ the Poincar{\'e}
+\index{Poincar{\'e} inequality}inequality makes
+$\|\nabla \cdot\|_{L^2}$ an equivalent norm, and the right-hand side of
+\eqref{eq:ch03-weakform} is continuous by definition of $H^{-1}(\Omega)$, the
+dual space introduced in \chapref{ch:part1-function-spaces-duality-and-sobolev-regula}.
+The Lax--Milgram \index{Lax--Milgram theorem}\index{weak formulation}theorem~\cite{brezis2011functional, evans2010partial}
+then supplies existence, uniqueness, and the a priori bound recorded in the next
+proposition, all in one step.
+
+\begin{proposition}[Properties of the Darcy Solution Operator]
+\index{Darcy flow!solution operator}Under Assumption~\ref{ass:ellipticity}, for
+every $a \in \mathcal{A}_{\text{adm}}$ and $f \in H^{-1}(\Omega)$, the
+Lax--Milgram theorem guarantees a unique weak solution $u \in H^1_0(\Omega)$
+satisfying \eqref{eq:ch03-weakform}. The solution operator
+$\mathcal{G} : \mathcal{A}_{\text{adm}} \subset L^\infty(\Omega) \to H^1_0(\Omega)$,
+$a \mapsto u$, has three properties of distinct character. Its first property is
+a \textbf{size} statement, \index{uniform boundedness}global boundedness:
+\begin{equation}
+  \| \mathcal{G}(a) \|_{H^1_0(\Omega)} \le \frac{1}{a_{\min}} \|f\|_{H^{-1}(\Omega)}
+  \quad \text{for all } a \in \mathcal{A}_{\text{adm}}.
+  \label{eq:ch03-bounded}
+\end{equation}
+Its second property is a \textbf{stability} statement, \index{Lipschitz continuity!of a solution operator}Lipschitz continuity: for any
+$a_1, a_2 \in \mathcal{A}_{\text{adm}}$,
+\begin{equation}
+  \| \mathcal{G}(a_1) - \mathcal{G}(a_2) \|_{H^1_0(\Omega)} \le \frac{\|f\|_{H^{-1}(\Omega)}}{a_{\min}^2} \|a_1 - a_2\|_{L^\infty(\Omega)}.
+  \label{eq:ch03-lipschitz}
+\end{equation}
+Its third property is a \textbf{smoothness} statement, \index{Fr{\'e}chet differentiability}Fr{\'e}chet differentiability: $\mathcal{G}$ is infinitely
+Fr{\'e}chet differentiable on the interior of $\mathcal{A}_{\text{adm}}$, with
+the interior taken relative to the $L^\infty$ norm~\cite{stuart2010inverse}. The
+three should not be read as redundancies. The size estimate
+\eqref{eq:ch03-bounded} says the image of the admissible set is a bounded subset
+of $H^1_0$; Lipschitz continuity says the
+parameter-to-solution correspondence is stable, which is what a regression loss
+can hope to reproduce; differentiability says the map has a well-defined linear
+response to coefficient perturbations, the fact that inverse problems and
+gradient-based design rest on.
+\end{proposition}
+
+Two consequences of \eqref{eq:ch03-lipschitz} matter for what follows. First,
+the Lipschitz constant degrades quadratically as ellipticity degenerates:
+$a_{\min}^{-2}$ diverges for high-contrast media with near-vacuum layers, so the
+problem becomes stiff exactly where the coefficient is most interesting. Second,
+the input metric is $L^\infty$, the strongest natural one, and it overstates the
+sensitivity that matters for training. Perturbing $a$ on a set $E$ of small
+measure leaves $\|a_1 - a_2\|_{L^\infty}$ of order one, so
+\eqref{eq:ch03-lipschitz} charges the full amount, yet the argument that
+produced the bound localizes the effect: the difference identity
+\eqref{eq:ch03-subtract}, derived in the proof sketch below, has a right-hand
+side that couples to $\nabla u_2$ only on $E$, and the resulting
+estimate $\|\nabla(u_1-u_2)\|_{L^2} \le a_{\min}^{-1} \|a_1-a_2\|_{L^\infty}
+\|\nabla u_2\|_{L^2(E)}$ tends to zero with the measure of $E$. Running the
+estimate with $a_1 - a_2 \in L^p$ and $\nabla u_2 \in L^q$, where
+$1/p + 1/q = 1/2$, makes the same point in norm form, at the cost of an
+integrability assumption on the gradient that Assumption~\ref{ass:ellipticity}
+alone does not deliver.
+
+\begin{corollary}[Precompactness of the Darcy solution set]
+\label{cor:ch03-precompact}
+Under Assumption~\ref{ass:ellipticity}, the image
+$\mathcal{G}(\mathcal{A}_{\text{adm}})$ is bounded in $H^1_0(\Omega)$ and
+therefore precompact in $L^2(\Omega)$.
+\end{corollary}
+
+Corollary~\ref{cor:ch03-precompact} is immediate: the bound
+\eqref{eq:ch03-bounded} gives boundedness in $H^1_0$, and the
+Rellich--Kondrachov compact embedding
+\index{Rellich--Kondrachov compact embedding!consequence for solution sets}of
+\chapref{ch:part1-function-spaces-duality-and-sobolev-regula} does the rest. It
+is also the first place the topological obstruction of
+\chapref{ch:part1-function-spaces-duality-and-sobolev-regula} is discharged: in
+infinite dimensions bounded does not imply compact, but bounded in a
+\emph{stronger} space does. Uniform approximation of $\mathcal{G}$ will be
+possible precisely because the sets over which it is claimed are small in this
+sense.
+
+\begin{proof}[Proof Sketch for Lipschitz Continuity]
+Let $u_1 = \mathcal{G}(a_1)$ and $u_2 = \mathcal{G}(a_2)$. Subtracting the weak
+forms \eqref{eq:ch03-weakform} yields
+\begin{equation}
+  \int_\Omega a_1 \nabla (u_1 - u_2) \cdot \nabla v \, dx = \int_\Omega (a_2 - a_1) \nabla u_2 \cdot \nabla v \, dx \quad \forall v \in H^1_0(\Omega).
+  \label{eq:ch03-subtract}
+\end{equation}
+Setting $v = u_1 - u_2$ in \eqref{eq:ch03-subtract} --- legal because the
+difference of two $H^1_0$
+functions is itself an admissible test function --- and invoking uniform
+ellipticity on the left-hand side and H{\"o}lder's inequality on the right gives
+\begin{equation}
+  a_{\min} \|\nabla(u_1 - u_2)\|_{L^2}^2 \le \|a_1 - a_2\|_{L^\infty} \|\nabla u_2\|_{L^2} \|\nabla(u_1 - u_2)\|_{L^2}.
+  \label{eq:ch03-energy}
+\end{equation}
+Dividing \eqref{eq:ch03-energy} by $\|\nabla(u_1 - u_2)\|_{L^2}$ and inserting
+the a priori bound $\|\nabla u_2\|_{L^2} \le a_{\min}^{-1} \|f\|_{H^{-1}}$,
+which is \eqref{eq:ch03-bounded} in gradient form, confirms
+\eqref{eq:ch03-lipschitz}.
+\end{proof}
+
+\begin{remark}[Which norm, and on which ensembles]
+The bound \eqref{eq:ch03-bounded} is written
+with $\|w\|_{H^1_0} = \|\nabla w\|_{L^2}$; with the full norm
+$(\|w\|_{L^2}^2 + \|\nabla w\|_{L^2}^2)^{1/2}$ an additional Poincar{\'e}
+constant appears on a bounded domain. The distinction changes constants, not
+conclusions. More consequential is the mismatch between
+Assumption~\ref{ass:ellipticity} and typical training ensembles. The Darcy
+benchmark of \partref{part:2} draws permeabilities from a log-normal random
+field, whose samples are strictly positive almost surely but satisfy
+\eqref{eq:ch03-adm} with \emph{sample-dependent} values of $a_{\min}$. Then
+\eqref{eq:ch03-lipschitz} holds path by path while the Lipschitz constant is a
+heavy-tailed random variable, and no uniform bound exists over the ensemble
+unless the sampled field is truncated. Truncation is the practical remedy; it
+also restores the two-sided bounds in \eqref{eq:ch03-adm} in a deterministic
+sense, at the price of altering the input measure.
+\end{remark}
+
+\section{Green's Functions and Nonlocal Integral Operators}
+Fix the coefficient. When $\mathcal{L}_a = -\nabla \cdot (a \nabla)$ is linear
+and invertible, its inverse is represented by an integral operator:
+\begin{equation}
+  u(x) = (\mathcal{L}_a^{-1} f)(x) = \int_\Omega G_a(x, y) f(y) \, dy,
+  \label{eq:ch03-green}
+\end{equation}
+where
+\index{Green's function}$G_a : \Omega \times \Omega \to \mathbb{R} \cup \{\infty\}$
+is the \textbf{Green's function} of the boundary value problem.
+Equation~\eqref{eq:ch03-green} makes three things visible at once. It exhibits
+the solution as a \emph{nonlocal} average: the value at $x$ responds to forcing
+applied anywhere in $\Omega$, with weight $G_a(x,y)$. It exposes the singularity
+structure, since $G_a$ diverges on the diagonal $x = y$ --- like
+$|x-y|^{2-d}$ for $d \ge 3$ and like $\log|x-y|$ for $d=2$, the fundamental
+solution of the Laplacian being the leading term --- yet remains integrable,
+which is exactly what the weak formulation encodes. And it records the
+\emph{regularity gain}: for smooth coefficients on smooth or convex domains,
+classical elliptic regularity turns \eqref{eq:ch03-green} into
+$\|u\|_{H^2(\Omega)} \le C\|f\|_{L^2(\Omega)}$, so $\mathcal{L}_a^{-1}$ recovers
+two derivatives~\cite{evans2010partial, brezis2011functional}. The gain is what
+Corollary~\ref{cor:ch03-precompact} exploited, and it is the elliptic analogue of
+the parabolic smoothing discussed below.
+
+For a fixed coefficient there is a second representation, closer to the geometry
+of the operator than the kernel itself. The Dirichlet realization of
+$\mathcal{L}_a$ is self-adjoint --- the coefficient is scalar and the operator in
+divergence form --- and has compact resolvent on $L^2(\Omega)$, again by
+Rellich--Kondrachov. It therefore possesses an orthonormal eigenbasis
+$\{\phi_j\}_{j \ge 1}$ with eigenvalues $0 < \lambda_1 \le \lambda_2 \le \dots
+\uparrow \infty$, and \eqref{eq:ch03-green} expands as
+\begin{equation}
+  G_a(x, y) = \sum_{j=1}^{\infty} \frac{\phi_j(x)\, \phi_j(y)}{\lambda_j},
+  \qquad
+  u(x) = \sum_{j=1}^{\infty} \frac{\langle f, \phi_j \rangle_{L^2}}{\lambda_j}\, \phi_j(x).
+  \label{eq:ch03-eigen}
+\end{equation}
+The series in \eqref{eq:ch03-eigen} is the precise sense in which solving
+elliptically means dividing by the spectrum: each mode of the data is amplified
+by $1/\lambda_j$, and since the Hilbert--Schmidt norm of the kernel is
+$(\sum_j \lambda_j^{-2})^{1/2}$, Weyl's law $\lambda_j \sim c\, j^{2/d}$ makes
+the amplification summable fast enough that $G_a \in L^2(\Omega \times \Omega)$
+for
+$d \le 3$. Two lessons follow. The first is that keeping the leading eigenpairs
+is the best low-rank linear approximation of $\mathcal{L}_a^{-1}$ in operator
+norm, which is why basis truncation is the first move of any spectral method. The
+second is that the eigenpairs themselves depend
+on $a$, so the basis in \eqref{eq:ch03-eigen} is not fixed in advance but moves
+with every sampled coefficient field --- the difficulty a learned kernel is meant
+to absorb.
+
+The mechanism is completely explicit in one case that recurs throughout this
+book. For the constant-coefficient Laplacian on the periodic torus
+$\mathbb{T}^d$, translation invariance forces $G_a(x,y) = G(x-y)$, and the
+Fourier basis diagonalizes the kernel: for $-\Delta u = f$ with
+$\int_{\mathbb{T}^d} f\,dx = 0$ and $u$ of mean zero,
+\begin{equation}
+  \hat{u}(k) = \frac{\hat{f}(k)}{4\pi^2 |k|^2}, \qquad k \in \mathbb{Z}^d \setminus \{0\},
+  \label{eq:ch03-poissonfourier}
+\end{equation}
+which is \eqref{eq:ch03-green} read in the Fourier basis, the one representation
+in which translation invariance turns the kernel into a function of the
+difference $x - y$ and the solution operator into a multiplier. The multiplier in
+\eqref{eq:ch03-poissonfourier} decays like $|k|^{-2}$, so low frequencies are
+amplified and high frequencies are suppressed; the operator is compact on $L^2$
+and its output spectrum decays two powers faster than its input. That single
+observation is the seed of \chapref{ch:part1-the-fourier-neural-operator-spectral-theor},
+where a learned kernel is deliberately restricted to exactly this
+translation-invariant, Fourier-diagonal form so that the dense
+$\mathcal{O}(N^2)$ evaluation of \eqref{eq:ch03-green} collapses to
+$\mathcal{O}(N\log N)$. The trade is honest: stationarity discards the
+$x$-and-$y$ dependence that a heterogeneous coefficient field in
+\eqref{eq:darcy} genuinely requires.
+
+Nonlocality is the property an architecture must reproduce, and it is the reason
+local stencil methods need depth to represent elliptic physics. A convolution
+with a fixed finite kernel cannot transmit information from the far side of the
+domain to a point in one layer, whereas \eqref{eq:ch03-green} does so by
+construction. This is the thread \chapref{ch:part1-discretization-invariance-and-continuum-li}
+picks up when it asks which discrete stencils converge to a continuum integral
+at all.
+
+Time dependence promotes the kernel to a causal one. On $\mathbb{T}$, the heat
+semigroup $S(t) = e^{\nu t \partial_{xx}}$ has Fourier symbol
+$e^{-\nu (2\pi k)^2 t}$, and the semilinear viscous Burgers equation admits the
+mild, or variation-of-constants, representation
+\begin{equation}
+  u(\cdot, t) = S(t) u_0 - \int_0^t S(t-s)\, \partial_x\!\left(\tfrac{1}{2} u(\cdot, s)^2\right) ds,
+  \qquad S(t) = e^{\nu t \partial_{xx}}.
+  \label{eq:ch03-duhamel}
+\end{equation}
+Equation~\eqref{eq:ch03-duhamel} is the closest nonlinear analogue of a Green
+representation, and the difference is instructive: the integral is against a
+known linear kernel, but the integrand contains the unknown solution itself.
+Superposition fails for nonlinear problems, so no kernel in $(x,y)$ alone
+represents $\mathcal{G}$; only fixed-point arguments recover existence. A neural
+operator layer built from integral kernels therefore borrows the \emph{shape} of
+\eqref{eq:ch03-green}, not its \emph{guarantee}.
+
+\takeaway{The Architectural Inspiration for Neural Operators}{The solution to any linear elliptic or parabolic PDE can be expressed as a continuous integral transform with kernel $G_a(x,y)$. The generic neural operator layer directly parameterizes a trainable, nonlinear surrogate of this integral kernel representation.}
+
+\section{Parabolic and Nonlinear Hyperbolic Evolution}
+Evolution problems are the forward operators announced at the head of this chapter.
+For the nonlinear viscous Burgers' equation on $\mathbb{T}$,
+\index{Burgers equation}\index{Burgers equation!viscous}
+\begin{equation}
+  \partial_t u + u \partial_x u = \nu \partial_{xx} u, \qquad u(x, 0) = u_0(x),
+  \label{eq:ch03-burgers}
+\end{equation}
+the solution operator $\mathcal{G}_t : u_0 \mapsto u(\cdot, t)$ maps initial
+conditions $u_0 \in L^2(\mathbb{T})$ to smooth states $u(\cdot, t) \in H^s(\mathbb{T})$
+for any $s > 0$ when $\nu > 0$. Its argument is a state, not a coefficient, so
+domain and codomain are function spaces of the same kind. Because
+\eqref{eq:ch03-burgers} is autonomous,
+the family $\{\mathcal{G}_t\}_{t \ge 0}$ is a semigroup,
+\index{semigroup property}
+\begin{equation}
+  \mathcal{G}_{t+\tau} = \mathcal{G}_t \circ \mathcal{G}_\tau, \qquad \mathcal{G}_0 = \mathrm{Id},
+  \label{eq:ch03-semigroup}
+\end{equation}
+which is the structural reason a single learned time-step map can be composed
+recursively --- and the reason such rollouts inherit and amplify the error of
+one step. The smoothing is best read through the slope $w = \partial_x u$:
+differentiating \eqref{eq:ch03-burgers} gives
+\begin{equation}
+  \partial_t w + u\, \partial_x w = \nu\, \partial_{xx} w - w^2,
+  \qquad w = \partial_x u,
+  \label{eq:ch03-gradient}
+\end{equation}
+whose reaction term is signed. Since $w$ is periodic it attains a maximum, and at
+a positive maximum one has $\partial_x w = 0$ and $\partial_{xx} w \le 0$, so
+\eqref{eq:ch03-gradient} leaves $d(\sup_x w)/dt \le -(\sup_x w)^2$: upward slopes
+cannot grow, and $\sup_x \partial_x u(\cdot, t) \le \sup_x u_0'(x)$ for as long
+as the solution stays smooth. At a negative minimum the two terms on the right
+of \eqref{eq:ch03-gradient} carry opposite signs and compete, the reaction
+$-w^2$ deepening the downswing while diffusion flattens it. That contest is the
+shock, and \index{viscosity}viscosity is what keeps $\inf_x w$ finite. Without
+viscosity the protection goes: along characteristics of the inviscid equation $w$
+obeys $dw/dt = -w^2$,
+whence $w(t) = w_0/(1 + t w_0)$ and the first gradient catastrophe occurs at
+$t_* = \big(\max_x[-u_0'(x)]\big)^{-1}$ wherever the initial slope is negative.
+For data of the form $u_0(x) = A\sin(2\pi x)$ this gives $t_* = (2\pi A)^{-1}$,
+so amplitudes of order unity place the catastrophe well inside the horizon
+$t \in [0,1]$ of the Burgers benchmark in \partref{part:2}, whose steepening is
+this mechanism at small positive $\nu$.
+
+At positive $\nu$ the singularity becomes a transition layer. A compressive
+shock connecting states $u^- > u^+$ travels at the Rankine--Hugoniot speed
+$s = (u^+ + u^-)/2$ and has the viscous profile
+\index{shock wave}\index{Rankine--Hugoniot condition}
+\begin{equation}
+  \bar{u}(\xi) = \frac{u^- + u^+}{2} - \frac{u^- - u^+}{2}
+  \tanh\!\left(\frac{(u^- - u^+)\,\xi}{4\nu}\right),
+  \qquad \xi = x - s t,
+  \label{eq:ch03-shockprofile}
+\end{equation}
+so the layer thickness scales like $4\nu/(u^- - u^+)$
+\cite{leveque2002finite}. As $\nu \to 0^+$, \eqref{eq:ch03-shockprofile} tends to
+a jump, shocks steepen, and energy is transferred to
+arbitrarily high spatial frequencies. Two distinct losses accompany that limit.
+The first is regularity. At a time when the inviscid limit has developed a
+jump, the size of $\mathcal{G}_t^\nu$ --- the Burgers operator at viscosity
+$\nu$ --- as a map
+$L^2(\mathbb{T}) \to
+H^s(\mathbb{T})$ diverges as $\nu \to 0^+$ for every $s > \tfrac{1}{2}$;
+since the map is nonlinear, size is measured on a ball $\|u_0\|_{L^2} \le R$
+by $\sup \|\mathcal{G}_t^\nu(u_0)\|_{H^s(\mathbb{T})}$, and the supremum diverges
+once the ball contains data whose inviscid limit jumps. A bound uniform in $\nu$
+would give a subsequence converging weakly in $H^s$ and strongly in $L^2$ to that
+inviscid limit, an $H^s$ function with a jump --- yet a function with a jump
+belongs to
+$H^s(\mathbb{T})$ only for $s < \tfrac{1}{2}$. The second is the quality of the
+stability estimate: the metric in which the inviscid theory is well posed is
+$L^1$, where the entropy semigroup is nonexpansive \cite{leveque2002finite}, and
+an $L^1$ contraction controls no Sobolev seminorm. Selecting the entropy solution
+\index{entropy solution}--- the vanishing viscosity limit singles it out --- is
+therefore part of specifying the operator, not an
+implementation detail. This is why \eqref{eq:ch03-burgers} is an essential
+benchmark for any architecture meant to capture sharp multiscale gradients, and
+why the smoothing above carries no uniformity
+as $\nu \to 0^+$: the factor $e^{-\nu (2\pi k)^2 t}$ in the mild
+form \eqref{eq:ch03-duhamel} is where dissipation and cascade trade off.
+
+For the two-dimensional incompressible Navier--Stokes equations in
+vorticity--streamfunction formulation, \index{Navier--Stokes equations!vorticity-streamfunction formulation}
+\begin{equation}
+  \partial_t \omega + \mathbf{u} \cdot \nabla \omega = \nu \Delta \omega + f, \qquad \nabla \cdot \mathbf{u} = 0, \quad \omega = \nabla \times \mathbf{u},
+  \label{eq:ch03-navierstokes}
+\end{equation}
+the solution operator maps $\omega(\cdot, 0) \in L^2(\mathbb{T}^2)$ to
+$\omega(\cdot, T) \in L^2(\mathbb{T}^2)$. Two structural facts distinguish
+\eqref{eq:ch03-navierstokes} from \eqref{eq:ch03-burgers}. First, the velocity is
+recovered from vorticity by the Biot--Savart law,
+$\mathbf{u} = \nabla^{\perp}(-\Delta_{\mathbb{T}^2})^{-1}\omega$, a singular
+integral of order zero on the torus, so the nonlinearity is of pure transport
+type and $\|\nabla \mathbf{u}\|_{L^2} = \|\omega\|_{L^2}$. Second, incompressibility
+kills the nonlinear term in the energy balance: testing \eqref{eq:ch03-navierstokes}
+against $\omega$ gives
+\index{Biot--Savart law}\index{enstrophy}
+\begin{equation}
+  \frac{1}{2}\frac{d}{dt}\|\omega(\cdot, t)\|_{L^2}^2
+  = -\nu \|\nabla \omega(\cdot, t)\|_{L^2}^2 + \langle f, \omega \rangle_{L^2},
+  \label{eq:ch03-enstrophy}
+\end{equation}
+because $\int_{\mathbb{T}^2} (\mathbf{u}\cdot\nabla\omega)\,\omega\,dx =
+\tfrac{1}{2}\int_{\mathbb{T}^2} \mathbf{u}\cdot\nabla(\omega^2)\,dx = 0$. Once the
+forcing is bounded by $\|f\|_{L^2}\|\omega\|_{L^2}$ and the inequality is closed
+with Gr\"onwall's lemma, the balance \eqref{eq:ch03-enstrophy} is a closed
+\emph{a priori} estimate in two space dimensions --- the reason the forward
+operator in \eqref{eq:ch03-navierstokes} is
+globally defined; in three dimensions vortex stretching adds a term of this same
+sign and the estimate no longer closes, so nothing here is claimed beyond two
+dimensions. Long-time behavior
+supplies one further structural fact: the forced two-dimensional dynamics lie on
+a finite-dimensional global attractor \index{global attractor}\index{dissipative system}, implying that
+the nonlinear solution operator maps bounded sets in $L^2$ into compact, smooth
+subsets. We take that statement as a hypothesis, not a result proved here:
+it is exactly the kind of compactness that makes uniform approximation
+conceivable, and its consequences for long autoregressive rollouts are confronted
+in \chapref{ch:part1-open-theoretical-problems-and-mathematical}.
+
+Taken together, the examples fix the vocabulary the rest of
+\partref{part:1} uses. Elliptic
+coefficient-to-state maps such as $\mathcal{G}$ in \eqref{eq:ch03-weakform} are
+bounded, Lipschitz, smooth, and regularizing between different spaces; forward
+operators such as $\mathcal{G}_t$ in \eqref{eq:ch03-semigroup} are state-to-state
+semigroups, smoothing under viscosity and contractive only in a weaker norm in
+the hyperbolic limit. Both are continuous maps between infinite-dimensional
+spaces, which is the class \index{operator learning}neural operators approximate,
+and neither is a learning target until a measure on $\mathcal{A}$ is chosen; the
+admissible set \eqref{eq:ch03-adm}, moreover, is far from all of $L^\infty$.
+
+Well-posedness gives us a map, estimates on it, and a topology in which its
+image is small. None of that says the map is \emph{representable}. We have not
+exhibited a single finite-dimensional recipe for $\mathcal{G}$, have not said how
+much accuracy a given number of parameters buys, and have not distinguished the
+difficulty of approximating the linear Green operator of \eqref{eq:ch03-green}
+from that of approximating the Burgers semigroup of \eqref{eq:ch03-burgers}. Those
+are questions of approximation theory, and the answer depends on precisely the
+properties catalogued above: continuity of the target, boundedness and
+precompactness of the sets over which error is measured --- the role
+Corollary~\ref{cor:ch03-precompact} plays --- and the regularity gain that fixes
+how quickly an optimally truncated basis loses accuracy. \chapref{ch:part1-operator-approximation-theory-and-universa}
+takes these as data. It asks whether networks of finite width and depth can
+approximate continuous operators between function spaces to arbitrary precision,
+in what sense the classical result of Chen and Chen is an existence statement
+about sensor evaluations and output bases, and how the branch--trunk and
+integral-kernel architectures that followed turn that statement into a trainable
+model.

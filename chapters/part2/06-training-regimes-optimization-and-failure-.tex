@@ -1,0 +1,554 @@
+% Chapter 15: Training Regimes, Optimization, and Failure Modes
+% Part II of the book.
+% STATUS: book-standard prose (Part II).
+
+\chapter{Training Regimes, Optimization, and Failure Modes}
+\label{ch:part2-training-regimes-optimization-and-failure-}
+\label{sec:training}
+% -----------------------------------------------------------------------------
+
+Part~I's error budget stops at the edge of arithmetic. Theorem~\ref{thm:fno_convergence}
+bounds the distance between a target solution operator and \emph{some} member of the
+Fourier neural operator class; it says nothing about the distance between that member and
+the parameter vector a training loop hands back, and \eqref{eq:ch05-error-decomposition}
+deliberately contains no term for the optimizer, the numerical format, or the batch order.
+That gap, between the best parameters a class contains and the ones a loop returns, is where
+surrogates are lost in practice, and it has three faces. A spectral layer's parameters carry
+gradients whose magnitude falls algebraically across the array, so a step size is never one
+number but a profile. The coefficient array a transform produces spans a dynamic range that
+collides with what half-precision arithmetic can store. And a network accurate on one
+application of the time-$\Delta t$ map can be worthless after fifty, because
+\eqref{eq:ch09-gronwall} converts a one-step error into a trajectory error at a rate set by
+$\Lambda_\theta$, which \eqref{eq:ch09-lipschitz} makes an explicit functional of the weights
+and no training objective in this book controls.
+
+This chapter takes the three up in turn and collects the residue as a field guide.
+Learning-rate scheduling comes first, because the schedule conditions the multiplier array
+and because a cyclic cosine anneal interacts with the mode budget in a way that changes how
+a mode-count experiment should be read. Mixed precision follows, with the arithmetic of the
+two half-precision formats set out explicitly, since the question worth asking is not whether
+running in reduced precision is faster but which representable range a spectral accumulation
+requires. Autoregressive rollout and pushforward stabilization come third, as the engineering
+counterpart of Part~I's
+unrolled error analysis: a recipe, not a theorem, and used here as such.
+\index{training regimes!schedule, format, and horizon}
+
+The reader should bring PyTorch at the level of \cite{paszke2019pytorch} --- tensors,
+modules, an autograd backward pass --- and the vocabulary of a graphics processing unit
+(GPU), of CUDA (Compute Unified Device Architecture), its programming platform, and of cuDNN
+(the CUDA Deep Neural Network library), which services the pointwise convolutions used for
+lifting and projection. Two objects from earlier in this part are used without
+re-derivation: the relative $L^2$ loss \eqref{eq:rel_l2_loss} of
+\chapref{ch:part2-the-practitioner-s-paradigm-infinite-dimen}, and the
+\texttt{SpectralConv2d} layer of \chapref{ch:part2-fourier-neural-operators-fno-from-scratch},
+whose paired complex weight tensors are the multipliers the first section below
+differentiates. From Part~I come the multiplier of \eqref{eq:ch05-multiplier}, the retained
+set $Z_{k_{\max}}$ of \eqref{eq:ch05-modeset}, and the coefficient decay
+\eqref{eq:ch05-coefficient-decay}. Recipes are consolidated in Appendix~\ref{app:d}; nothing
+in this chapter is a measured outcome, and where a mechanism is claimed it is arithmetic over
+a library convention, said as such.
+
+% -----------------------------------------------------------------------------
+\section{Learning Rate Scheduling in Spectral Space}
+\label{sec:ch26-schedule}
+% -----------------------------------------------------------------------------
+
+Why a spectral layer needs a schedule that an ordinary convolutional network can do
+without is visible in one line of algebra. Let $v_\ell$ be the input of layer $\ell$,
+$\hat{v}_\ell(k)$ its coefficients on the retained set $Z_{k_{\max}}$,
+$R_{\phi,\ell}(k)$ the complex multiplier of \eqref{eq:ch05-multiplier}, and
+$\hat{\lambda}_\ell(k)$ the coefficients of the adjoint field
+$\partial\mathcal{L}/\partial v_{\ell+1}$ that the backward pass delivers in physical
+space. Because the layer acts mode by mode, the derivative of the loss with respect to the
+multiplier at a single mode factorizes:
+\begin{equation}
+  \label{eq:ch26-mode-gradient}
+  \frac{\partial \mathcal{L}}{\partial R_{\phi,\ell}(k)} \;=\; \hat{\lambda}_\ell(k)\, \hat{v}_\ell(k)^{\mathsf{T}}, \qquad k \in Z_{k_{\max}}.
+\end{equation}
+Two qualifications accompany \eqref{eq:ch26-mode-gradient}. It holds up to the constant the
+transform convention attaches to the adjoint, and up to the treatment of a complex tensor as
+a pair of real ones, which is how the framework of \cite{paszke2019pytorch} resolves the
+derivative. Its norm is bounded by the product $\lvert\hat{v}_\ell(k)\rvert\,
+\lvert\hat{\lambda}_\ell(k)\rvert$, and for the smooth inputs the convergence theory
+assumes, both factors decay algebraically in $\lvert k\rvert$ by
+\eqref{eq:ch05-coefficient-decay}. Gradient magnitude therefore spans orders of magnitude
+across one parameter array, and it is smallest at the band edge --- precisely at the modes
+whose removal the truncation term $C_1 k_{\max}^{-\alpha}$ of
+\eqref{eq:ch05-error-decomposition} charges to the model.
+\index{Fourier multiplier $R_\phi(k)$!gradient of}
+\index{condition number!across the mode budget}
+
+The factorization is a property of the layer, not of the network, and the distinction
+matters. The activation acts pointwise in physical space, which scatters energy among
+frequencies, so a gradient entering at one mode returns at all of them;
+\eqref{eq:ch26-mode-gradient} gives the layer-local scaling of the parameter-to-loss map,
+not a decoupled optimization problem. The scaling is also the reason a constant step size is
+the wrong instrument here, where a conventional network tolerates one: a single increment
+applied to an array whose usable magnitudes differ by orders moves the low modes a useful
+distance while displacing the band-edge multipliers by an amount large relative to their own
+gradient signal, and early training destabilizes. \index{learning rate scheduling}
+
+Adam (adaptive moment estimation) is what makes such an array trainable at all: each
+coordinate is advanced by its gradient divided by a running root-mean-square of recent
+gradients, so every mode moves at a comparable absolute rate regardless of its own signal
+strength. The benefit carries a cost that is easy to forget. The same normalization divides
+away the \emph{reliability} of the gradient, so band-edge parameters whose gradients sit at
+the level of minibatch noise are stepped at full rate on noise. AdamW retains that
+normalization of the second moment but applies weight decay to the parameters directly rather
+than through it. On a complex multiplier, decay acts on the real and imaginary components
+jointly: it shrinks the magnitude of $R_{\phi,\ell}(k)$ and leaves its phase untouched.
+Through
+\eqref{eq:ch09-lipschitz}, and the $L^2$ version recorded in Remark~\ref{rem:ch05-lipschitz},
+decay is thus the one mechanism by which the training loop touches the Lipschitz product
+Part~I said no loss controls --- and one more way in which the band edge is penalized,
+since decay shrinks every mode toward zero at the same rate whether or not that mode
+carries signal. \index{AdamW}\index{weight decay!on complex multipliers}
+
+Listing~\ref{lst:ch26-onecycle} is the reference configuration, and the reader should take
+four decisions out of it rather than the code itself. First, the peak rate
+\texttt{max\_lr} is the only absolute learning rate the scheduler is given: the cycle starts
+at one twenty-fifth of the peak, $2\times10^{-4}$, rises to $5\times10^{-3}$ over the first
+fifth of the run (\texttt{pct\_start=0.2}), and anneals to one thousandth of the starting
+value, $2\times10^{-7}$; the \texttt{lr=1e-3} passed to \texttt{AdamW} is overwritten on
+the first scheduler call and should be read as a placeholder. Second, \texttt{total\_steps}
+is counted in iterations, and \texttt{scheduler.step()} is placed inside the batch loop, so
+the two must agree --- mismatch them and the cycle completes early, after which the rate
+sits at its floor for the rest of the run while the curve looks like a plateau. Third,
+clipping to a global gradient norm of \texttt{max\_norm=1.0} is computed over all
+parameters jointly, so a single band-edge mode with an outlier gradient shrinks the update
+of every other tensor in the model; and because Adam normalizes by its own second moment, a
+clip factor that persists across steps is largely absorbed, which is why clipping buys
+protection against transients rather than against a systematically ill-scaled array.
+Fourth, the default annealing law of \texttt{OneCycleLR} is a cosine, so the cyclic schedule
+\emph{is} a cosine decay wrapped in a short warmup --- which is where the interaction with
+truncation becomes visible. \index{OneCycleLR}\index{gradient clipping}
+
+Annealing and the mode budget pull in opposite directions. Late in a run, the content still
+available to be fitted is the small-amplitude content: the low modes, the bypass $W_\ell$,
+and the lifting and projection maps have converged against their own signal several epochs
+earlier, and what remains is the band edge, where \eqref{eq:ch26-mode-gradient} says the
+gradients are smallest. A schedule whose rate falls by four orders of magnitude across the
+remaining four fifths of the run suppresses exactly those parameters while the loss
+reduction still available is coming from them. The practical consequence is that $k_{\max}$
+and the schedule shape are one decision, not two: a wider band must be given proportionally
+more optimizer steps before its annealed tail counts as a fair trial. Doubling the retained band while holding \texttt{total\_steps}
+and \texttt{final\_div\_factor} fixed adds parameters that receive their share of
+optimization time from the annealed tail; a run whose validation error stops improving as
+the rate decays has not necessarily reached the truncation floor of
+Figure~\ref{fig:spectral_decay}, and may simply have run out of learning rate at the band
+edge. Section~\ref{sec:ch26-failures} gives the test that separates the two readings.
+\index{learning rate scheduling!interaction with mode truncation}
+\index{cosine annealing}
+
+One further coupling deserves recording because it defeats practitioners who port a recipe
+between grids. The transform called in
+\chapref{ch:part2-fourier-neural-operators-fno-from-scratch} uses the library default
+normalization, under which the forward direction is unscaled and the inverse divides by the
+number of grid points; coefficients of a fixed continuous field sampled on a finer grid
+therefore grow in absolute magnitude with the grid, and so do the products in
+\eqref{eq:ch26-mode-gradient}. The parameter shapes and the architecture are untouched by
+refinement --- that invariance is the subject of
+\chapref{ch:part1-discretization-invariance-and-continuum-li} --- but the ratio between
+per-mode gradient magnitude and minibatch noise is not, so a peak rate and a decay
+coefficient tuned at one resolution require rechecking at another. Requesting orthonormal
+transform normalization removes the grid factor from the coefficient array, because the
+library then divides by the square root of the number of points in each direction. That
+change does not reparameterize the network: the two factors cancel in the round trip, as
+they must for an identity multiplier, so the same $R_\phi$ computes the same map. What it
+does change is the gradient, since both factors in \eqref{eq:ch26-mode-gradient} shrink by
+the square root of the grid and their product by the whole grid. Adam absorbs a uniform
+rescaling of the gradient --- its update is a ratio of a moment to the root mean square of
+the same quantity --- which is why the switch passes unnoticed most of the time; a fixed
+\texttt{weight\_decay} does not, because decay is written against the parameters rather than
+against the gradient, so shrinking the gradient by the grid size silently strengthens decay's
+grip on exactly the band edge that has the least signal to begin with. The next section makes
+the same point from the storage side, where the grid factor is not a tuning matter but an
+overflow one.
+
+\begin{lstlisting}[language=Python, label={lst:ch26-onecycle}, caption={Reference optimizer and schedule configuration for a spectral network: decoupled weight decay, a cyclic schedule with cosine annealing whose initial, peak and terminal learning rates are fixed by the two divisor arguments, and a global gradient-norm clip applied before every update.}]
+optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-4)
+scheduler = torch.optim.lr_scheduler.OneCycleLR(
+    optimizer, max_lr=5e-3, total_steps=epochs * len(train_loader),
+    pct_start=0.2, div_factor=25.0, final_div_factor=1000.0
+)
+
+# Training loop step
+for x, y in train_loader:
+    optimizer.zero_grad()
+    pred = model(x)
+    loss = loss_fn(pred, y)
+    loss.backward()
+    torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+    optimizer.step()
+    scheduler.step()
+\end{lstlisting}
+
+% -----------------------------------------------------------------------------
+\section{Mixed Precision (AMP) Considerations}
+\label{sec:ch26-amp}
+% -----------------------------------------------------------------------------
+
+Automatic mixed precision (AMP) executes most of a network's arithmetic in a 16-bit
+floating-point format while holding a single-precision copy of the parameters; on the GPUs
+this part targets it is the standard route to larger batches. For operator models the
+question is not whether to use it but where its two candidate formats stop short of the
+arithmetic a spectral layer performs, and the axis the answer turns on is representable range
+against precision: the formats trade those away differently, and a Fourier coefficient array
+stresses both ends at once. Table~\ref{tab:ch26-formats} gives the constants; the conclusion
+to take from it is that \texttt{bfloat16} differs from \texttt{float32} in the significand
+alone, whereas \texttt{float16} differs in exponent and significand both, so half precision
+fails for reasons no tuning of the model can remove. \index{automatic mixed precision (AMP)}
+\index{floating-point formats!dynamic range versus precision}
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{The three formats a spectral layer touches. Bit counts and powers of two are exact;
+the largest finite values are rounded to three figures. \texttt{bfloat16} is the 16-bit
+truncation of \texttt{float32} --- same exponent width, sixteen fewer significand bits. Unit
+roundoff is half the spacing of representable numbers near one.}
+\label{tab:ch26-formats}
+\begin{tabular}{lccc}
+\toprule
+& \textbf{\texttt{float16}} & \textbf{\texttt{bfloat16}} & \textbf{\texttt{float32}} \\
+\midrule
+Exponent bits & $5$ & $8$ & $8$ \\
+Explicit significand bits & $10$ & $7$ & $23$ \\
+Unit roundoff & $2^{-11}$ & $2^{-8}$ & $2^{-24}$ \\
+Largest finite value & $65\,504$ & $\approx 3.39\times 10^{38}$ & $\approx 3.40\times 10^{38}$ \\
+Least normal value & $2^{-14}\approx 6.1\times 10^{-5}$ & $2^{-126}\approx 1.2\times 10^{-38}$ & $2^{-126}\approx 1.2\times 10^{-38}$ \\
+Bytes per real array entry & $2$ & $2$ & $4$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Begin with the complex weights, where the format question has a clean answer. The multiplier
+tensors are allocated in \texttt{torch.cfloat}, two single-precision numbers per entry, and it
+is tempting to read AMP as halving that storage: two bytes per component instead of four, so
+the dense complex output array of shape $(B, C_{\mathrm{out}}, H, \lfloor W/2 \rfloor + 1)$
+that the layer fills on every call would cost half as much. The reading is wrong in both
+directions at once. AMP keeps the master parameters and Adam's moments in single precision by
+construction, so a policy that demotes arithmetic never touches the stored multiplier: nothing
+there is reclaimable, and equally nothing there is lost. What the policy reaches is the
+arithmetic inside the call, and there precision and range must be argued separately. Take
+precision first. The per-mode contraction --- an \texttt{einsum}, a sum in Einstein summation
+convention over the channel
+axis of the frequency slice --- accumulates $C_{\mathrm{in}}$ addends, each a product of a
+coefficient with a weight, and in a binary16 accumulator the unit roundoff is $2^{-11}$: once
+the running partial sum exceeds an addend by more than about two thousand to one, the addend
+is discarded by the arithmetic rather than by the model. Were the contraction carried out in
+half precision, each component of $R_{\phi,\ell}(k)$ would additionally keep eleven
+significant bits, which bounds how finely the trained filter can place a notch or a phase
+shift --- the quantities that distinguish a learned Green's function from a smooth blur.
+Range is the other end of the same format, and it is the larger of the two problems.
+\index{complex weights!half precision}
+\index{einsum (Einstein summation contraction)}
+
+The intermediate arrays are where the collision actually occurs, and the collision is
+arithmetic, not anecdotal. \texttt{torch.fft.rfft2} denotes the two-dimensional
+real-to-half-complex fast Fourier transform (FFT), and with the library default the forward
+transform is unscaled: the
+zero-frequency, or direct-current (DC), coefficient of a field is the sum of all its values.
+On a $256\times256$ grid, a field of unit spatial mean therefore produces a DC coefficient of
+$65\,536$, which exceeds the largest representable \texttt{float16} value, $65\,504$, by
+thirty-two. Normalizing the ensemble pointwise as
+\chapref{ch:part2-the-practitioner-s-paradigm-infinite-dimen} prescribes does not repair
+this, because ensemble normalization removes the mean \emph{at each location across samples}
+and leaves each sample's own spatial mean standing. Refine the grid and the whole coefficient
+array shifts upward: the same continuous field sampled four times as finely in each
+direction multiplies every fixed-physical-wavenumber coefficient by roughly sixteen. The
+other end of the same array fails by a different arithmetic: one storage must hold the zero
+mode and the band edge together, and the usable span of binary16 is about $2^{40}$ counting
+subnormals, while the ratio between the two is set not by the grid but by the field's
+spectrum. For a decay as steep as \eqref{eq:ch05-coefficient-decay} allows, coefficients near
+$k_{\max}$ fall below the least normal value $2^{-14}$ while the DC term sits comfortably
+under the ceiling. Two independent quantities --- grid size and spectral slope --- therefore
+decide which end breaks, and neither is a property of the model. That is
+the mechanism behind the warning attached to \texttt{torch.fft.rfft2} in half precision, that
+high-dynamic-range coefficient arrays under- and overflow; and it is why the failure appears
+with a refined training grid on a recipe that ran at the coarse one. The inverse transform
+divides by the grid size, so the physical output is back in range while the frequency
+intermediate was not --- and it is why a loss can turn into a non-number (\texttt{NaN}) at
+the second spectral layer while the pointwise lift that feeds it stays finite.
+\index{float16!overflow in spectral sums}
+\index{underflow!flush-to-zero at the band edge}
+\index{rfft2 (two-dimensional real FFT)}
+
+\texttt{bfloat16} removes the exponent half of the problem and none of the mantissa: eight
+exponent bits give it the range of \texttt{float32}, so no accumulation of coefficients can
+overflow or underflow that a single-precision run would survive, while the unit roundoff
+$2^{-8}$ is three bits coarser than binary16's. The two costs are not symmetric. A radix-2
+transform of $N$ points runs $\log_2 N$ butterfly stages and each stage rounds, so a narrow
+significand is charged once per stage and the error it leaves behind grows like $\log_2 N$
+times the unit roundoff: mild, bounded, and slow-growing in $N$. A range that overflows is
+charged once and irrecoverably --- one coefficient leaves the representable set, and every
+operation downstream inherits the infinity or the flush to zero. Note what the asymmetry does
+not say. It does not make \texttt{bfloat16} free inside the layer, because that per-stage
+charge is levied inside the transform, on quantities every later stage reads, and a
+two-dimensional transform of a $256\times256$ grid is $\log_2 2^{16} = 16$ such roundings of
+$2^{-8}$ --- a worst-case relative error of $6\times10^{-2}$, several times the error floors
+this part reports. This is the reasoning behind the recommended policy for operator
+models: run the lifting and projection convolutions, which are pointwise $1\times1$
+maps with no global accumulation, in \texttt{bfloat16}, and keep the transform itself and the
+complex multiplication in \texttt{float32}. Two details of that policy are worth more than
+the policy. It must be expressed as an explicit dtype cast at the boundary of the spectral
+layer, or by disabling autocast around that layer, because
+\texttt{torch.cuda.amp.autocast} assigns dtypes by operation type rather than by the role an
+operation plays in the model: the per-mode contraction reaches it as a sum over channels,
+indistinguishable there from any other batched product, and no operation table records that
+this particular sum is the one whose dynamic range was just measured. And
+because the spectral and bypass paths of the layer meet in an addition, casting a demoted
+bypass back up to \texttt{float32} at that point recovers nothing, since the precision of a
+sum is set by its coarsest addend. The savings are real where nothing accumulates --- the
+$1\times1$ convolutions, the local map $W_\ell$, the stored activations --- and they are
+illusory wherever the mode contraction reaches. \index{bfloat16}\index{CUDA}
+\index{cuDNN (CUDA Deep Neural Network library)}
+
+Three situations lie outside what AMP can be configured around. The first is any training
+functional that evaluates a PDE (partial differential equation) residual by finite
+differencing or automatic differentiation of the output field, as in the physics-informed
+neural operator (PINO) objective \eqref{eq:pino_loss}: differencing subtracts nearly equal
+numbers, so a field stored with $2^{-8}$ relative resolution yields a derivative whose error
+is set by the storage format rather than by the model, and a wider exponent does nothing about
+cancellation. The second is the
+metric. The relative $L^2$ loss \eqref{eq:rel_l2_loss} is a ratio of two reductions over
+$B\times C\times H\times W$ entries, and accumulated in a half-precision format it carries a
+rounding error no smaller than the unit roundoff of Table~\ref{tab:ch26-formats} ---
+$2^{-8} = 3.9\times10^{-3}$ for \texttt{bfloat16} --- which is of the same order as the
+percent-level error floors \chapref{ch:part2-canonical-pde-benchmarks-and-reference-wor}
+reports. Model error and arithmetic then become indistinguishable; losses, and every reported
+error, belong in single precision. The third is binary16 gradient range: the backward pass
+produces values orders of magnitude below the forward ones, and the fix is loss scaling ---
+multiply the loss by a large power of two, step, and unscale --- rather than any change to the
+model; \texttt{bfloat16} needs no scaler precisely because its exponent already matches
+\texttt{float32}. Appendix~\ref{app:d} records which of these settings each benchmark recipe
+uses. \index{loss scaling (gradient scaling)}
+
+% -----------------------------------------------------------------------------
+\section{Autoregressive Rollout and Pushforward Stabilization}
+\label{sec:ch26-rollout}
+% -----------------------------------------------------------------------------
+
+For an evolutionary problem the trained object is the time-$\Delta t$ map, applied to its
+own output: with $v_0 = u_0$ and the network $\mathcal{G}_\theta$ standing in for one step
+of the solver,
+\begin{equation}
+  \label{eq:ch26-rollout}
+  v_{k+1} \;=\; \mathcal{G}_\theta(v_k), \qquad t_k = k\,\Delta t, \qquad k = 0, \dots, K-1,
+\end{equation}
+so that the $k$-th term of \eqref{eq:ch26-pushforward} below is $\mathcal{G}_\theta^k(u_0)
+= v_k$. Part~I priced this recursion in \eqref{eq:ch09-onesided} and \eqref{eq:ch09-gronwall}
+in terms of the one-step error $\tau$ at the true states and the global Lipschitz constant
+$\Lambda_\theta$, and the arithmetic is unforgiving: if $\Lambda_\theta$ exceeds one, the
+error bound grows geometrically in $K$ no matter how small $\tau$ is. The reference
+configuration of \chapref{ch:part2-canonical-pde-benchmarks-and-reference-wor} unrolls the
+vorticity form of the two-dimensional incompressible Navier--Stokes equations
+\eqref{eq:ch03-navierstokes} across fifty to one hundred steps, and the global weather
+surrogate of \cite{pathak2022fourcastnet} advances six-hour steps over days, so this is not
+a corner of the training loop; it is the regime in which a time-marching operator is
+actually used.
+\index{autoregressive rollout!training on the model's own iterates}
+
+The naive procedure is teacher forcing: sample pairs $\big(u(t_k), u(t_{k+1})\big)$ from
+solver trajectories and minimize a one-step loss. Its defect is a mismatch of input
+distributions rather than of arithmetic. Under \eqref{eq:ch26-rollout} at inference the
+network is queried at $v_k$, which lies at distance $e_k$ from $u(t_k)$ --- the pathwise
+error of \eqref{eq:ch09-onesided}, and generally not small once $k$ is past the first few
+steps; the loss was minimized over a neighborhood of the data manifold, and
+nothing constrains $\mathcal{G}_\theta$ on points that neighborhood excludes. Exposure bias
+is the name for the resulting drift, and the cure implemented in practice is to train on the
+model's own iterates --- the \textbf{pushforward} objective, which adds to the one-step loss
+the weighted sum over unrolled powers
+\begin{equation}
+  \label{eq:ch26-pushforward}
+  \mathcal{L}_{\text{pushforward}} = \sum_{k=1}^K \lambda_k \big\| \mathcal{G}_\theta^k(u_0) - u(k\Delta t) \big\|_{L^2}^2,
+\end{equation}
+so that the network is required to remain accurate, and by extension stable, on the
+trajectories it actually generates. Equation \eqref{eq:ch26-pushforward} is written in the
+$L^2$-squared form because that is what the automatic differentiation machinery handles
+without a division by a field norm; the relative error a reader reports should still come
+from \eqref{eq:rel_l2_loss}, and the two are not interchangeable at the level of which
+samples dominate the gradient (Section~\ref{sec:ch26-failures}).
+\index{teacher forcing}\index{exposure bias}
+\index{pushforward regularization!weights $\lambda_k$ and horizon $K$}
+
+Why it works is worth stating carefully, because the claim is empirical and the mechanism is
+a change of sampling distribution rather than a new regularizer. The quantity $\tau$ in
+\eqref{eq:ch09-onesided} is a supremum over the true trajectory;
+\eqref{eq:ch09-gronwall} then propagates it. Pushforward terms do not bound
+$\Lambda_\theta$ --- no term in \eqref{eq:ch26-pushforward} contains a derivative of
+$\mathcal{G}_\theta$ --- but they do place training inputs at the states the rollout
+visits, which is where finite differences of $\mathcal{G}_\theta$ are taken when the
+gradient of \eqref{eq:ch26-pushforward} is formed. In effect the objective evaluates the map
+on a set that contains the trajectory, so the one-step accuracy it buys is accuracy in the
+region the bound needs. That is the whole of the argument, and it is a plausibility
+argument, not the theorem Part~I asked for: nothing in
+\chapref{ch:part1-open-theoretical-problems-and-mathematical} or here relates the weights
+$\lambda_k$ and the horizon $K$ to the Lipschitz product \eqref{eq:ch09-lipschitz}, or says
+what condition on $(\lambda_k, K)$ makes training to horizon $K$ imply controlled error to
+horizon $\alpha K$. \index{pushforward regularization!no convergence theorem}
+
+The cost of \eqref{eq:ch26-pushforward} grows with the horizon it is asked to control, and
+that growth is what decides how it is implemented. A term at index $k$ requires $k$ forward
+applications, so one gradient step over the
+full sum costs $\mathcal{O}(K)$ transforms and, if differentiated exactly, $\mathcal{O}(K)$
+stored activations; per \eqref{eq:ch8-costs} each application is itself
+$\Theta(d_v N\log N)$ plus the per-mode contraction. The standard compromise is truncated
+backpropagation: unroll $K$ steps, detach the intermediate states, and let only the final
+segment of the chain carry gradients. The consequence deserves naming, since it is a
+property of the recipe and not a bug: the network is trained to be accurate \emph{at} the
+states it reaches, but not to be accurate \emph{by the route} by which it reaches them, so
+the composed map's stability is only weakly supervised. Full-chain gradients over long
+horizons are unusable for a second reason beyond cost, since the backward pass multiplies by
+the per-layer constants of \eqref{eq:ch09-lipschitz} once per unrolled step, and the same
+$\Lambda_\theta$ that makes a rollout divergent makes the gradient explode or vanish.
+
+Pushforward fails in three recognizable ways. If the target dynamics are chaotic --- the
+leading Lyapunov exponents of the time-$\Delta t$ map positive, which is the hypothesis the
+attractor discussion around
+\eqref{eq:ch09-absorbing} records for two-dimensional Navier--Stokes flow --- then beyond the
+predictability horizon the true state
+$u(k\Delta t)$
+is effectively uncorrelated with anything reachable from $u_0$, and minimizing a squared
+pathwise error against an unpredictable target returns the conditional mean, which for a
+turbulent vorticity field is a damped, near-laminar state. The rollout then stays bounded,
+smooths, and is wrong in the respect a statistical benchmark is built to detect, so the
+honest accounting is the weak one of
+\eqref{eq:ch09-weak}: the bias of the learned invariant measure, not $e_K$. So $\lambda_k$
+must decay in $k$, or $K$ must be capped near the horizon the physics allows --- and the
+choice of where is a claim about the dynamics, not about the optimizer. Second, with weights
+concentrated on large $k$ the objective is dominated by terms whose gradients pass through
+many applications of the network, which is where \eqref{eq:ch09-lipschitz} predicts the
+worst conditioning; uniform $\lambda_k$ is therefore the aggressive setting, not the neutral
+one. Third, pushforward trains on the union of a finite set of model trajectories, so the
+input distribution it optimizes is narrower than the one it is drawn from, and the
+generalization the ensemble normalization of
+\chapref{ch:part2-the-practitioner-s-paradigm-infinite-dimen} was supposed to provide is
+partly forfeited: the normalizer's mean and standard deviation fields describe the solver's
+ensemble, and a drifting model trajectory is measured against a reference the model is not
+drawing from. \index{truncated backpropagation!through the rollout}
+\index{chaotic dynamics!predictability horizon for a surrogate}
+\index{normalization!drift of a rollout against the training ensemble}
+
+% -----------------------------------------------------------------------------
+\section{Failure Modes: A Field Guide}
+\label{sec:ch26-failures}
+% -----------------------------------------------------------------------------
+
+What follows is arranged as symptom, then mechanism, then remedy, in the order a debugging
+session proceeds: the band, the arithmetic, the horizon, the grid, the loader, and last the
+failure that leaves every curve falling. Each entry
+states a mechanism established above, not a measurement. \index{failure modes!field guide}
+
+Validation error sits at the same level for mode budgets of eight, sixteen, and twenty-four
+while the training error keeps falling. Read the run through
+\eqref{eq:ch05-error-decomposition}: either the truncation term is no longer binding, or the
+schedule stopped the band edge from being fitted at all, and the two look identical on a loss
+curve. The discriminator is the slope Figure~\ref{fig:spectral_decay}(b) measures --- doubling
+the retained band should divide the truncation contribution by roughly $2^{\,s-1/2}$ for a
+target of regularity $s$, that is by about $1.4$, $2.8$, and $5.7$ at $s = 1, 2, 3$ --- so a
+mode-budget sweep must be run with \emph{steps per run held proportional to the band}, as
+Section~\ref{sec:ch26-schedule} argues, not with the schedule of
+Listing~\ref{lst:ch26-onecycle} fixed. If widening the band still does
+nothing once the steps are scaled, the binding term is capacity or one of the statistical and
+discretization contributions separated in \cite{subedi2024controlling}, and no further mode
+budget will move it.
+
+The loss becomes \texttt{NaN} or the gradients become infinite a few hundred steps in, on a
+GPU and with AMP enabled, and the same run is uneventful on the host central processing
+unit (CPU) in single precision. The
+mechanism is the array shift of Section~\ref{sec:ch26-amp}: a coefficient that leaves
+binary16's representable range becomes an infinity, the subsequent contraction propagates it,
+and the first non-finite entry is in a frequency intermediate rather than in an output field.
+Locate the first tensor containing a non-finite value to confirm which layer, then act on the
+range and not on the model: switch the autocast dtype to \texttt{bfloat16}, keep the transform
+and the complex product at \texttt{float32}, and if binary16 must be used, add gradient
+scaling so that the backward pass does not flush to zero. An infinite gradient that appears
+only after resolution refinement is the same mechanism with the grid as the trigger.
+
+Single-step error is excellent and the rollout dies around step twenty. Compute
+\eqref{eq:ch09-lipschitz} at the checkpoint; the right-hand side is a product of quantities
+readable from the parameters, and Proposition~\ref{prop:ch09-lip} makes it an upper bound on
+$\Lambda_\theta$ for the band-limited realization. If it exceeds one and grows through
+training, the objective is satisfied and the dynamics are not, because nothing in the loss
+penalizes the product. Remedies in increasing order of cost: reduce the peak rate or deepen
+the anneal so fewer expanding directions are learned late, add pushforward terms at modest
+$K$ with geometrically decaying $\lambda_k$, and check whether the model has not blown up but
+collapsed to a smooth state, in which case the failure is the conditional-mean one of
+Section~\ref{sec:ch26-rollout} and the run should be judged by \eqref{eq:ch09-weak} rather
+than by any pathwise curve. \index{Lipschitz product!diagnosing a divergent rollout}
+
+Zero-shot evaluation on a refined grid returns a plausible but visibly smoothed version of the
+truth. The retained band is a fixed set of array positions, and on a periodic domain of
+unchanged length those positions are fixed physical wavenumbers: refining the grid raises the
+Nyquist frequency of the array the truth lives on, while the spectral branch still addresses
+only the modes \eqref{eq:ch05-modeset} gives it and the activations add nothing above them
+that was ever fitted. The output is
+therefore a low-pass copy of the fine-grid truth --- the model is not broken, it is being
+asked for content it never represented. The
+super-resolution results reported for operator models hold under a condition that is easy to
+forget --- the inputs are band-limited inside the retained set, so what the experiment
+demonstrates is resolution transfer, not recovery of detail absent from the coarse sampling,
+and \eqref{eq:limit_commute} should be read with that premise attached. If the application
+genuinely needs the content above $k_{\max}$, the remedy is to widen the retained band and
+retrain, or to train at more than one resolution; interpolating the coarse prediction cannot
+supply what the band excludes.
+\index{resolution transfer!versus recovery of lost detail}
+
+The reported error floor moves when the batch size or the number of GPUs changes, with
+nothing else altered. Two mechanisms are entangled and should be checked in this order. The
+loss \eqref{eq:rel_l2_loss} normalizes per sample before averaging, so low-amplitude members
+of a batch receive large weight in the gradient; the small guard added to the denominator in
+the implementation prevents a division blow-up but does not prevent that weighting, and a
+reshuffled batch changes the mixture. Then the schedule, whose one invariant is that
+\texttt{total\_steps} must equal the number of \texttt{scheduler.step()} calls the run will
+actually make. Doubling the batch size halves \texttt{len(train\_loader)}, and the two ways to
+react to that fail differently: recompute \texttt{total\_steps} and the cosine keeps its shape
+while the run makes half as many updates of twice the data, leave it stale and the run stops
+mid-descent with the rate still high and the anneal never completed. Only the second is a
+mistake, and it is caught by logging the rate, not the loss: a run that ends at a learning
+rate its author did not intend has not finished annealing. Either way a batch-size study must
+fix the number of optimizer steps as well as the wall clock, or it measures the schedule and
+not the batch.
+\index{relative $L^2$ loss!per-sample weighting}
+
+A sixth entry, because it is silent and permanent: training error falls, validation error
+falls, and the network stops using the spectrum at all. Weight decay acts on
+$R_{\phi,\ell}(k)$ toward zero without touching the phase, and a multiplier driven small
+leaves the pointwise bypass $W_\ell$ as the only contentful part of the layer --- at which
+point the model is a shallow feedforward map on the grid, accurate on the training resolution
+and stripped of the global coupling that made it an operator. The diagnostic is direct: plot
+$\sup_k \lVert R_{\phi,\ell}(k)\rVert$ against $\lVert W_\ell\rVert$ per layer per epoch, and
+reduce the decay coefficient if the ratio trends downward through training.
+\index{weight decay!suppression of the spectral branch}
+
+\takeaway{What This Chapter Establishes}{Three floors bound a spectral surrogate before any
+theorem does. The schedule, because gradient magnitude across the multiplier array falls
+algebraically by \eqref{eq:ch26-mode-gradient}, and annealing suppresses precisely the band
+edge with the least signal. The format, because an unscaled forward transform puts the
+coefficient array's dynamic range beyond binary16 at the top for large grids and beyond it at
+the bottom for steep spectra. And the horizon, because \eqref{eq:ch26-pushforward} is the only
+term in the objective that sees the states a rollout actually visits, and it sees them without
+bounding $\Lambda_\theta$. Each is checkable from parameters, tensor dtypes, or a loss curve,
+which is what makes them worth checking before the physics is blamed.}
+
+% -----------------------------------------------------------------------------
+% Bridge to Chapter 16
+% -----------------------------------------------------------------------------
+\medskip
+The three floors above are all properties of a training run, and a run ends. What has to
+survive it is the parameter vector, exported into a runtime that no longer contains a
+Python scheduler, a dtype policy, or an author who knows which half of the network was kept
+in single precision and why. That is the subject of
+\chapref{ch:part2-production-deployment-and-high-throughput-}: freezing a trained operator
+into a traced graph, moving it off the training stack, and measuring what one application
+costs against the classical solver it replaces. Two of this chapter's conclusions carry over
+directly and inconveniently. An autocast region is Python-side state, so the archive records
+the dtypes a trace produced and not the policy that produced them; the boundary cast this
+chapter recommends must therefore be re-verified on the exported graph, where the gain from
+reduced precision is a measurement made on that graph rather than a property carried with the
+weights. And the zero-shot refinement that
+chapter checks on its exported model --- a graph traced on a $64^2$ input and then applied to
+$256^2$ --- is exactly the case in which Section~\ref{sec:ch26-failures} warns that a
+correctly functioning operator returns a low-pass copy of the truth. Which of the failures
+catalogued here become acceptance tests, and at what latency, is the next chapter's question.

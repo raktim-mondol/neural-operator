@@ -1,0 +1,952 @@
+% STATUS: authored + adversarially verified (back-matter pass, 60 entries). Every
+% statement was re-checked against the chapter that uses the term; five unfaithful
+% claims were corrected in place: the FNO cost now points at the asymptotic-complexity
+% row of the architecture comparison table and the per-layer cost display, not at the
+% theorem ledger; the einsum axis collision is described as the implementation chapter
+% reports it (a shape error when the two lengths differ, silence when they coincide);
+% the relative-L2 metric is stated to carry no units; optimization error is attached
+% only to the error split that omits it, since the DeepONet split already names it as
+% its network term; and the Rellich--Kondrachov entry no longer calls itself the book's
+% only compactness certificate. Three entries were trimmed to the 2--4 sentence limit
+% and the rfft2 headword moved after "Relative" for strict alphabetization.
+% Citation pass: the SSIM and Hounsfield-unit entries were re-scoped from what the
+% tomographic chapter reports to what it frames and states, so that after the arXiv-only
+% reconstruction records were withdrawn no entry describes a measured operating point, or a
+% reported error value, that the book no longer carries.
+% GLOSSARY -- the chapter title and the label app:glossary are fixed, since Ch. 3.8
+% cross-references app:glossary and Ch. 1.1/1.5/2.1/2.5/2.6
+% reference the appendices this chapter sits beside. Every entry is a definition
+% of the term AS THIS BOOK USES IT, drawn from three places and no others:
+% the master notation table (frontmatter/notation.tex, tab:notation-master), the
+% definition and assumption environments of Ch. 1.1--1.9 (def:generic_no,
+% def:ch06-discretization-invariance, ass:ellipticity, ass:ch09-compact), and the
+% working usage of Parts II and III. No entry states a result, a number, or a
+% bound that is not printed in the chapters it cites; where a chapter reports a
+% quantity without defining it (SSIM, PSNR) the entry says so rather than
+% supplying an outside formula. Index anchors are added only where they do not
+% duplicate a bold anchor already set in the main text, and reuse the main text's
+% exact key strings so that makeindex merges rather than splits them.
+\chapter{Glossary}\label{app:glossary}
+
+This glossary collects the vocabulary the monograph actually argues with: the
+terms of Part~\ref{part:1}, the tensor and runtime names of Part~\ref{part:2}, and
+the physical and clinical quantities of Part~\ref{part:3}. It is a consolidation,
+not a second text. Each entry states what the book means by its term, gives the
+display, definition, or table in which that meaning is fixed, and records the
+qualification the chapter attaching the term insists on. Where the chapters use a
+word without defining it, the entry says so; where two chapters use one letter for
+two objects, the entry names both and points to Table~\ref{tab:notation-master},
+which governs. Nothing here is a pointer: a reader who has met neither neural
+operators nor the discretizations they consume should be able to read an entry
+and know what the term denotes, what it is bounded by, and what it is not.
+
+Two naming conventions are worth stating before the entries, because the book is
+deliberate about both. First, the architecture names are the ones the papers of
+record use, and each is expanded on first use in the part where it appears;
+Appendix~\ref{app:e} gives the variant-by-variant inventory and
+the chapter in which each is introduced, and this glossary does not duplicate it.
+Second, error vocabulary is not interchangeable across the three parts. The
+triangle inequality of \eqref{eq:ch01-error-split} names approximation,
+discretization, and statistical error; \eqref{eq:ch04-error-split} names sensor,
+basis, and network error; \eqref{eq:ch05-error-decomposition} names spectral
+truncation and neural parametric error; \eqref{eq:ch06-decomp} names statistical,
+truncation, and discretization error in the three-way form
+of~\cite{subedi2024controlling}. Table~\ref{tab:appg-error} sets those side by
+side, and the conclusion to take from it is the one \chapref{ch:part1-introduction-the-paradigm-shift-to-infinit}
+draws: the terms are charged to different variables and decay at different rates,
+so a single ``relative error'' measured at the training resolution confounds the
+approximation term with the discretization term and may describe the quadrature
+rather than the learned operator.
+
+\begin{table}[t]
+\centering
+\small
+\caption{\textbf{The book's error vocabulary, consolidated.} Each row is a term as
+displayed in the cited equation; ``charged to'' names the design variable the chapter
+attaches it to, and the last column reports only what that chapter states. The seven
+rows are not seven terms: different parts cut the same total error along different
+lines, and the final column records where each cut is priced.}
+\label{tab:appg-error}
+\begin{tabularx}{\textwidth}{@{}l >{\raggedright\arraybackslash}X l >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Term} & \textbf{Displayed in} & \textbf{Charged to} & \textbf{What the book states} \\
+\midrule
+Statistical & \eqref{eq:ch01-error-split}, \eqref{eq:ch06-decomp}, \eqref{eq:ch09-rate} & $n$ & $O(n^{-2s/(2s+d)})$ for the risk \eqref{eq:ch09-risk} under Assumption~\ref{ass:ch09-compact}; no bound of that form exists when $s = 0$, and a sharp form for the operator classes this book learns is listed as open \\
+Approximation & \eqref{eq:ch01-error-split}, \eqref{eq:ch05-error-decomposition} & $L$, $d_{v}$ & Theorem~\ref{thm:no_universality} asserts existence and is silent on how large depth, width, and the kernel parameters must grow as $\varepsilon \to 0$ \\
+Discretization & \eqref{eq:ch01-error-split}, \eqref{eq:ch06-rate} & $N$ & bounded by $C N^{-s}$ at fixed $\theta$ for inputs in $H^{s}$, $s > d/2$; the mechanism is aliasing \\
+Truncation & \eqref{eq:ch05-error-decomposition}, \eqref{eq:ch06-decomp} & $k_{\max}$ & $C_{1} k_{\max}^{-\alpha}$, with $\alpha$ the smoothing order of the target; set by regularity, not by depth, width, or grid \\
+Sensor & \eqref{eq:ch04-error-split}, \eqref{eq:ch8-sensor-rate} & $m$ & $\lesssim m^{-s/d}$ for ensembles bounded in $H^{s}$, $s > d/2$; recorded as the expectation covering asymptotics justify, not as a bound for a trained network \\
+Basis & \eqref{eq:ch04-error-split} & $p$ & projection error onto the $p$-dimensional span of the trunk outputs; shrinks quickly for smooth outputs, no rate stated \\
+Network & \eqref{eq:ch04-error-split}, and the term \eqref{eq:ch01-error-split} omits & $\theta$ & the only term a longer training run reduces without enlarging $m$ or $p$; optimization error is treated empirically in Part~\ref{part:2} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The entries follow. They are alphabetized by the headword as printed, and each
+carries the index anchor under which the reader will find it in the subject index.
+
+\begin{description}
+
+\item[\textbf{Aliasing}] The contamination of a resolved Fourier coefficient by
+every coefficient whose mode differs from it by a multiple of the grid size $N$,
+which is exactly what the discrete transform of nodal values computes in place of
+the continuous integral; the identity is \eqref{eq:ch06-alias}, and
+\chapref{ch:part1-discretization-invariance-and-continuum-li} names aliasing as the
+mechanism of the discretization bound \eqref{eq:ch06-rate}. The same arithmetic
+reappears on the input side: when a sensor ensemble carries energy above the
+sensor Nyquist rate, the sampled representation folds it back onto the resolved
+coefficients, so the branch is trained on a corrupted encoding rather than an
+incomplete one, and neither a wider trunk nor a longer run repairs it.
+\index{aliasing}
+
+\item[\textbf{Anomaly correlation coefficient (ACC)}] The verification score of
+\eqref{eq:ch33-acc}: the correlation between forecast and analysis \emph{anomalies},
+each taken as the departure from a climatological field $\mathbf{C}$. Because
+climatology is subtracted from both sides, the coefficient is blind to additive
+bias, and a forecast displaced uniformly from the analysis still scores one, which
+is why Part~\ref{part:3} always quotes it beside the root-mean-square error. As
+written it is a sum over array indices, so on a latitude--longitude sphere it
+weights a polar square kilometer more heavily than an equatorial one; the remedy is
+the area-weighted form $\mathrm{ACC}_{w}$ of \eqref{eq:ch33-accw} with $w_j =
+\cos\phi_j$, which the published verification uses. A forecast horizon is whatever
+threshold of one agrees to cross; the book reports ACC above $0.6$ for total column
+water vapor beyond day eight as that verification's own claim.
+\index{anomaly correlation coefficient (ACC)|textbf}
+
+\item[\textbf{Automatic mixed precision (AMP)}] The PyTorch facility, entered
+through \texttt{torch.cuda.amp.\allowbreak autocast}, that runs part of a network in a
+16-bit format; \chapref{ch:part2-training-regimes-optimization-and-failure-} evaluates it
+against the formats of Table~\ref{tab:ch26-formats} and reaches a split verdict.
+\texttt{bfloat16} has eight exponent bits, so it overflows or underflows only where
+\texttt{float32}$'$s dynamic range already fails, but its unit roundoff $2^{-8}$ is
+charged once per butterfly stage, and the per-stage charge is levied inside the
+transform on quantities every later stage reads; \texttt{float16} fails additionally
+on range and needs loss scaling in the backward pass. The policy the chapter states
+is to run the pointwise $1 \times 1$ lifting and projection convolutions in
+\texttt{bfloat16} and keep the transform and the complex mode contraction in
+\texttt{float32}, expressed as an explicit cast at the boundary of the spectral
+layer because \texttt{autocast} assigns dtypes by operation type and no operation
+table records which sum is the measured one.
+\index{automatic mixed precision (AMP)|textbf}
+
+\item[\textbf{Autoregressive rollout}] The recursion $v_{k+1} =
+\mathcal{G}_{\theta}(v_k)$ of \eqref{eq:ch26-rollout}, in which the trained object is
+a time-$\Delta t$ map applied to its own output, with $v_0 = u_0$. Part~\ref{part:1}
+prices it in \eqref{eq:ch09-onesided} and \eqref{eq:ch09-gronwall} through the
+one-step error $\tau$ and the network's global Lipschitz constant $\Lambda_\theta$,
+and the arithmetic is unforgiving: if $\Lambda_\theta$ exceeds one, the bound grows
+geometrically in the number of steps however small $\tau$ is. The book's regimes are
+not corner cases --- the reference configuration unrolls the two-dimensional
+Navier--Stokes vorticity equation across fifty to one hundred steps, and the weather
+surrogate of \cite{pathak2022fourcastnet} advances six-hour steps over days. Because
+a rollout is queried at the model's own iterates rather than at solver snapshots,
+the distribution of training inputs and of inference inputs diverge, which is the
+defect \eqref{eq:ch26-pushforward} addresses. \index{autoregressive rollout|textbf}
+
+\item[\textbf{Banach space}] A normed vector space complete for the metric its norm
+induces, so that every Cauchy sequence converges to an element of the space;
+completeness is the hypothesis that makes the limit of an approximating sequence
+again a field with its norm bound preserved. For the spaces of this book it is a
+theorem rather than an assumption: the Riesz--Fischer theorem gives $L^{p}(\Omega)$
+complete for every $1 \le p \le \infty$, and Sobolev spaces are closed subspaces of
+finite products of them. Where the norm comes from an inner product the space is
+Hilbert, and the distinction is substantive --- among the Lebesgue spaces only
+$p = 2$ satisfies the parallelogram law, so orthogonality, best approximation from a
+subspace, and Parseval's identity are available in $L^{2}$ and unavailable in
+$L^{1}$ or $L^{\infty}$. The compactness failure that organizes Part~\ref{part:1} is
+also a Banach-space fact: by Riesz's lemma the closed unit ball is compact exactly
+when the space is finite-dimensional. \index{Banach space|textbf}
+
+\item[\textbf{Branch network}] The DeepONet sub-network that maps the $m$ sensor
+readings of the input function to a latent code $\mathbf{b}(u) \in \mathbb{R}^{p}$,
+the first factor of the contraction \eqref{eq:ch04-deeponet} and the term that
+carries the encoding error $\mathcal{E}_{\text{sensor}}(m)$ of
+\eqref{eq:ch04-error-split}. Its first layer consumes $m$ numbers in a fixed order,
+so the sensor locations enter the architecture only through their count --- one
+branch pass serves every query point, which is why the input side is the sensor-bound
+side. In the PyTorch module of \chapref{ch:part2-deeponet-engineering-branch-trunk-networks}
+its output width is the shared latent width \texttt{latent\_p}, and the constructor
+welds $m$ and $p$ into the parameter tensors before the first epoch, so neither is a
+hyperparameter that a later sweep can revise. \index{DeepONet!branch network|textbf}
+
+\item[\textbf{Burgers' equation}] $\partial_{t} u + u\,\partial_{x} u =
+\nu\,\partial_{xx} u$ on $x \in [0,1)$, $t \in [0,1]$ with periodic boundary
+conditions \eqref{eq:ch25-burgers}, so the domain is the torus
+$\mathbb{T} = \mathbb{R}/\mathbb{Z}$ and not an interval --- periodicity both
+licenses the Fourier representation and removes any boundary condition from the
+specification, which makes this the cleanest of the book's three tests of
+discretization invariance. The state is scalar, so input and output channel counts
+are both one, and the target is the forward time-evolution operator
+$u_{0} \mapsto u(\cdot, t)$ of \eqref{eq:ch03-burgers}, whose domain and codomain
+coincide. At $\nu > 0$ the map smooths, sending $L^{2}$ data into $H^{s}$ for every
+$s$; the figure at $\nu = 0.01$ shows a settled viscous shock well past the inviscid
+gradient catastrophe at $t_{*} \approx 0.16$. The maximum principle
+$\sup_{x} u(\cdot, t) \le \sup_{x} u_{0}$ is used in Part~\ref{part:2} as an
+implementation check: a computed profile exceeding $\|u_{0}\|_{L^{\infty}}$ has
+produced an artifact, and no relative $L^{2}$ number will tell you so.
+\index{Burgers equation|textbf}
+
+\item[\textbf{Compact embedding; compact operator}] A linear operator between normed
+spaces is compact when the image of every bounded set has compact closure,
+equivalently when bounded sets are sent to precompact ones; the canonical injection
+$\iota : H^{s}(\Omega) \hookrightarrow H^{t}(\Omega)$ of
+\eqref{eq:ch02-injection} is the book's named instance, asserted for $s > t \ge 0$
+on bounded $\Omega$ with $C^{1}$ boundary by Theorem~\ref{thm:ch02-rellich}. The
+notion is load-bearing rather than decorative: because no closed bounded set in an
+infinite-dimensional space is compact, the uniform approximation theorems of
+Part~\ref{part:1} quantify over compact sets, and Rellich--Kondrachov is the
+machinery that converts a regularity bound into one. On the torus the content is the
+tail estimate \eqref{eq:ch02-tail}, whose rate $(1+K^{2})^{(t-\sigma)/2}$ is the
+algebraic truncation decay the Fourier neural operator's mode cutoff inherits.
+\index{compact embedding|textbf}
+
+\item[\textbf{Continuously differentiable spaces $C^{k}$}] $C^{k}(\overline{\Omega})$,
+the $k$-times continuously differentiable functions with the uniform norm, is the
+target the notation table lists alongside $L^{p}$ and $H^{s}$, and the space in which
+pointwise statements are made. Two results carry the book between the integral and
+the pointwise: the Arzel\`a--Ascoli theorem characterizes relatively compact subsets
+of $C(\overline{\Omega})$ as the uniformly bounded equicontinuous ones, and the
+supercritical clause of Proposition~\ref{prop:ch02-sobolev-embeddings} embeds
+$W^{k,p}$ into $C^{j,\alpha}$ whenever $j + \alpha \le k - d/p$, the only route by
+which an integral bound implies a pointwise one. \chapref{ch:part1-operator-approximation-theory-and-universa}
+uses the second to place the Darcy solution in $C(\overline{\Omega})$ once the
+available Sobolev order exceeds $d/2$.
+\index{continuously differentiable spaces|textbf}
+
+\item[\textbf{Coordinate channels (positional grid encoding)}] The normalized spatial
+coordinates appended as extra input channels, $a_{\text{augmented}}(x) =
+[a(x), x_{1}, \dots, x_{d}] \in \mathbb{R}^{C_{\text{in}} + d}$ of
+\eqref{eq:ch21-augment}, concatenated along the channel axis and therefore requiring
+the pointwise lift $\mathcal{P}$ to be resized for $C_{\text{in}} + d$ inputs. The
+extra channels are not data but the argument of the function, and they are needed
+because the spectral branch commutes with translation --- a shift multiplies each
+coefficient by a phase the multiplier never compares with anything --- so a network
+built from stationary kernels and pointwise maps cannot express a preference for
+absolute location. The price is a loss of regularity: the coordinate ramp is not
+periodic on the torus the transform assumes, so augmented inputs lie in
+$H^{1/2 - \epsilon}$ for every $\epsilon > 0$ and no better, after which the
+discretization rate \eqref{eq:ch06-rate} never reaches $N^{-1}$. The density results
+neither require nor forbid them; mesh layouts, where the coordinates already exist as
+a separate tensor and the kernels consume them as arguments, need no such
+augmentation. \index{coordinate channels|textbf}\index{positional grid encoding}
+
+\item[\textbf{Courant--Friedrichs--Lewy (CFL) condition}] The stability restriction on
+an explicit time-marching scheme, $\Delta t \le \mathrm{CFL}\,\Delta x /
+|\mathbf{u}|_{\max}$, which \eqref{eq:ch31-refine} uses to show that refining a grid
+raises the unknown count $N$ and the step count $K$ together, so one classical run
+costs $NK = \mathcal{O}(N^{1+1/d})$. That coupling is a premise of the multi-query
+argument of \chapref{ch:part3-the-multi-query-bottleneck-in-computationa}, and it
+reappears as a cost of data generation. The reference solvers of
+Part~\ref{part:2} take their own step small enough to satisfy the constraint, and the
+cardiac counterpart \eqref{eq:ch35-cfl} is the diffusion restriction
+$\Delta t \le h^{2}/(2 d D_{\max})$, where $D_{\max}$ bounds the eigenvalues of the scaled
+diffusion tensor $\mathcal{D} = \mathbf{D}/(\chi C_{m})$ rather than any advective speed.
+\index{Courant--Friedrichs--Lewy condition|textbf}
+
+\item[\textbf{Darcy flow}] Single-phase saturated porous flow: mass conservation
+$\nabla \cdot \mathbf{q} = f$ with Darcy's empirical flux law
+$\mathbf{q} = -a\nabla u$ gives the steady diffusion problem
+$-\nabla \cdot (a(x)\nabla u(x)) = f$ with $u|_{\partial\Omega} = 0$
+\eqref{eq:darcy}, where $a \in L^{\infty}(\Omega)$ is the permeability coefficient
+and $u$ the pressure potential. It is the book's model \emph{coefficient-to-state}
+map: input and output spaces differ, the energy estimate lands the solution in
+$H^{1}_{0}(\Omega)$, and smooth coefficients lift it to $H^{2}(\Omega)$, so the
+operator is smoothing rather than evolutionary. The benchmark
+\eqref{eq:ch25-darcy} writes the coefficient $K$, poses the problem on the unit
+square with homogeneous Dirichlet data, and thereby forfeits the periodicity a
+spectral architecture is exact on --- a specification that does not say whether the
+mismatch is absorbed or the field odd-extended leaves its dominant error term
+unnamed. Assumption~\ref{ass:ellipticity}, uniform ellipticity
+$0 < a_{\min} \le a \le a_{\max} < \infty$, is what makes the elliptic estimate
+uniform, and \chapref{ch:part3-subsurface-multiphase-flow-and-carbon-stor} generalizes
+the law to two phases \eqref{eq:ch34-flux}, where each phase carries a relative
+permeability $k_{r\alpha}(S_{\alpha}) \in [0,1]$ and the phases are coupled by
+saturation completeness and a capillary pressure. \index{Darcy flow|textbf}
+
+\item[\textbf{DeepONet (Deep Operator Network)}] The architecture
+$\mathcal{G}_{\theta}(u)(y) = \sum_{k=1}^{p} b_{k}(u(x_{1}), \dots,
+\allowbreak u(x_{m}))\,\allowbreak t_{k}(y) + b_{0} = \langle \mathbf{b}(u),
+\allowbreak \mathbf{t}(y)\rangle_{\mathbb{R}^{p}}\allowbreak + b_{0}$ of \eqref{eq:ch04-deeponet},
+which turns the separable rank-$p$ form of
+Theorem~\ref{thm:chen_chen} into two trainable networks joined by one inner
+product~\cite{lu2021learning}. Its defining feature is an asymmetry: the output side
+is coordinate-free, since $y$ is an argument of the trunk and may be queried anywhere,
+while the input side is tied to $m$ prescribed sensors. Theorem~\ref{thm:deeponet_error}
+prices the two sides and the network between them separately
+\cite{lanthaler2022error}, and \eqref{eq:ch8-sensor-rate} gives the encoding term the
+decay $m^{-s/d}$ that a bounded input ensemble in $H^{s}$, $s > d/2$, justifies.
+\index{DeepONet}
+
+\item[\textbf{Discretization invariance}] The property of an \emph{architecture
+family}, not of a trained model, stated in Definition~\ref{def:ch06-discretization-invariance}
+as three conditions: the parameter space is defined independently of any mesh, each
+parameter determines a continuum operator between function spaces, and every finite
+discretization induces a discrete operator whose diagram with the restriction
+$P_N$ and extension $I_N$ commutes in the continuum limit, as
+\eqref{eq:limit_commute} and Figure~\ref{fig:commutative} express. The conditions
+fail separately --- a densely connected network on a fixed grid violates the first
+trivially --- and the third hides the analysis, since it requires point evaluation to
+be bounded on the input space, which on $L^{2}(\Omega)$ it is not. Two omissions are
+part of the meaning: \eqref{eq:limit_commute} is a limit statement with $\theta$
+fixed, asserting existence of a continuum operator and not a rate, and it says
+nothing whatsoever about the parameters a training procedure returns when it is run
+on a coarse grid. \index{discretization invariance|textbf}
+
+\item[\textbf{Duality pairing}] The evaluation of a continuous linear functional on a
+Banach space, written $\langle \ell, v \rangle_{X^{*}, X}$ for $\ell \in X^{*}$ and
+$v \in X$; the notation keeps the two spaces visibly distinct, unlike an inner product,
+which is what lets a source term that is a distribution rather than a function still be
+tested against smooth functions. The pairing is defined through the operator norm
+\eqref{eq:ch02-dualnorm}, a supremum over the unit ball, so it measures worst-case
+amplification rather than average size. The book's use of it is a choice of norm, not a
+notational preference: replacing $L^{2}$ by $H^{-1}$ makes the residual of a differential
+equation far easier to make small, \eqref{eq:ch02-hsneg} extends Parseval's identity to
+that weaker scale, and the pairing extends the inner product of the pivot space
+\emph{downward} in regularity through the triple $V \hookrightarrow H \cong H^{*}
+\hookrightarrow V^{*}$ of \eqref{eq:ch02-triple}. A residual small in $H^{-s}$ is small
+against every test field of unit $H^{s}$ mass, a strictly weaker demand than smallness in
+$L^{2}$. \index{duality pairing|textbf}
+
+\item[\textbf{Einstein summation convention (\texttt{einsum})}] The labeled-index
+notation for tensor contractions, and the PyTorch operation \texttt{torch.einsum}
+that executes it. In this book it names one specific contraction at a time: the
+per-mode channel mixing \texttt{"bixy,ioxy->boxy"} of
+\chapref{ch:part2-fourier-neural-operators-fno-from-scratch}, applied to the two
+contiguous corners of the retained half-spectrum against the complex weight tensors
+$R^{(1)}, R^{(2)}$ of \eqref{eq:ch23-Rtensors}. Two cautions come with it. The
+contraction's cost carries no factor of the node count, so refinement dilutes the share
+of the cost that any low-rank factorization of the multiplier array could take; and a letter
+repeated inside one operand takes the diagonal of the two axes it labels, so it raises a shape error
+when their lengths differ and returns wrong numbers without complaint when they
+coincide --- the printed DeepONet contraction
+of \chapref{ch:part2-deeponet-engineering-branch-trunk-networks} uses \texttt{p} for
+both the latent and the query axis and performs the intended operation of
+\eqref{eq:ch22-batch-contraction} only when the two are labeled apart.
+\index{Einstein summation convention (einsum)|textbf}
+
+\item[\textbf{ERA5 reanalysis}] The European Centre for Medium-Range Weather
+Forecasts atmospheric reanalysis \cite{hersbach2020era5}, the source of the labels the
+weather surrogate of \chapref{ch:part3-global-weather-forecasting-and-climate-dyn}
+is fitted to: hourly snapshots subsampled to $00$, $06$, $12$, $18$\,UTC on a
+$0.25^{\circ} \approx 28$\,km grid, holding the twenty prognostic variables of
+\eqref{eq:ch33-statemap}. Two bookkeeping details matter for reproduction. The
+archived regular grid carries $721$ latitude nodes because both poles are included,
+so the tensor the code reads is $721 \times 1440 \times 20$; and ERA5's native
+horizontal grid is a Gaussian grid, re-interpolated to the regular latitude--longitude
+arrangement by the archive's distribution service before training. The book records
+that the interpolation is a low-pass operation applied to the labels --- arithmetically
+benign, physically not --- so any claim about what such a model resolves must be read
+against it. \index{ERA5 reanalysis|textbf}
+
+\item[\textbf{Error decomposition}] The practice of splitting a surrogate's total
+error into terms that respond to different design variables. The book displays four
+cuts: the three-term triangle inequality \eqref{eq:ch01-error-split}, the DeepONet
+split \eqref{eq:ch04-error-split}, the spectral split
+\eqref{eq:ch05-error-decomposition}, and the statistical, truncation, and
+discretization form \eqref{eq:ch06-decomp}, made explicit with matching upper and
+lower bounds for a discrete-Fourier-transform least-squares estimator of the linear
+layer by \cite{subedi2024controlling}. The book records one term the first of these
+displays omits: optimization error, since the reported parameter comes from stochastic
+gradient descent rather than from an exact minimizer, and it is treated empirically in
+Part~\ref{part:2}, while the DeepONet split carries the same gap explicitly as its
+network term $\mathcal{E}_{\text{DNN}}(\theta)$. Table~\ref{tab:appg-error} collects
+the vocabulary, and the book's own conclusion is a warning about reporting rather than a
+theorem: authors draw the cut differently, and a relative error measured at the training
+resolution confounds the approximation term with the discretization term, so that if the
+second is not small the printed number describes the quadrature, not the learned
+operator. \index{error decomposition}
+
+\item[\textbf{Filtered backprojection (FBP)}] The classical inversion
+$f_{\text{FBP}} = \mathcal{R}^{*}\big(\mathcal{F}^{-1}(|\omega|\cdot \mathcal{F}p)\big)$
+of \eqref{eq:ch36-fbp}, obtained by reading the Fourier slice theorem
+\eqref{eq:ch36-slice} backwards: each projection is filtered in the detector variable
+by the ramp $|\omega|$ and then smeared back along the rays that produced it by the
+Radon adjoint $\mathcal{R}^{*}$. Exactness demands the polar sampling fill the Fourier
+plane at the density the reconstruction grid requires --- complete angular coverage
+and detector spacing below the Nyquist rate for the target pixel --- and the ramp is
+a positive-order operator, gaining one derivative and amplifying high-frequency noise
+exactly where the measured signal is weakest, so dose and resolution are traded
+through the same factor. On sparse-view data the book is precise about what FBP is:
+not an approximate inverse of the sampled operator $\mathcal{A} = \mathbf{M}
+\mathcal{R}$, but the exact inverse of an operator whose input the scanner never
+delivered, with the unwritten Fourier lines set to zero --- which is the origin of the
+streak artifacts the learned reconstructors are scored against.
+\index{filtered backprojection (FBP)|textbf}
+
+\item[\textbf{Fourier multiplier}] The mode-indexed matrix
+$R_{\phi}(k) \in \mathbb{C}^{d_{v} \times d_{v}}$ of \eqref{eq:ch05-multiplier} by
+which the spectral branch scales the channel vector of the hidden field at each
+retained frequency $k \in Z_{k_{\max}}$, and identically zero off it --- which is how
+truncation enters the layer formula. The convolution theorem
+\eqref{eq:ch05-convolution-theorem} is what makes the parameterization exact rather
+than convenient: for a stationary kernel the exponentials are simultaneous
+eigenfunctions and the eigenvalue at mode $k$ is the $k$-th coefficient of the
+kernel, so learning $R_{\phi}$ and learning $\kappa(x-y)$ are the same object in two
+coordinate systems, with $\kappa(x) = \sum_{k} R_{\phi}(k) e^{2\pi i k \cdot x}$
+recovering the physical kernel. Channels mix inside a frequency and never across
+frequencies; mode-to-mode transfer comes from the activation and the bypass, not the
+multiplier. Conjugate symmetry \eqref{eq:ch05-reality} halves what must be stored,
+and the book's implementation keeps the two low corners of the half-spectrum rather
+than a centered box. \index{Fourier multiplier|textbf}
+
+\item[\textbf{Fourier neural operator (FNO)}] The neural operator
+of~\cite{li2021fourier} whose kernel layers are stationary convolutions on the torus,
+written layerwise as \eqref{eq:fno_layer}: the activation of a sum of a local linear
+map $W_{\ell} v$, the inverse transform of $R_{\phi,\ell}$ times the transform of $v$,
+and a bias. Because the non-local part is diagonal in frequency, one layer costs
+$\mathcal{O}(d_{v} N \log N)$ for the transforms plus a fixed contraction over the
+retained modes, so the learned part of the computation stops growing with resolution;
+that is the $\mathcal{O}(N \log N)$ entry of Table~\ref{tab:comparison}, whose per-layer
+cost is the two-term count \eqref{eq:ch8-costs}.
+Theorem~\ref{thm:fno_convergence} bounds its error on a bounded input set by
+$C_{1} k_{\max}^{-\alpha} + C_{2}\mathcal{E}_{\text{NN}}(L, d_{v})$ for a target
+gaining $\alpha$ derivatives, and \chapref{ch:part2-fourier-neural-operators-fno-from-scratch}
+supplies the implementation while Appendix~\ref{app:b} supplies a runnable
+one-dimensional case. The premise is bought, not free: stationarity is a claim about a
+homogeneous medium with no distinguished location and periodic boundaries.
+\index{Fourier neural operator (FNO)|textbf}
+
+\item[\textbf{Fredholm integral kernel}] The trainable non-local ingredient of the
+generic neural operator, $\big(\mathcal{K}_{\ell}(a; \phi_{\ell}) v_{\ell}\big)(x) =
+\int_{\Omega} \kappa_{\ell}(x, y, a(x), a(y); \phi_{\ell})\, v_{\ell}(y)\, dy$ of
+\eqref{eq:fredholm_kernel}. Its argument list is the point: the kernel sees the source
+point, the target point, and the input field at both, which is what lets a layer
+condition its own long-range interactions on the coefficient field and is exactly what
+a convolution, whose kernel sees only $x - y$, cannot do. The motivation is the
+representation Part~\ref{part:1} derives for elliptic problems, where the inverse of a
+linear operator is an integral operator with a Green's kernel, suggesting that a
+trainable kernel is the natural surrogate for a solution operator. The layer is also
+the object to which quadrature consistency is owed: the integral is approximated by a
+weighted nodal sum, and the sum must track the continuum integral as the mesh is
+refined. \index{Fredholm integral operator|textbf}
+
+\item[\textbf{Graph neural operator (GNO)}] The architecture of
+\chapref{ch:part2-graph-neural-operators-gno-and-irregular-g} that keeps the generic
+kernel layer \eqref{eq:no_layer} and restricts its \emph{support} rather than its
+algebraic form: \eqref{eq:ch24-gno-kernel} integrates a kernel $\kappa_{\theta}(x_{i},
+y)$ over the ball $\mathcal{B}_{r}(x_{i})$ and replaces the integral by a sum of
+kernel values against the discrete measure $\sum_{j} w_{j}\delta_{x_{j}}$, so the mesh
+enters only through the quadrature weights --- Voronoi dual areas, carried explicitly
+because no constant spacing can absorb them. The implementation maps each edge
+displacement $x_{i} - x_{j}$ through a shared multilayer perceptron to a channel-mixing
+matrix and aggregates by scatter-add over the \texttt{edge\_index} neighbor list; a
+radius-$r$ layer transmits nothing farther than $r$, which is why the geometry-informed
+variant confines such layers to a point-to-grid encoder and a grid-to-point decoder and
+runs the global part of the operator on a latent regular grid.
+\chapref{ch:part1-comparative-theoretical-taxonomy-of-archit} records no convergence
+rate and no discretization-invariance theorem for either construction, and the chapter
+does not supply one. \index{Graph Neural Operator (GNO)}
+
+\item[\textbf{Hilbert space}] A Banach space whose norm arises from an inner product
+through $\|u\| = \sqrt{\langle u, u \rangle}$, equivalently a normed space satisfying
+the parallelogram law; among the Lebesgue spaces $L^{p}(\Omega)$, only $p = 2$ qualifies,
+and $H^{k}(\Omega) = W^{k,2}(\Omega)$ is Hilbert under \eqref{eq:ch02-hk-inner}. The
+property the book uses is the isometric identification of the space with its dual:
+Theorem~\ref{thm:ch02-riesz-rep} assigns each bounded linear functional a unique
+representer of the same norm, so an error field and the error functional it induces are
+two readings of one quantity, and orthogonal-projection reasoning --- the Fourier
+partial sum \eqref{eq:ch05-projection} is exactly such a projection --- is available.
+Banach spaces have no such identification, and that asymmetry is the reason negative-order
+Sobolev spaces exist. \index{Hilbert space|textbf}
+
+\item[\textbf{Hounsfield unit (HU)}] The linear attenuation scale on which computed
+tomographic images are reported, and therefore the unit in which the reconstruction
+error of \chapref{ch:part3-medical-imaging-and-tomographic-reconstruc} is stated.
+The distinction matters to the book's argument about comparability: a root-mean-square
+error in HU is a field error in the units of the measurement itself, so it is not on the
+same footing as a normalized-image index, and a reported value wider than the whole
+soft-tissue band reads as a reconstruction of raw sparse data rather than a tuned one.
+\index{Hounsfield unit (HU)|textbf}
+
+\item[\textbf{Input measure}] The Borel probability $\mu \in \mathcal{P}(\mathcal{A})$ on
+the input space under which the population risk \eqref{eq:ch01-risk} takes its
+expectation, and the reason a surrogate's guarantees are conditional. Training samples
+are draws from it; the model inherits its support, so an error measured on smooth,
+well-resolved coefficient fields licenses no claim about data from outside it, and the
+book treats out-of-distribution failure as a property of the measure rather than of the
+architecture. Two objects share the letter and are distinguished in the notation table:
+the pointwise mean and standard deviation $\mu(x)$, $\sigma(x)$ of
+\eqref{eq:ch21-normalize} are a Monte Carlo estimate of this measure's first two moments,
+not the measure itself. On the theory side, Assumption~\ref{ass:ch09-compact} asks that
+$\mu$ be supported on a set whose $\varepsilon$-entropy in the input norm is finite,
+which is the statistical twin of the compactness hypothesis of
+Theorem~\ref{thm:no_universality}. \index{input measure|textbf}
+
+\item[\textbf{Lebesgue space $L^{p}$}] The space of measurable functions with
+$\|u\|_{L^{p}} = (\int_{\Omega} |u(x)|^{p}\,dx)^{1/p}$ finite, $1 \le p < \infty$, with
+the essential-supremum modification at $p = \infty$, as the notation table records;
+$L^{p}(\Omega; \mathbb{R}^{d_{v}})$ is the vector-valued version for a field with $d_{v}$
+components, and the flattening loss of \eqref{eq:rel_l2_loss} computes exactly that norm
+with the channel count in place of $d_{v}$. Completeness is the Riesz--Fischer theorem, and only $p = 2$ is a Hilbert
+space. In this book the exponent $p$ in $L^{p}$ and $W^{k,p}$ is always an integrability
+exponent and never a parameter count or a latent width, as
+\chapref{ch:part1-introduction-the-paradigm-shift-to-infinit} states and
+Table~\ref{tab:notation-master} records. \index{Lebesgue space|textbf}
+
+\item[\textbf{Lifting operator (lift)}] The first map $\mathcal{P} :
+\mathbb{R}^{d_{a}} \to \mathbb{R}^{d_{v}}$ of the composition
+\eqref{eq:no_composition}, a shallow multilayer perceptron applied pointwise to each
+node's channels so that $v_{0}(x) = \mathcal{P}(a(x))$: a scalar permeability field
+becomes a $d_{v}$-component latent field with no mixing of neighbors. Pointwise maps
+can rescale and rotate channels but cannot carry information from $y$ to $x$, which is
+why all non-locality is deferred to the kernel layers and why the division of labor
+between the two is not cosmetic. In the implementation the lift is a $1 \times 1$
+convolution sized for the augmented channel count \eqref{eq:ch21-augment}; in
+Proposition~\ref{prop:ch06-zeroshot} it is the linear ingredient that preserves the band
+limit, and so neither creates nor destroys the hypothesis the exact transfer statement
+needs. \index{lifting operator|textbf}
+
+\item[\textbf{Log-permeability measure}] The prior on the Darcy coefficient used by the
+benchmark of \chapref{ch:part2-canonical-pde-benchmarks-and-reference-wor}: $\log K$ is
+Gaussian with covariance operator $(-\Delta + \tau^{2} I)^{-d}$, $d = 2$,
+\eqref{eq:ch25-darcy-measure}, a Mat\'ern-type covariance that is the standard prior for
+subsurface coefficients. Read through its spectral decay, mode $k$ carries variance of
+order $(1 + |k|^{2})^{-2}$, so sample paths of $\log K$ lie in $H^{s}$ for $s < 1$ and in
+no better space; since continuity in two dimensions requires $s > d/2 = 1$, the
+coefficient is almost surely unbounded, $K$ is log-normal rather than essentially
+bounded, and Assumption~\ref{ass:ellipticity} fails on the support of the raw measure.
+The book treats this as a specification to be repaired rather than a pathology to be
+tolerated: draws are truncated into a band $K \in [K_{\min}, K_{\max}]$ before use, the
+band is part of the benchmark, and $K_{\min}$ and $K_{\max}$ are to be reported as
+carefully as the error. \index{log-normal permeability|textbf}
+
+\item[\textbf{Mode truncation}] The restriction of the learned multiplier to the finite
+box $Z_{k_{\max}} = \{k \in \mathbb{Z}^{d} : |k_{j}| \le k_{\max, j}\}$ of
+\eqref{eq:ch05-modeset}, imposed by setting $R_{\phi}$ identically zero off the retained
+set. A box rather than a ball, because it is a product of contiguous index ranges and a
+batched transform can slice it without gathering scattered entries; the implementation
+keeps two low corners of the half-spectrum, $2 m_{x} m_{y}$ modes against the
+$(2m_{x}+1)(2m_{y}+1) \approx 4 m_{x} m_{y}$ of the full box, with the safeguard
+$2 m_{x} < H$ and \texttt{modes2} held within $\lfloor W/2 \rfloor + 1$; exceeding the
+second bound fails loudly as a shape error, exceeding the first lets the two slices
+overlap and silently overwrite one another, which is the Nyquist-type hypothesis
+$N_{\text{train}} > 2 k_{\max}$ of Proposition~\ref{prop:ch06-zeroshot} reappearing as a
+sanity bound on a configuration file. The cost of truncation is the first term of
+\eqref{eq:ch05-error-decomposition}, $C_{1} k_{\max}^{-\alpha}$: algebraic in the cutoff,
+set by the smoothing order of the target and independent of depth, width, and grid.
+Figure~\ref{fig:spectral_decay} computes the decay and the conclusion the book draws from
+it --- once the algebraic curve falls below the measured model-error floor of
+Appendix~\ref{app:b}, adding modes buys nothing, and a target with one derivative is not
+rescued by any affordable budget, because regularity and not resolution is the binding
+constraint. \index{spectral truncation|textbf}
+
+\item[\textbf{Multi-query surrogate problem}] The name this book gives to the class of
+workloads that motivate operator learning: settings in which the same governing
+equations must be solved many times --- candidate geometries in shape optimization,
+perturbed initial conditions in ensemble forecasting, sampled heterogeneity in reservoir
+risk assessment --- so that ``the quantity of interest is not a solution but the map from
+data to solution, and it must be evaluated at whatever resolution each query requires''.
+The cost bookkeeping \eqref{eq:ch01-cost-bookkeeping} makes the term operational, giving
+amortization only beyond the crossover $M^{\star}$, and Part~\ref{part:3} restates it with
+the label cost made explicit: wherever the surrogate's per-query cost is below the
+solver's, the break-even query count $Q^{\star}$ of \eqref{eq:ch31-ledger}, equivalently
+\eqref{eq:ch38-crossover}, exceeds the number of labeled solves whenever the labels were
+generated on a grid at least as fine as the one served. The gain the term names is the
+amortization of a family of solves, not the removal of the resolution dependence. \index{multi-query surrogate problem|textbf}
+
+\item[\textbf{Neural operator}] Any member of the parametric family
+$\mathcal{G}_{\theta} : \mathcal{A} \to \mathcal{U}$ required to satisfy three conditions
+stated in \chapref{ch:part1-introduction-the-paradigm-shift-to-infinit}: a parameter space
+defined independently of any discretization, a continuum operator attached to each
+parameter, and continuity in the norm of $\mathcal{U}$. Definition~\ref{def:generic_no}
+supplies the concrete architecture, $\mathcal{G}_{\theta} = \mathcal{Q} \circ \mathcal{V}_{L}
+\circ \cdots \circ \mathcal{V}_{1} \circ \mathcal{P}$ \eqref{eq:no_composition}, whose layers
+$\mathcal{V}_{\ell}$ combine a local linear map, a bias, an activation, and a trainable
+Fredholm kernel \eqref{eq:no_layer}. The book uses the phrase both for that architecture,
+distinguishing it from DeepONet and the FNO, and for the class; Theorem~\ref{thm:no_universality}
+establishes density for the class on compact subsets of $L^{2}$, requiring the target
+operator to be continuous, and is silent on the parameter budget its proof implies.
+\index{neural operator|textbf}
+
+\item[\textbf{Operator learning}] The formulation in which the unknown is a map between
+function spaces rather than a field. The contrast the book draws is with the
+physics-informed neural network, where a network approximates one solution by minimizing a
+residual at collocation points: there the unknown is a field and a new case is a new
+optimization, whereas here the unknown is a map and a new input case is one forward
+pass~\cite{kovachki2023neural, lu2021learning}. Its training objective is the expected
+normalized error \eqref{eq:ch01-risk} under an input measure, and its targets are the
+solution operators verified in \chapref{ch:part1-partial-differential-equations-as-solution}.
+What the change of target forfeits is stated as plainly as what it buys: guarantees are
+relative to a chosen space and a chosen compact subset of it, conserved quantities and
+boundary conditions are not enforced by \eqref{eq:ch01-risk} unless the architecture or the
+loss imposes them, and sample-complexity bounds under a general measure on function space
+are not yet sharp. \index{operator learning|textbf}
+
+\item[\textbf{Point evaluation functional}] The map $u \mapsto u(x)$, a linear functional
+that is bounded on $H^{s}(\mathbb{T}^{d})$ exactly when $s > d/2$, by the coefficient bound
+\eqref{eq:ch02-eval}, and unbounded on $L^{2}$ itself. That threshold decides which
+architectures have a continuum interpretation at all: a branch network consuming nodal
+values $u(x_{j})$ is reading continuous linear functionals only on spaces carrying more
+than $d/2$ derivatives in the $L^{2}$ sense, and on $L^{2}$ its output has no well-defined
+limit as the sampling is refined. The same condition legitimizes the restriction operator
+$P_{N}$ of Definition~\ref{def:ch06-discretization-invariance}, and where inputs genuinely
+are rough the book's repair is to read $P_{N}$ as a local average --- a cell mean, or a
+moment against a narrow kernel --- which is the natural language of finite volume
+discretization. \index{point evaluation functional}
+
+\item[\textbf{Projection operator (project)}] The closing map $\mathcal{Q} :
+\mathbb{R}^{d_{v}} \to \mathbb{R}^{d_{u}}$ of \eqref{eq:no_composition}, local and
+pointwise, that returns hidden representations to physical solution channels through
+$u(x) = \mathcal{Q}(v_{L}(x))$; like the lift it can rescale and rotate channels but
+cannot move information between points, and in the implementation of
+\eqref{eq:ch23-layer} it is two $1 \times 1$ convolutions with an activation between
+them. The name is shared with two objects the book keeps distinct:
+the $L^{2}$-orthogonal Fourier partial sum $P_{k_{\max}}$ of \eqref{eq:ch05-projection},
+whose tail estimate \eqref{eq:ch02-tail} generates the truncation rate, and the
+data-consistency update \eqref{eq:ch36-consistency} of
+\chapref{ch:part3-medical-imaging-and-tomographic-reconstruc}, which acts on the
+reconstructed image rather than on a channel index and, in the unrolled setting,
+becomes a learned operator applied a fixed number of times.
+\index{projection operator|textbf}
+
+\item[\textbf{Pushforward regularization}] The training objective
+$\mathcal{L}_{\text{pushforward}} = \sum_{k=1}^{K} \lambda_{k} \|\mathcal{G}_{\theta}^{k}(u_{0})
+- u(k\Delta t)\|_{L^{2}}^{2}$ of \eqref{eq:ch26-pushforward}, which adds to the one-step
+loss a weighted sum of the errors of the model's own iterates against solver snapshots,
+with weights $\lambda_{k}$ and horizon $K$. Its mechanism is a change of the input
+distribution and not a bound: no term in the objective contains a derivative of
+$\mathcal{G}_{\theta}$, so it does not constrain the Lipschitz constant that governs
+rollout growth, but it does place training inputs at the states the rollout visits, which
+is where the finite differences forming the gradient are taken. The book states no
+convergence theorem for it and notes that the ensemble statistics of
+\eqref{eq:ch21-normalize} describe the solver's ensemble while a drifting trajectory is
+measured against a reference the model is not drawing from. Applications use the same
+device under other names: the two-step weather recipe is pushforward training ``in all
+but name, at $K = 2$'', and the cardiac surrogate's loss \eqref{eq:ch07-data-loss} appears
+optionally in this form. \index{pushforward regularization|textbf}
+
+\item[\textbf{Quadrature consistency}] The requirement that a discrete nodal sum converge
+to the continuum integral it stands in for, weights included; for the generic kernel layer
+it is the substance of condition (iii) of Definition~\ref{def:ch06-discretization-invariance}
+and of the argument behind \eqref{eq:limit_commute}, and for the periodic spectral layer it
+is discharged by the trapezoidal rule, whose error is the aliasing identity
+\eqref{eq:ch06-alias}. Its failure mode is named in \chapref{ch:part2-the-practitioner-s-paradigm-infinite-dimen}
+in the strongest terms the book uses: on an irregular mesh there is no constant spacing to
+absorb the weights, and if they are dropped ``the sum approximates nothing''. Consistency is
+a statement about the discretization of a fixed continuum operator, and it is separate from
+the invariance of the architecture family and from the accuracy of a trained model.
+\index{quadrature consistency}
+
+\item[\textbf{Quadrature weights}] The numbers $w_j$ against which a nodal sum is taken:
+cell volumes or Voronoi dual areas, equal to $\Delta x^{d}$ on an equispaced grid, as the
+notation table states. Two uses recur. In a kernel or graph layer they are what makes the
+sum a discretization of an integral, and on a mesh they must be carried explicitly. In a
+loss they cancel: for the relative $L^{2}$ metric \eqref{eq:rel_l2_loss} on equispaced
+grids the same constant appears under both square roots, which is the precise and limited
+sense in which that metric is invariant to grid density --- and the reason applying the
+same unweighted code to a point-cloud tensor returns a quantity that is the $L^{2}$ norm
+of nothing. \index{quadrature weights|textbf}
+
+\item[\textbf{Relative $L^{2}$ error (metric)}] The quotient
+$\mathcal{L}_{\text{rel-}L^{2}}(u, \hat{u}) = \|u - \hat{u}\|_{L^{2}(\Omega)} /
+\|u\|_{L^{2}(\Omega)}$ of \eqref{eq:rel_l2_loss}, evaluated as a quadrature and the
+implementation's root-then-average over the batch; it is the inner quotient of the
+population risk \eqref{eq:ch01-risk} and the metric in which the benchmark percentages of
+Part~\ref{part:2} and the measured error of Appendix~\ref{app:b} are reported, and being a
+quotient of two norms it carries no physical units. Two qualifications are part of the
+definition. Constant quadrature weights cancel, so the \emph{metric} is scale-free in $N$;
+the \emph{value} still changes with $N$, because
+$u$ and $\hat{u}$ are different functions sampled on different grids. And the guard added
+to the denominator prevents division by zero but does nothing for conditioning when the
+label norm is genuinely small, which the book handles by normalizing over a batch instead
+of per sample. \index{relative $L^2$ error (metric)}
+
+\item[\textbf{Rellich--Kondrachov theorem}] Theorem~\ref{thm:ch02-rellich}: for bounded
+$\Omega \subset \mathbb{R}^{d}$ with $C^{1}$ boundary, the canonical injection
+$\iota : H^{s}(\Omega) \hookrightarrow H^{t}(\Omega)$ \eqref{eq:ch02-injection} is a compact
+linear operator whenever $s > t \ge 0$, and $H^{s}(\Omega) \hookrightarrow C^{k}(\overline{\Omega})$
+continuously whenever $s > d/2 + k$. On the torus the proof is the mode-tail estimate
+\eqref{eq:ch02-tail}: a bounded set in $H^{\sigma}$ lies within $\varepsilon$ of a bounded
+set in a finite-dimensional space of band-limited functions, hence is totally bounded. The
+theorem is the certificate the book trades a Sobolev regularity bound against, and the
+reason the density theorems of Part~\ref{part:1} are stated on compacta: an operator such
+as a viscous or elliptic solution map that gains $\alpha > 0$ derivatives sends bounded
+sets to precompact ones. Its two limits are recorded where it is used --- it is qualitative, and
+the smoothing order is a hypothesis about the target, not about the architecture.
+\index{Rellich--Kondrachov theorem|textbf}
+
+\item[\textbf{Resolution transfer}] Evaluation of a trained operator on a grid other than
+its training grid, without retraining or interpolation of the output. The reading the book
+insists on is narrower than the usual headline: the experiment behind
+Figure~\ref{fig:super_resolution} reports relative $L^{2}$ error $0.0141$ at both the $64$-
+and the $256$-point grid, but its inputs carry eight Fourier modes and are already fully
+resolved on the coarse grid, so the fine-grid evaluation resamples the \emph{same}
+continuous functions. What is demonstrated is transfer of a learned operator, not recovery
+of unresolved high-frequency detail, and not superiority over classical solvers on a linear
+problem a single multiplier solves exactly. The governing distinction is stated once and
+applied throughout: that a model \emph{can be evaluated} on any compatible grid is an
+architectural property, while that it is \emph{accurate} there is an empirical claim which
+must be re-verified per problem. \index{resolution transfer}
+
+\item[\textbf{Restriction and extension operators}] The pair $P_{N}$ and $I_{N}$ linking a
+continuum operator to its discrete realization: $P_{N} : a \mapsto (a(x_{1}), \dots,
+a(x_{N}))$ records the nodal values a tensor stores, and $I_{N}$ reconstructs a function
+from a discrete output, so that \eqref{eq:limit_commute} demands that down, across, and up
+be asymptotically the same as straight across (Figure~\ref{fig:commutative}). The two array
+forms of \eqref{eq:ch21-grid-layout} and \eqref{eq:ch21-node-layout} are the same $P_{N}$
+written on a structured grid and on a point cloud. $P_{N}$ is legitimate only where point
+evaluation is bounded, and the choice of $I_{N}$ is not innocent: for spectral layers the
+book's canonical extension is the trigonometric interpolant, while re-interpolating an
+output introduces an error the training loop never saw or bounded.
+\index{restriction operator@restriction operator $P_N$|textbf}\index{extension operator@extension operator $I_N$|textbf}
+
+\item[\textbf{\texttt{rfft2} (real two-dimensional FFT)}] The batched real-to-complex
+transform \texttt{torch.fft.\allowbreak rfft2} applied over the two trailing spatial axes of a
+channel-first grid tensor, the operation that makes the spectral branch one call rather
+than a gather. Because a real field has conjugate symmetric coefficients
+\eqref{eq:ch05-reality}, it returns only half the spectrum, of shape
+$(B, C, N_{1}, \lfloor N_{2}/2 \rfloor + 1)$ in single-precision complex; the second line
+of \eqref{eq:ch21-memory} prices that intermediate at eight bytes per entry, and
+\texttt{torch.fft.\allowbreak irfft2} reconstructs the omitted half given the requested
+output shape.
+The spectral convolution slices its retained modes from this half spectrum in two
+contiguous corners \eqref{eq:ch23-corners}, a union of blocks rather than a centered box,
+so the retained set is defined by the transform's layout and not only by the wavenumbers
+the model needs.
+\index{rfft2 (real two-dimensional FFT)|textbf}
+
+\item[\textbf{Root-mean-square error (RMSE)}] The square root of the mean squared nodal
+difference, reported in two distinct units for two distinct purposes. In
+\chapref{ch:part3-global-weather-forecasting-and-climate-dyn} it is quoted beside the
+anomaly correlation coefficient precisely because it is the quantity an additive
+displacement moves, and the published verification uses the area-weighted form matched to
+\eqref{eq:ch33-accw}. In \chapref{ch:part3-medical-imaging-and-tomographic-reconstruc} it
+is given in Hounsfield units as an image field error, \eqref{eq:ch36-metrics}. As a
+\emph{training} loss the book rejects the unnormalized mean squared error it resembles: its
+magnitude fluctuates with the array convention under refinement, and it lets one
+large-magnitude sample dominate the objective, which is why the normalized quotient
+\eqref{eq:rel_l2_loss} is used instead. \index{root-mean-square error (RMSE)|textbf}
+
+\item[\textbf{Sensor (measurement location)}] One of the fixed points
+$\{x_{j}\}_{j=1}^{m} \subset \Omega$ at which a DeepONet branch reads the input function,
+assembled into $\mathbf{u}_{\mathrm{sensor}} = (u(x_{1}), \dots, u(x_{m})) \in
+\mathbb{R}^{m}$. The set is ``the part of a DeepONet that the network never sees'': the
+first linear layer consumes $m$ numbers in a fixed order, so the locations enter through
+their count and their conditioning rather than through any learned geometry, and if two
+ensemble members agree at the sensors while differing elsewhere the model is asked to
+distinguish inputs its own argument list calls identical. The encoding term
+$\mathcal{E}_{\text{sensor}}(m)$ measures exactly that ambiguity and decays like $m^{-s/d}$
+for ensembles bounded in $H^{s}$, $s > d/2$, so halving it costs a factor $2^{d/s}$ in
+readings --- regularity, not resolution, sets the price. Equispaced, space-filling, and
+clustered node families differ along one axis: how density is distributed over $\Omega$,
+and correspondingly which failure each guards against.
+\index{sensors@sensor (measurement location)|textbf}
+
+\item[\textbf{Sinogram}] The projection data set $p(\theta, s)$ of \eqref{eq:ch36-radon},
+one axis the angle $\theta \in [0, \pi)$ and the other the detector position
+$s \in [-R, R]$, so named because a point of the object traces a sinusoid through it.
+Each entry is the line integral of the attenuation field along
+$x_{1}\cos\theta + x_{2}\sin\theta = s$, and the idealization is where the first model
+error enters: real beams are polychromatic, scatter adds a smooth positive bias, and photon
+starvation where attenuation is high makes the noise neither Gaussian nor angle-independent.
+Sparse-view CT samples the sinogram at $M \ll M_{\text{Nyq}}$ angles, leaving the sampled
+operator an infinite-dimensional null space --- any field whose integral vanishes along
+every measured ray is invisible to the data. \index{sinogram|textbf}
+
+\item[\textbf{Sobolev embedding theorem}] Proposition~\ref{prop:ch02-sobolev-embeddings},
+stated with its conditions exposed: on bounded $\Omega$ with $C^{1}$ boundary,
+$W^{k,p} \hookrightarrow L^{q}$ continuously for $q$ up to the critical exponent
+$p^{*} = dp/(d - kp)$ in the subcritical case $kp < d$, with compactness when $q < p^{*}$;
+every finite $q$ at the borderline $kp = d$ but no $L^{\infty}$; and
+$W^{k,p} \hookrightarrow C^{j,\alpha}$ when $j + \alpha \le k - d/p$ in the supercritical
+case. On $\mathbb{T}^{d}$ the fractional statement is \eqref{eq:ch02-linfty-embed},
+$H^{s} \hookrightarrow L^{\infty}$ if and only if $s > d/2$, and the condition is sharp ---
+a bounded set in $H^{d/2}$ need not be bounded in $L^{\infty}$. The threshold is the book's
+gate on everything pointwise: sensor readings, $L^{\infty}$ error claims, and the
+Sobolev-regularized losses of \chapref{ch:part1-physics-informed-operators-and-sobolev-reg}.
+\index{Sobolev embedding theorem|textbf}
+
+\item[\textbf{Sobolev space}] The space $W^{k,p}(\Omega)$ of $L^{p}$ functions whose weak
+derivatives $D^{\alpha} u$ through order $k$ are again in $L^{p}$, with the norm
+\eqref{eq:ch02-wkp-norm}; Banach, and Hilbert when $p = 2$, where it is written $H^{k}$ and
+carries the inner product \eqref{eq:ch02-hk-inner} that reads out all derivatives at once.
+On the torus the scale extends to every real $s$ by the Fourier-coefficient condition
+\eqref{eq:ch02-hs-torus}, so differentiability is polynomial decay of coefficients, negative
+orders give the distributions dual to positive ones \eqref{eq:ch02-hsneg}, and the scale is
+interpolating in the sense of \eqref{eq:ch02-interp}. Two members do most of the work in
+this book: $H^{1}_{0}(\Omega)$, the closure of $C_{c}^{\infty}$, is the energy space of the
+homogeneous Dirichlet problems and the codomain of the Darcy solution operator, and
+$H^{s+\alpha}$ membership is the hypothesis that buys the truncation rate of
+Theorem~\ref{thm:fno_convergence}. \index{Sobolev space|textbf}
+
+\item[\textbf{Solution operator}] The map $\mathcal{G} : \mathcal{A} \to \mathcal{U}$ of
+\eqref{eq:ch01-solution-operator} carrying data --- a coefficient field, an initial state,
+a boundary forcing --- to a solution field, and the object this book learns rather than a
+solution. The notation covers several distinct maps, and the differences matter: the
+time-$t$ map $u_{0} \mapsto u(\cdot, t)$, the one-step map $u(t) \mapsto u(t + \Delta t)$
+used for autoregressive rollouts, parameter-to-state maps in which finitely many physical
+parameters enter as functions on $\Omega$, and the coefficient-to-state maps whose domain
+and codomain differ and which are therefore typically smoothing. Before $\mathcal{G}$ exists
+as an object of study, the three conditions of Hadamard well-posedness must be answered for
+a specific \emph{pair} of norms --- existence, uniqueness, and continuous dependence ---
+since the same evolution problem is Lipschitz between one choice of spaces and
+discontinuous between another. \index{solution operator|textbf}
+
+\item[\textbf{Spectral layer}] The FNO hidden layer \eqref{eq:fno_layer} as realized: two
+parallel paths added before the activation, a local pointwise linear branch $W_{\ell}$ and a
+global branch that transforms, multiplies the retained modes by $R_{\phi}$, and transforms
+back, with a bias; Figure~\ref{fig:fno_spectral} and \eqref{eq:ch23-layer} give the
+$(B, C, H, W)$ shapes at each stage. Three properties the book keeps separate: the global
+branch is translation-equivariant and diagonal in frequency, so one layer may rotate the
+channel vector within a mode but never moves energy between modes; the local bypass and the
+activation are what break both diagonality and equivariance; and Parseval's identity makes
+the operator norm of the spectral branch explicit as a supremum of the multiplier over the
+retained modes. That per-layer constant is the ingredient of \eqref{eq:ch09-lipschitz},
+whose product across layers is the global Lipschitz constant $\Lambda_{\theta}$ no training
+objective in the book controls. Because the spectral and bypass paths meet
+in an addition, a bypass demoted to half precision and cast back up recovers nothing.
+\index{Fourier neural operator!layer definition|textbf}
+
+\item[\textbf{Structural similarity index measure (SSIM)}] One of the three image-fidelity
+numbers with which \chapref{ch:part3-medical-imaging-and-tomographic-reconstruc} frames
+reconstruction quality, alongside the peak signal-to-noise ratio in decibels and the
+root-mean-square error in Hounsfield units defined at \eqref{eq:ch36-metrics}; where those
+two are functions of the pointwise difference, SSIM compares local luminance, contrast and
+structure between the reconstruction and its reference over a sliding window. The book
+adopts the name, states no formula of its own, and reproduces no operating point from the
+earlier record, since the values there were measured on reconstructors the chapter
+does not name and against one parameterization of the classical filter. Its substantive
+argument about this family of metrics is a limitation: none of the three is a task-based
+assessment of the diagnosis the image is meant to support, and SSIM additionally rewards
+smoothness, so an over-smoothing network can score well while destroying the low-contrast
+features the dose reduction was meant to preserve.
+\index{structural similarity index measure (SSIM)|textbf}
+
+\item[\textbf{Tensor layout}] The array convention by which a discretized field is stored:
+the structured, channel-first grid layout $X \in \mathbb{R}^{B \times C \times N_{1} \times
+\cdots \times N_{d}}$ of \eqref{eq:ch21-grid-layout}, and the point-cloud or mesh layout
+$X_{\text{nodes}} \in \mathbb{R}^{B \times N_{\text{nodes}} \times C}$ with coordinates
+carried separately, of \eqref{eq:ch21-node-layout}. The two differ along one axis: a weight
+tensor in the first is indexed by lattice offsets and frequency bins, a weight tensor in the
+second by the physical displacement $x_{i} - x_{j}$. The grid layout inherits translation
+equivariance and the near-linear transform cost, and buys a kernel library; the mesh layout
+inherits neither, aggregates over neighbor lists at a cost set by the edge count, and must
+carry its quadrature weights explicitly. Only the batch axis carries no operator semantics,
+which is why a finer grid is paid for out of it. \index{tensor layout}
+
+\item[\textbf{Topological dual}] The space $X^{*} := \mathcal{L}(X, \mathbb{R})$ of
+continuous linear functionals on a Banach space $X$, made Banach by the operator norm
+\eqref{eq:ch02-dualnorm} even when $X$ itself is not complete, since a Cauchy sequence of
+functionals converges pointwise. For a Hilbert space the dual is the space itself,
+isometrically, by Theorem~\ref{thm:ch02-riesz-rep}; for $L^{p}$ the identification
+$(L^{p}(\Omega))^{*} \cong L^{q}(\Omega)$ with $1/p + 1/q = 1$ holds only for
+$1 \le p < \infty$ \eqref{eq:ch02-lpdual}, and the dual of $L^{\infty}$ is strictly larger
+than $L^{1}$, being the space of bounded finitely additive measures absolutely continuous
+with respect to Lebesgue measure. That failure is load-bearing: an $L^{\infty}$ bound on
+permeability inputs yields no norm-convergent subsequence, and Banach--Alaoglu applied to
+$L^{\infty} = (L^{1})^{*}$ buys only weak-$*$ compactness of the closed ball, which does
+not control $\|a_{n} - a\|_{L^{\infty}}$. Reflexivity --- the canonical embedding of
+$X$ into $X^{**}$ being onto, as for $L^{p}$ and $W^{k,p}$ with $1 < p < \infty$ --- is
+the hypothesis that makes a bounded sequence yield a weakly convergent one.
+\index{topological dual|textbf}
+
+\item[\textbf{Torus}] $\mathbb{T}^{d} \cong [0,1)^{d}$ with opposite boundaries identified,
+as the notation table defines it: the periodic domain on which the Fourier basis
+\eqref{eq:ch02-fourier-pair} is exact, differentiation is multiplication by
+$(2\pi i k)^{\alpha}$, and the convolution theorem diagonalizes every stationary operator at
+once. It is the presupposition of the whole spectral construction, including the
+$\mathcal{O}(N \log N)$ cost, and the three benchmarks accept it unevenly: Burgers' equation
+and the Navier--Stokes vorticity form are posed periodically, which removes the boundary
+condition from the specification and makes the pseudo-spectral reference solver cheap, while
+Darcy flow carries homogeneous Dirichlet data on a square. Periodicity also replaces the
+no-slip condition of a wall-bounded flow, and the book notes that this single choice limits
+the benchmark's transfer to applications where boundary layers carry the drag.
+\index{periodic domain (torus)|textbf}
+
+\item[\textbf{Trunk network}] The DeepONet sub-network $y \mapsto \mathbf{t}(y) \in
+\mathbb{R}^{p}$ that consumes output coordinates and supplies the second factor of
+\eqref{eq:ch04-deeponet}; its $p$ outputs span at most a $p$-dimensional subspace, whatever
+the branch learns, which is what the basis term $\mathcal{E}_{\text{basis}}(p)$ of
+\eqref{eq:ch04-error-split} prices. Because the two halves are decoupled, one branch pass
+serves every query point and the trunk is evaluated once per step when the query set is
+shared across the batch \eqref{eq:ch22-batch-contraction}. The width $p$ is a rank
+constraint fixed at construction; the residual output bias absorbs the ensemble mean of the
+output field, and a stationary error floor as $p$ grows is a budget problem in the trunk
+rather than an under-trained network. \index{DeepONet!trunk network|textbf}
+
+\item[\textbf{Vorticity formulation}] The closed scalar form of the two-dimensional
+incompressible Navier--Stokes equations, $\partial_{t}\omega + \mathbf{u}\cdot\nabla\omega =
+\nu\Delta\omega + f$ with $\nabla \cdot \mathbf{u} = 0$ and
+$\omega = \nabla \times \mathbf{u} = \partial_{1} u_{2} - \partial_{2} u_{1}$, posed on the
+doubly periodic torus \eqref{eq:ch25-navierstokes}; the divergence-free velocity is
+recovered from vorticity by the Biot--Savart law, so there is no pressure to eliminate. Two
+specification points the book pins down. The forcing \eqref{eq:ch25-forcing} is Kolmogorov's
+and, as written, is a scalar added to the vorticity equation --- the curl of a body force,
+not a body force --- with $L^{2}(\mathbb{T}^{2})$ norm exactly $0.1$ and wavenumbers
+$k_{2} = \pm 1$ only, so it injects energy at the largest scale. The viscosity range
+$\nu = 10^{-3}$ to $10^{-5}$ is priced by the enstrophy balance \eqref{eq:ch03-enstrophy},
+which at statistical steady state leaves $\nu\|\nabla\omega\|_{L^{2}}^{2} =
+\langle f, \omega \rangle_{L^{2}}$ and therefore bounds the resolved gradient as viscosity
+falls. \index{vorticity formulation|textbf}
+
+\item[\textbf{Wall shear stress (WSS)}] The tangential traction
+$\boldsymbol{\tau}_{w} = [\boldsymbol{\sigma}\hat{\mathbf{n}}]_{\text{tan}}$ exerted at a
+boundary, equal for a Newtonian fluid to $\mu\, \partial_{n} u_{t}$ evaluated at the wall
+\eqref{eq:ch32-wss}, with $\boldsymbol{\sigma}$ the viscous stress tensor, $\hat{\mathbf{n}}$
+the outward unit normal, $u_{t}$ the tangential velocity, and $n$ the wall-normal direction.
+It is the friction part of the force integral \eqref{eq:ch32-force-coeff}, whose other part
+is pressure drag, and because it is a \emph{normal derivative} it is the quantity most
+sensitive to the near-wall resolution that \eqref{eq:ch32-yplus} makes expensive. Two
+consequences the book draws: a surrogate predicting pressure well and shear poorly can still
+reproduce a bluff-body drag coefficient, so the two fields should be reported separately; and
+separately predicted pressure and wall shear stress fields need not integrate consistently
+with any divergence-free velocity. In the aerodynamic pipeline the surface WSS is among the
+quantities the geometry-informed decoder reads back off the latent grid.
+\index{wall shear stress (WSS)|textbf}
+
+\item[\textbf{Weak derivative}] The function $v = D^{\alpha} u$ defined not pointwise but
+against test functions, through $\int_{\Omega} u\, D^{\alpha}\phi =
+(-1)^{|\alpha|} \int_{\Omega} v\, \phi$ for all $\phi \in C_{c}^{\infty}(\Omega)$
+\eqref{eq:ch02-weakderiv}: integration by parts with the derivative transferred where it
+costs nothing. Uniqueness almost everywhere follows from the density of the test space, and
+the criterion the book holds onto is $u(x) = |x|$, whose weak derivative is $\operatorname{sign}(x)$:
+kinks are admissible, jumps are not. That distinction propagates into the regularity
+bookkeeping --- a one-dimensional jump has coefficients of size $|k|^{-1}$, so it lies in
+$H^{s}(\mathbb{T})$ for $s < 1/2$ and in no better space, which is the functional-analytic
+content of the Gibbs and shock-capturing difficulties recorded at the end of Part~\ref{part:1}.
+\index{weak derivative|textbf}
+
+\item[\textbf{Weak formulation}] The rewrite of a differential equation as an identity of
+pairings --- find $u$ such that $B_{a}(u, v) = \langle f, v \rangle_{V^{*}, V}$ for every
+test function $v$, as the Darcy weak form \eqref{eq:ch03-weakform} writes it, where
+$B_{a}$ is the bilinear form of the coefficient $a$ and not the coefficient itself ---
+with the pairing taken in a Gelfand triple $V \hookrightarrow H \cong H^{*} \hookrightarrow
+V^{*}$ \eqref{eq:ch02-triple}, typically $H^{1}_{0}(\Omega) \subset L^{2}(\Omega) \subset
+H^{-1}(\Omega)$, so that a source term that is a distribution rather than a function still
+acts on the test space. The construction extends the inner product downward in regularity,
+not upward, and its two analytic ingredients appear together: Poincar\'e's inequality
+\eqref{eq:ch02-poincare} supplies the coercivity that the Lax--Milgram argument of
+\chapref{ch:part1-partial-differential-equations-as-solution} invokes, and
+\eqref{eq:ch02-energy} is the statement that testing the equation against the solution
+itself is legitimate. \chapref{ch:part1-physics-informed-operators-and-sobolev-reg} turns the
+same identity into a variational loss functional, which measures a residual in a weaker norm
+than the $L^{2}$ error does. \index{weak formulation|textbf}
+
+\item[\textbf{Zero-shot super-resolution}] The deployment literature's name for evaluating a
+model trained on one grid on a finer grid without retraining, and the assertion the export
+test of \chapref{ch:part2-production-deployment-and-high-throughput-} makes of a traced graph
+by feeding it a fourfold finer tensor. The book uses the phrase when reporting others'
+results --- evaluation of the aerodynamic surrogate on meshes sub-sampled by factors of two
+to eight, where the geometry is fixed and only its sampling thins --- and reads it in every
+instance through the caveat of
+\chapref{ch:part1-discretization-invariance-and-continuum-li}: exact transfer holds for a
+band-limited input whose spectrum lies inside the retained set, so what such experiments
+demonstrate is resolution transfer on an already-resolved input rather than recovery of
+frequencies absent from the training grid. The terms are not synonyms here, and the
+difference is the point of the entry. \index{zero-shot super-resolution}
+
+\end{description}
+
+% NOTE: headwords and index keys were checked against every \index command in
+% Parts I-III, and re-checked in the verification pass: no key carrying a textbf
+% format here has a textbf anchor anywhere in the main text, so no glossary page
+% duplicates a bold main-text entry. Six terms whose main-text top-level anchor is
+% already bolded (resolution transfer, tensor layout, positional grid encoding,
+% relative L^2 error, quadrature consistency, zero-shot super-resolution), three
+% whose bold anchor sits on a subentry only (aliasing!quadrature error, point
+% evaluation functional!boundedness threshold, error decomposition!statistical,
+% truncation, and discretization), and the two terms opened and closed as ranged
+% anchors in Ch. 1.8 (DeepONet, Graph Neural Operator (GNO)) therefore carry a plain
+% index here. Keys reuse the main text's exact strings so that makeindex merges
+% rather than splits them. The architecture-by-architecture inventory belongs to
+% Appendix app:e, not to this chapter, and is not duplicated.

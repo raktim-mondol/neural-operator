@@ -1,0 +1,545 @@
+% APPENDIX B: A Complete Runnable Fourier Neural Operator
+% STATUS: authored (back-matter pass); adversarially verified against the worked
+% example and the reference script -- all 166 code lines diffed byte-for-byte against
+% the reference file, every number in the prose and in the configuration table traced
+% either to the description of the experiment or to the script line that fixes it, every
+% cross-chapter pointer grepped against the main text, and three echoes of Chs. 2.1/2.3
+% corrected in place: the spectral parameter tally (the
+% two-dimensional count carries a second corner block this one-dimensional band has
+% no counterpart for), the bias that \eqref{eq:ch23-layer} leaves implicit, and the
+% description of what differs between the two evaluations.
+% k_max UNIFIED WITH PART I (Ch. 1.5, eq:ch05-modeset, and Ch. 1.6): k_max is the
+% highest retained wavenumber and equals 11 here; the script's n_modes = 12 is a mode
+% count -- twelve modes per axis, indices 0,...,11. Listings are byte-frozen and still
+% carry the script's own variable names; only prose, the table and its caption changed.
+% Typesetting pass: Table B.1 was set as a breakable xltabular in the text flow rather than a
+% float, because as a [htbp] tabularx it owned a page to itself; its third column is
+% raggedright, which is also what removes the underfull cells.
+% Back matter, Appendix B: the book's worked example, whose reference implementation is
+% embedded verbatim as Listings~\ref{lst:appb-data}--\ref{lst:appb-eval}, together with
+% the caveats stated with the experiment.
+% Code line numbers follow the reference file: the four listings carry its 166 lines,
+% split BEFORE lines 60, 105 and 140, those three blank separators opening the listing
+% that follows each split. The listings environment drops an empty last line instead of
+% numbering it, so the previous arrangement (separators closing the preceding block) left
+% the gutter numbers skipping 60, 105 and 140. No line is omitted, altered,
+% reformatted, or reordered.
+
+% The reference implementation is printed verbatim, which requires two departures
+% from the shared pystyle, both local to this appendix and neither a change to the
+% code: the escape character is disabled, because line 148 of the script contains a
+% literal backslash, and the em dash on line 2 is given a literate replacement so
+% that listings typesets the UTF-8 byte sequence instead of choking on it.
+\lstdefinestyle{appbpystyle}{
+    style=pystyle,
+    escapechar={},
+    literate={—}{{\textemdash}}1
+}
+
+\chapter{A Complete Runnable Fourier Neural Operator}\label{app:b}
+
+Part I proves that a spectral network with fixed width and a fixed retained band
+defines a map on functions; Part II builds such networks at two and three spatial
+dimensions, with production layouts, schedulers, and export contracts. Neither
+supplies an instance small enough to read at one sitting and cheap enough to run
+without a graphics processing unit (GPU). This appendix is that instance: the
+one-dimensional periodic heat-equation Fourier neural operator (FNO)
+\cite{li2021fourier} that the book takes as its worked example, with its
+reference implementation \texttt{FNO Worked Example (PyTorch).py} printed here in
+full and unaltered. It makes three things inspectable at once: the analytic target
+Part I's error figures are measured against, the configuration whose mode budget
+\chapref{ch:part1-the-fourier-neural-operator-spectral-theor}
+reasons about, and the pair of numbers drawn as markers in
+Figure~\ref{fig:super_resolution}.
+
+Everything below consolidates. The input family, the hyperparameters, the measured
+errors, and the qualifications attached to them come from the reference script and from
+the record of the run it documents, not from any new computation; where that record is
+silent --- timings, hardware beyond
+the statement that a central processing unit (CPU) suffices, repeated-seed
+variability, any resolution other than the two reported --- the text says so rather
+than filling the gap. Prerequisites are Fourier series on $[0,1)$, the spectral layer
+\eqref{eq:ch23-layer}, the relative $L^2$ metric \eqref{eq:rel_l2_loss}, and the
+PyTorch module interface. What follows is the problem and its exact solution, the
+configuration, the script, the measurement, and the limits of the measurement.
+
+\section{The Problem, Its Exact Solution, and the Input Measure}
+\label{sec:appb-problem}
+
+The model problem is the periodic heat equation of the worked example,
+\begin{equation}
+  \label{eq:appb-pde}
+  \partial_t u = \alpha\,\partial_{xx} u, \qquad u(x,0) = u_0(x), \qquad
+  x \in [0,1) \ \text{periodic}, \qquad \alpha = 0.01,\quad T = 1.0,
+\end{equation}
+whose constants the script states in its opening docstring. Since
+$\partial_{xx} e^{2\pi i k x} = -(2\pi k)^2 e^{2\pi i k x}$, the coefficients of a
+periodic solution obey $\partial_t \hat{u}(k,t) = -\alpha (2\pi k)^2 \hat{u}(k,t)$:
+each mode decays alone, and the solution operator is a Fourier multiplier,
+\begin{equation}
+  \label{eq:appb-multiplier}
+  u(x,T) = \mathcal{F}^{-1}\!\left[ \hat{u}_0(k)\, e^{-\alpha (2\pi k)^2 T} \right](x).
+\end{equation}
+That is why no numerical solver appears anywhere in the script: a forward
+real-to-complex fast Fourier transform (FFT), one multiplication per mode, and an
+inverse transform give the target field exactly, up to numerical precision, on any
+grid resolving the input. The same factor appears in Figure~\ref{fig:spectral_decay},
+and \chapref{ch:part1-the-fourier-neural-operator-spectral-theor} records that it
+reaches $1.1\times10^{-11}$ by $k=8$ at these values of $\alpha$ and $T$: truncation is
+negligible here, so the observed error is a network-capacity error. The operator to be
+learned is $\mathcal{G}\colon u_0(\cdot) \mapsto u(\cdot,T)$, a linear map.
+
+The input measure is fully specified:
+\begin{equation}
+  \label{eq:appb-input}
+  u_0(x) = \sum_{k=1}^{8} c_k\, k^{-3/2} \cos(2\pi k x + \phi_k), \qquad
+  c_k \sim \mathcal{N}(0,1), \quad \phi_k \sim U(0,2\pi),
+\end{equation}
+independent standard normal amplitudes, phases uniform on $[0,2\pi)$, a fixed
+$k^{-3/2}$ envelope, wavenumbers $1$ through $8$. Three hundred functions are drawn
+for training, fifty for validation, and fifty fresh draws of the same family for
+testing --- new samples of \eqref{eq:appb-input}, not a new kind of input. Because the
+band stops at eight, every input is resolved with room to spare on the sixty-four-point
+training grid, whose real transform carries $F=\lfloor 64/2\rfloor+1=33$ coefficients.
+That fact governs Section~\ref{sec:appb-scope}: it is why the fine-grid evaluation can
+transfer at all, and why it cannot be read as recovering what the coarse grid lost.
+
+\section{Configuration and Architecture}
+\label{sec:appb-config}
+
+Table~\ref{tab:appb-config} collects every setting stated for this experiment,
+with the script line that fixes it; its first two rows are the constants of
+\eqref{eq:appb-pde}. The
+model is the lift--layer--project composition of \cite{kovachki2023neural}, one
+Fourier layer between a pointwise lift and a pointwise projection,
+\begin{equation}
+  \label{eq:appb-layer}
+  \text{out} = \mathcal{Q}\!\left[ \tanh\!\left( \mathcal{W}_1 v_1
+  + \mathcal{F}_N^{-1}\!\left( R_\phi \hat{v}_1 \right) + b_1 \right) \right],
+  \qquad v_1 = \mathcal{P}u, \quad \hat{v}_1 = \mathcal{F}_N v_1,
+\end{equation}
+which is \eqref{eq:ch23-layer} at depth $L=1$, one channel in and out, and width
+$d_{\text{hidden}}=16$, except that the bias $b_1$ is written out, as the script has
+it and \eqref{eq:ch23-layer} does not. Two conventions need care. The first is the
+book's: $k_{\max}$ denotes the highest retained wavenumber, as in the mode set
+\eqref{eq:ch05-modeset}, and never the number of retained coefficients. The script's
+parameter is that number instead, so \texttt{n\_modes}=12 retains twelve modes per
+axis, indices $0,\dots,11$, whence $k_{\max}=11$ and not $12$ --- the distinction is
+flagged because the constant mode is counted --- and the script's
+\texttt{min(n\_modes, F)}
+keeps the slice inside the half-spectrum the grid supplies. The spectral branch is two
+real tensors of shape $12\times16\times16$
+rather than one complex array: the real and imaginary parts of a single band of channel
+matrices. The two-dimensional layer of \eqref{eq:ch23-Rtensors} holds two \emph{complex}
+tensors instead, because its retained set \eqref{eq:ch23-corners} has an upper and a
+lower corner, and the tally \eqref{eq:ch23-paramcount} counts both blocks; a
+one-dimensional half-spectrum supplies only the single band this script stores, so
+\eqref{eq:ch23-paramcount} has no reading here.
+
+The differences from Part II's reference implementation are conventional, not
+substantive: the channel axis last rather than the channel-first layout
+\eqref{eq:ch21-grid-layout}; \texttt{einsum} rather than $1\times1$ convolutions;
+$\tanh$ where Listing~\ref{lst:ch23-fno2d} uses the Gaussian error linear unit (GELU);
+one projection matrix rather than a two-layer network; no appended coordinate
+channels; and the complex product expanded by hand into real and imaginary parts and
+written into a zero-filled array of the full transform length, the allocation-as-padding
+device the two-dimensional convolution of
+\chapref{ch:part2-fourier-neural-operators-fno-from-scratch} also uses. Where
+\cite{li2021fourier} imposes conjugate symmetry on $R_\phi$ because the kernel is
+real, \texttt{irfft} here reconstructs from a half-spectrum, with no such constraint
+in the parameters. The conclusion Table~\ref{tab:appb-config} carries is the one
+\chapref{ch:part1-the-fourier-neural-operator-spectral-theor} argues for: the retained
+band $0\le k\le k_{\max}=11$, twelve coefficients, covers every wavenumber
+\eqref{eq:appb-input} contains, so the error of Section~\ref{sec:appb-result} is not
+truncation.
+
+{\small
+\begin{xltabular}{\textwidth}{@{}l l >{\raggedright\arraybackslash}X@{}}
+\caption{\textbf{The configuration of the worked example as stated, with the script line
+that fixes each value.} Line numbers refer to \texttt{FNO Worked Example (PyTorch).py}.
+The band entry clarifies a counting convention: the script
+fixes \texttt{n\_modes}=12, a mode \emph{count}, which retains twelve modes per axis,
+indices $0,\dots,11$; in the book's convention of \eqref{eq:ch05-modeset}, the highest
+retained wavenumber is therefore $k_{\max}=11$, not $12$. Nothing in this table is
+chosen here; every row is a quotation of a number that appears in the code or in the
+record kept with it.}
+\label{tab:appb-config}\\
+\toprule
+\textbf{Item} & \textbf{Value} & \textbf{Where it is fixed} \\
+\midrule
+\endfirsthead
+\multicolumn{3}{r}{\textit{Table~\ref{tab:appb-config}, continued}}\\
+\toprule
+\textbf{Item} & \textbf{Value} & \textbf{Where it is fixed} \\
+\midrule
+\endhead
+\midrule
+\multicolumn{3}{r}{\textit{Table~\ref{tab:appb-config}, continued on the next page}}\\
+\endfoot
+\bottomrule
+\endlastfoot
+Diffusivity $\alpha$ & $0.01$ & line 22; docstring line 6 \\
+Horizon $T$ & $1.0$ & line 22; docstring line 6 \\
+Input band & wavenumbers $1,\dots,8$, envelope $k^{-3/2}$ & \texttt{n\_modes=8} default, lines 28--44 \\
+Ensemble & $300$ train, $50$ validation, $50$ held-out & lines 110--111, 144 \\
+Training grid $N$ & $64$, at $x_i=i/N$ & lines 109, 56 \\
+Evaluation grid & $256$, same functions, no retraining & line 153 \\
+Retained band $k_{\max}$ & $11$ & line 73: \texttt{n\_modes=12}, i.e.\ twelve modes per axis, indices $0,\dots,11$; used at line 91 \\
+Hidden width $d_{\text{hidden}}$ & $16$ & line 73 \\
+Channels $C_{\text{in}},C_{\text{out}}$ & $1$, $1$ & line 73 \\
+Fourier layers $L$ & $1$ & class \texttt{TinyFNO}, lines 64--104 \\
+Activation & $\tanh$ & line 103 \\
+Precision & \texttt{float32} & line 23 \\
+Seeds & \texttt{torch.manual\_seed(0)}, \texttt{np.random.seed(0)} & lines 20--21 \\
+Optimizer & Adam, learning rate $10^{-3}$ & line 116 \\
+Schedule & step decay, halve every $100$ epochs & line 117 \\
+Epochs, batch size & $400$, $32$ & line 124 \\
+Training loss & mean of squared per-sample relative $L^2$ & lines 131--133 \\
+Reported metric & mean of per-sample relative $L^2$ & \texttt{rel\_l2}, lines 119--122 \\
+\end{xltabular}
+}
+
+\section{The Script}
+\label{sec:appb-code}
+
+The implementation follows in four blocks --- data, model, training, evaluation ---
+printed byte-for-byte from the reference file and numbered as the file numbers it, so
+the same content sits on the same lines in both. All 166 lines are present, and the
+gutter numbers run unbroken from 1 to 166: the blocks break \emph{before} lines 60,
+105 and 140, so each of those three blank separator lines opens the listing that
+follows the split rather than closing the one before it; nothing is reformatted,
+renamed, reordered, or improved.
+Running the file trains on a CPU and writes an archive \texttt{fno\_results.npz} that
+the companion plotting script reads.
+
+\subsection{Data generation and exact targets}
+
+\begin{lstlisting}[style=appbpystyle, firstnumber=1, caption={\texttt{FNO Worked Example (PyTorch).py}, lines 1--59: module docstring, seeds, the input family \eqref{eq:appb-input}, the exact periodic heat solution \eqref{eq:appb-multiplier}, and the grid sampler. Printed verbatim.}, label={lst:appb-data}]
+"""
+fno_example.py — Fourier Neural Operator tutorial example (PyTorch, CPU).
+
+Problem: 1-D periodic heat diffusion.
+    u_t = alpha * u_xx,   u(x,0) = u_0(x),   x in [0,1) periodic
+    alpha = 0.01, T = 1.0.
+
+Analytic solution (spectral; exact, up to numerical precision, on grids that resolve these band-limited periodic inputs):
+    u(x,T) = F^{-1}( F(u_0)_k * exp(-alpha (2 pi k)^2 T) )
+
+Target operator:  G: u_0(.) -> u(.,T)    (function-to-function map)
+
+We build a small FNO with one Fourier layer, train on random smooth
+initial functions, then test on unseen initial functions AND on a finer
+grid (zero-shot super-resolution: no retraining).
+"""
+import torch
+import numpy as np
+
+torch.manual_seed(0)
+np.random.seed(0)
+ALPHA, T_END = 0.01, 1.0
+DTYPE = torch.float32
+
+# ---------------------------------------------------------------
+# 1) Data generation: random smooth periodic functions
+# ---------------------------------------------------------------
+def make_init_fns(n_funcs, n_modes=8):
+    """Callables u0(x): random superpositions of cosines (smooth, periodic)."""
+    funcs = []
+    for _ in range(n_funcs):
+        coeffs = np.random.randn(n_modes)
+        phases = np.random.uniform(0, 2*np.pi, n_modes)
+        amps   = 1.0 / np.arange(1, n_modes+1) ** 1.5
+        funcs.append((coeffs, phases, amps))
+    def make_u0(params):
+        c, p, a = params
+        def u0(x):
+            s = np.zeros_like(x)
+            for k in range(len(c)):
+                s += c[k]*a[k]*np.cos(2*np.pi*(k+1)*x + p[k])
+            return s
+        return u0
+    return [make_u0(p) for p in funcs]
+
+def heat_solve_exact(u0_t, alpha=ALPHA, T=T_END):
+    """Exact periodic heat solution. u0_t: torch (B,N,1)."""
+    with torch.no_grad():
+        N = u0_t.shape[1]
+        c = torch.fft.rfft(u0_t, dim=1)                       # (B,F,1)
+        k = torch.fft.rfftfreq(N, device=u0_t.device) * N
+        decay = torch.exp(-alpha*(2*np.pi*k)**2 * T)[None, :, None]
+        return torch.fft.irfft(c * decay, n=N, dim=1)          # (B,N,1)
+
+def dataset(fns, N):
+    x = np.linspace(0, 1, N, endpoint=False)
+    U0 = np.stack([f(x) for f in fns])[:, :, None]
+    U0 = torch.tensor(U0, dtype=DTYPE)
+    return U0, heat_solve_exact(U0)
+\end{lstlisting}
+
+Two points in Listing~\ref{lst:appb-data} matter. \texttt{make\_init\_fns} returns
+closures, not arrays, so one draw can be sampled on any grid --- the operation the
+transfer claim depends on. \texttt{heat\_solve\_exact} is \eqref{eq:appb-multiplier}
+transcribed: \texttt{rfft} along the point axis, \texttt{rfftfreq} scaled by $N$ to
+integer wavenumbers, the decay broadcast over batch and channel, and \texttt{irfft}
+back to physical space.
+
+\subsection{The one-layer model}
+
+\begin{lstlisting}[style=appbpystyle, firstnumber=60, caption={\texttt{FNO Worked Example (PyTorch).py}, lines 60--104: \texttt{TinyFNO}, the pointwise lift, the single spectral layer with the complex weight held as two real tensors, and the pointwise projection. Printed verbatim; the inline shape comments are the script's own; the block opens on the reference file's blank line 60.}, label={lst:appb-model}]
+
+# ---------------------------------------------------------------
+# 2) Tiny FNO in PyTorch (one Fourier layer)
+# ---------------------------------------------------------------
+class TinyFNO(torch.nn.Module):
+    """
+    v1  = P(u)                              lift (pointwise linear)
+    v2  = tanh( W1 v1 + FFT^{-1}(R * FFT(v1)) + b1 )   Fourier layer
+    out = Q(v2)                              project (pointwise linear)
+
+    R: complex tensor (n_modes, d_hidden, d_hidden), applied per retained
+    Fourier mode (channel mixing). Modes above n_modes are truncated.
+    """
+    def __init__(self, d_in=1, d_out=1, d_hidden=16, n_modes=12):
+        super().__init__()
+        self.P  = torch.nn.Parameter(torch.randn(d_in, d_hidden) / d_hidden**0.5)
+        self.W1 = torch.nn.Parameter(torch.randn(d_hidden, d_hidden) / d_hidden**0.5)
+        self.b1 = torch.nn.Parameter(torch.zeros(d_hidden))
+        # complex weights: R[m, h, i]
+        Rr = torch.randn(n_modes, d_hidden, d_hidden) / d_hidden**0.5
+        Ri = torch.randn(n_modes, d_hidden, d_hidden) / d_hidden**0.5
+        self.Rr = torch.nn.Parameter(Rr)
+        self.Ri = torch.nn.Parameter(Ri)
+        self.Q  = torch.nn.Parameter(torch.randn(d_hidden, d_out) / d_hidden**0.5)
+        self.n_modes = n_modes
+
+    def forward(self, u):
+        B, N, _ = u.shape
+        v1 = torch.einsum('bnm,mh->bnh', u, self.P)            # (B,N,H)
+        v1_f = torch.fft.rfft(v1, dim=1)                        # (B,F,H) complex
+        F = v1_f.shape[1]
+        m = min(self.n_modes, F)
+        vf = v1_f[:, :m]                                         # (B,m,H)
+        vr, vi = vf.real, vf.imag
+        # complex multiply as real arithmetic:
+        # (vr + i vi) * (Rr + i Ri) = (vr Rr - vi Ri) + i (vr Ri + vi Rr)
+        Rf_re = torch.einsum('bfh,fhi->bfi', vr, self.Rr[:m]) - torch.einsum('bfh,fhi->bfi', vi, self.Ri[:m])
+        Rf_im = torch.einsum('bfh,fhi->bfi', vr, self.Ri[:m]) + torch.einsum('bfh,fhi->bfi', vi, self.Rr[:m])
+        Rf = torch.zeros(B, F, v1.shape[2], dtype=torch.complex64,
+                         device=u.device)
+        Rf[:, :m] = Rf_re.to(torch.complex64) + 1j*Rf_im.to(torch.complex64)
+        ker = torch.fft.irfft(Rf, n=N, dim=1)                    # (B,N,H)
+        z = torch.einsum('bnh,hi->bni', v1, self.W1) + ker + self.b1
+        a = torch.tanh(z)
+        return torch.einsum('bnh,hk->bnk', a, self.Q)
+\end{lstlisting}
+
+Listing~\ref{lst:appb-model} is \eqref{eq:appb-layer} with nothing hidden. The lift
+and the local path act pointwise through \texttt{einsum}; the band is sliced off the
+half-spectrum, multiplied mode by mode, written into a zero-filled array of length
+$F$, and inverted, so truncation is literally the vanishing of the coefficients above
+index $11$, that is, above $k_{\max}=11$. Both grids satisfy $F>k_{\max}$, since $F$ is
+$33$ at $N=64$ and $129$ at $N=256$, so the band is twelve modes wide at $N=64$ and at
+$N=256$ alike --- the sense in which one parameter set denotes one spectral projection
+on both.
+
+\subsection{Training}
+
+\begin{lstlisting}[style=appbpystyle, firstnumber=105, caption={\texttt{FNO Worked Example (PyTorch).py}, lines 105--139: the $N=64$ ensembles, the model instance with the hyperparameters of Table~\ref{tab:appb-config}, the reporting metric \texttt{rel\_l2}, and the training loop with its squared relative-$L^2$ objective \eqref{eq:appb-loss}. Printed verbatim; the block opens on the reference file's blank line 105.}, label={lst:appb-train}]
+
+# ---------------------------------------------------------------
+# 3) Train
+# ---------------------------------------------------------------
+N = 64
+train_fns = make_init_fns(300)
+val_fns   = make_init_fns(50)
+U0_tr, UT_tr = dataset(train_fns, N)
+U0_va, UT_va = dataset(val_fns, N)
+
+model = TinyFNO(d_in=1, d_out=1, d_hidden=16, n_modes=12)
+opt = torch.optim.Adam(model.parameters(), lr=1e-3)
+sched = torch.optim.lr_scheduler.StepLR(opt, step_size=100, gamma=0.5)
+
+def rel_l2(pred, true):
+    num = (pred - true).norm(dim=(1,2))
+    den = true.norm(dim=(1,2)).clamp_min(1e-9)
+    return (num/den).mean().item()
+
+EPOCHS, BATCH = 400, 32
+for epoch in range(1, EPOCHS+1):
+    perm = torch.randperm(len(U0_tr))
+    for b in range(0, len(U0_tr), BATCH):
+        sel = perm[b:b+BATCH]
+        out = model(U0_tr[sel])
+        # per-sample relative L2 squared (correct formula, no extra 1/N)
+        num = (out - UT_tr[sel]).square().sum(dim=(1,2))
+        den = UT_tr[sel].square().sum(dim=(1,2)).clamp_min(1e-12)
+        loss = (num / den).mean()
+        opt.zero_grad(); loss.backward(); opt.step()
+    sched.step()
+    if epoch % 50 == 0:
+        with torch.no_grad():
+            val_out = model(U0_va)
+        print(f"epoch {epoch:3d}  val rel-L2 {rel_l2(val_out, UT_va):.4f}")
+\end{lstlisting}
+
+Nothing in the optimization changes because inputs and outputs are functions; only the
+architecture of the forward map does. The objective at lines
+131--133 of Listing~\ref{lst:appb-train} is the loss the example specifies,
+\begin{equation}
+  \label{eq:appb-loss}
+  \mathcal{L} = \frac{1}{B}\sum_{i=1}^{B}
+  \frac{\|\hat{u}^{(i)} - u^{(i)}\|_{L^2}^2}{\|u^{(i)}\|_{L^2}^2},
+\end{equation}
+the batch mean of the squared per-sample relative error, with no grid factor because
+the weights of \eqref{eq:rel_l2_loss} cancel between numerator and denominator.
+\eqref{eq:appb-loss} is what is minimized; the reporting function \texttt{rel\_l2}
+uses the other convention, the root of the ratio
+per sample and then the average;
+\chapref{ch:part2-the-practitioner-s-paradigm-infinite-dimen} distinguishes the two
+and notes that the percentages measured here are of the root-then-average form and are
+in physical units, there being no normalizer in these four blocks.
+
+\subsection{Held-out evaluation and zero-shot transfer}
+
+\begin{lstlisting}[style=appbpystyle, firstnumber=140, caption={\texttt{FNO Worked Example (PyTorch).py}, lines 140--166: held-out evaluation at $N=64$, the zero-shot re-sampling of the same fifty functions at $N=256$ with unchanged weights, and the archive written for the plotting script. Printed verbatim; the block opens on the reference file's blank line 140; the two printed lines supply Table~\ref{tab:appb-measured}.}, label={lst:appb-eval}]
+
+# ---------------------------------------------------------------
+# 4) Evaluate on unseen initial functions (held-out)
+# ---------------------------------------------------------------
+test_fns = make_init_fns(50)
+U0_te, UT_te = dataset(test_fns, N)
+with torch.no_grad():
+    pred = model(U0_te)
+print(f"\n[64-pt grid]   held-out rel-L2 error: {rel_l2(pred, UT_te):.4f}")
+
+# ---------------------------------------------------------------
+# 5) Zero-shot super-resolution: same underlying functions, N=256
+# ---------------------------------------------------------------
+N2 = 256
+U0_te2, UT_te2 = dataset(test_fns, N2)
+with torch.no_grad():
+    pred2 = model(U0_te2)
+print(f"[256-pt grid]  held-out rel-L2 error (no retraining): {rel_l2(pred2, UT_te2):.4f}")
+
+# save results for plotting
+import os
+np.savez(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fno_results.npz'),
+         x=np.linspace(0,1,N,endpoint=False),
+         u0=U0_te[0,:,0].numpy(), true=UT_te[0,:,0].numpy(), pred=pred[0,:,0].numpy(),
+         x2=np.linspace(0,1,N2,endpoint=False),
+         u0_2=U0_te2[0,:,0].numpy(), true2=UT_te2[0,:,0].numpy(), pred2=pred2[0,:,0].numpy())
+print("saved fno_results.npz")
+\end{lstlisting}
+
+Everything in Listing~\ref{lst:appb-eval} after the training loop uses the weights as
+they stand. The second evaluation differs from the first in one number, the count of
+grid points the same functions are sampled at: the fifty test functions are drawn once
+and resampled at both $64$ and $256$ points. That re-sampling is the whole of the
+super-resolution experiment, and the archive written at the end holds its first sample
+on each grid.
+
+\section{The Measured Result}
+\label{sec:appb-result}
+
+Table~\ref{tab:appb-measured} reports what the run measured: observed numbers from the
+account of one execution of the script above, not expectations derived from the
+architecture, printed to four decimals by the two \texttt{print} calls of
+Listing~\ref{lst:appb-eval}. They are transcribed, not reproduced --- the archive the
+script writes is not among the artifacts held for this book, so no training was re-run
+here. Validation error fell smoothly to roughly $1.6\%$ during
+training; the held-out error was $1.41\%$ at $N=64$, and re-sampling those same
+functions on a grid four times finer left the reported value unchanged at $1.41\%$. The
+qualification that came with the number travels with it: both errors round to $0.0141$
+at the printed precision, which is a statement about the report, not a claim that the two
+underlying floating-point quantities were equal.
+
+\begin{table}[htbp]
+\centering
+\caption{\textbf{Measured relative $L^2$ error on held-out inputs, as reported for
+the run of the script in Section~\ref{sec:appb-code}.} The metric is
+the root-then-average form of \eqref{eq:rel_l2_loss}, evaluated on the physical fields:
+\texttt{rel\_l2} applies no pointwise normalizer, and the grid weights of
+\eqref{eq:rel_l2_loss} cancel between numerator and denominator. The equality of the two
+entries holds at the four decimals at which the script prints them. The record supplies
+no timings, no spread across seeds, no per-epoch curve, and no error at any other
+resolution.}
+\label{tab:appb-measured}
+\begin{tabular}{@{}llr@{}}
+\toprule
+\textbf{Evaluation} & \textbf{Retraining} & \textbf{Relative $L^2$ error} \\
+\midrule
+Held-out functions, $64$-point grid & none required (training grid) & $0.0141$ \ ($1.41\%$) \\
+Same functions, $256$-point grid & none & $0.0141$ \ ($1.41\%$) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+What the table supports is transfer, not accuracy in the large: one parameter set,
+fitted on three hundred functions sampled at sixty-four points, returned on fifty
+held-out functions sampled at two hundred and fifty-six points the error it returned on
+the same fifty at the training resolution --- no retraining, and no degradation at the
+reported precision. The report adds that the pointwise error is small everywhere.
+What the table does not support is comparison: $1.41\%$ is a modest error on an easy
+target, and no competing network, classical solver, or third resolution appears alongside
+the two reported values. The three-panel figure the plotting companion draws from the
+archive is not among the book's supplied images, which is why the two values reach Part I
+as the markers on the horizontal line
+of Figure~\ref{fig:super_resolution}, whose caption repeats number and caveat alike.
+
+\section{What the Experiment Establishes, and What It Does Not}
+\label{sec:appb-scope}
+
+Three qualifications come with this experiment, and they belong in the text, not a
+footnote: an appendix is where a reader is likeliest to take the number at face value.
+
+The first concerns the inputs. The functions of \eqref{eq:appb-input} carry eight
+Fourier modes and the sixty-four-point grid resolves wavenumbers to $32$, so nothing
+was lost between a function and its coarse samples: the $256$-point evaluation
+resamples the \emph{same} already-resolved functions more finely. The experiment
+demonstrates resolution transfer of the learned operator, not recovery of unresolved
+high-frequency detail, and must not be cited as if it did --- the restriction the
+caption of Figure~\ref{fig:super_resolution} places on the same data. What makes the
+transfer legible is Proposition~\ref{prop:ch06-zeroshot} of
+\chapref{ch:part1-discretization-invariance-and-continuum-li}, whose hypothesis
+$N_{\text{train}} > 2k_{\max}$ holds here since $64 > 2\times 11 = 22$, and whose
+band-limiting proviso holds too, the lift being pointwise linear and the family
+\eqref{eq:appb-input} stopping at $k=8$, three wavenumbers below the cutoff
+$k_{\max}=11$. That proposition speaks of one layer's spectral branch \emph{before} the
+activation, which is exactly how far a single-layer model may go. The $\tanh$ at line 103
+and the projection after it lie outside that identity.
+
+The second concerns the equation. Heat diffusion is linear and
+\eqref{eq:appb-multiplier} already solves it exactly and cheaply; applying the
+multiplier to the samples is a spectral solve, which is how \texttt{heat\_solve\_exact}
+makes the labels. This appendix draws the honest consequence --- this FNO is a teaching
+example, not evidence that FNOs outperform classical solvers on this problem --- and
+\chapref{ch:part1-the-fourier-neural-operator-spectral-theor} calls it a teaching
+device for the same reason.
+
+The third concerns reach. Both entries of Table~\ref{tab:appb-measured} are errors on
+inputs drawn from \eqref{eq:appb-input}: smooth, band-limited, periodic, generated by
+the training routine itself. The limitations recorded for this instance warn that
+discretization invariance is not resolution-independent accuracy, that accuracy at an
+unseen resolution must be checked empirically, and that an FNO trained on smooth initial
+conditions may fail on discontinuous ones. The exercises proposed alongside it put those
+questions to this script --- larger $\alpha$, \texttt{n\_modes} cut from $12$ to $4$, which is $k_{\max}$
+cut from $11$ to $3$, evaluation at $32$ points, a second Fourier layer --- and none is
+reported here, because none was measured. Surrogates earn their cost where a classical
+solve is repeated many times
+over a nonlinear, expensive, many-query problem:
+\chapref{ch:part2-canonical-pde-benchmarks-and-reference-wor} treats this heat equation
+as the preliminary to the Burgers, Darcy, and vorticity-form Navier--Stokes benchmarks
+of Appendix~\ref{app:c}, and Appendix~\ref{app:d} collects the schedules and failure
+modes a reader changing these settings will meet.
+
+% ---------------------------------------------------------------------
+\index{Fourier neural operator (FNO)!one-dimensional worked example}
+\index{heat equation!runnable periodic example}
+\index{band-limited input!eight-mode worked example}
+\index{zero-shot super-resolution!measured at $N=64$ and $N=256$}
+\index{relative $L^2$ error (metric)!root-then-average versus squared-ratio loss}
+\index{discretization invariance!versus resolution-independent accuracy}
+\index{spectral truncation!counting the constant mode in the band}
+\index{learning rate scheduling!step decay in the worked example}
+\index{hyperparameters!measured one-dimensional configuration}
+\index{channel mixing!one-dimensional single-band instance}

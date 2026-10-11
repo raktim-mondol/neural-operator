@@ -1,0 +1,179 @@
+% Chapter 8: Comparative Theoretical Taxonomy of Architectures
+% Part I of the book.
+% STATUS: book-standard prose (Part I).
+
+\chapter{Comparative Theoretical Taxonomy of Architectures}
+\label{ch:part1-comparative-theoretical-taxonomy-of-archit}
+\label{sec:taxonomy}
+\index{operator architectures!taxonomy of|textbf}
+\index{taxonomy!of operator architectures|textbf}
+% -----------------------------------------------------------------------------
+
+The seven chapters that precede this one developed the theory in a single direction: function spaces and their compact embeddings in \chapref{ch:part1-function-spaces-duality-and-sobolev-regula}, PDE (partial differential equation) solution operators and their regularity in \chapref{ch:part1-partial-differential-equations-as-solution}, approximation theorems in \chapref{ch:part1-operator-approximation-theory-and-universa}, the spectral construction that makes one of those theorems cheap in \chapref{ch:part1-the-fourier-neural-operator-spectral-theor}, mesh independence in \chapref{ch:part1-discretization-invariance-and-continuum-li}, and training functionals in \chapref{ch:part1-physics-informed-operators-and-sobolev-reg}. Read in that order, the architectures look like answers to different questions. DeepONet (Deep Operator Network) \index{DeepONet|(} asks how many point samples pin down a function; the generic neural operator (NO) \index{generic neural operator|(} asks whether trainable integral kernels are dense in the continuous operators; the FNO (Fourier Neural Operator) asks what an integral kernel costs once it is translation invariant; the geometry-informed variant asks what changes when the domain is a car body rather than a torus; and a last question, what changes when the array of learned multipliers is too large to store, is treated here purely as a factorization technique rather than as an architecture.
+
+Put side by side, those questions generate one no single paper settles: which architecture suits which class of problems, and on what grounds? The question is hard for three reasons. First, the architectures are not rivals contesting a common task; each restricts the same integral-kernel template of \eqref{eq:no_layer} to a smaller function class, so a fair comparison must say what every restriction forfeits and what it purchases. Second, the axes are chosen rather than given: expressiveness, inductive bias, dependence on the discretization, cost per query, and the strength of available convergence guarantees are logically independent, and an architecture can be first on one and last on another. Third, the evidence is uneven in kind. Some entries rest on proved theorems, some on arithmetic over a fixed discretization, some only on published experiments; blending those registers into one table is how a taxonomy turns misleading.
+
+This chapter fixes the axes, states what each architecture assumes, and keeps an explicit ledger of what is proved and what is not. Section~\ref{sec:ch8-axes} defines the axes and writes out the two inclusions that make the architectures comparable at all. Section~\ref{sec:ch8-requirements} asks what each requires of the target operator and records the theorems attached to each requirement. Section~\ref{sec:ch8-cost} does the cost accounting, assembles Table~\ref{tab:comparison} and the theorem ledger Table~\ref{tab:ch8-ledger}, and marks the limits of the comparison. Prerequisites are Chapters~\ref{ch:part1-operator-approximation-theory-and-universa}--\ref{ch:part1-physics-informed-operators-and-sobolev-reg}, plus the function-space and solution-operator material of \chapref{ch:part1-function-spaces-duality-and-sobolev-regula} and \chapref{ch:part1-partial-differential-equations-as-solution} behind them; no new result is proved here. What the chapter leaves blank is the subject of \chapref{ch:part1-open-theoretical-problems-and-mathematical}.
+
+% -----------------------------------------------------------------------------
+\section{Axes of Comparison}
+\label{sec:ch8-axes}
+% -----------------------------------------------------------------------------
+
+Comparison requires a common template, and the template is the one introduced in \chapref{ch:part1-operator-approximation-theory-and-universa}: a lift $\mathcal{P}$, a stack of layers \eqref{eq:no_layer} carrying a local linear map $W_\ell$, a bias $b_\ell$, an activation $\sigma$ and a non-local integral operator $\mathcal{K}_\ell$ with kernel $\kappa_\ell(x,y,a(x),a(y);\phi_\ell)$ as in \eqref{eq:fredholm_kernel}, and a projection $\mathcal{Q}$. Every architecture keeps that skeleton and constrains $\kappa_\ell$ differently. \index{kernel!constraints across architectures}
+
+The first axis is the size of the kernel class: how large a set of operators the parameterization spans as the free parameters $\phi_\ell$ range over all admissible values. The generic neural operator imposes nothing beyond continuity of $\kappa_\ell$ on $\Omega\times\Omega$ and dependence on the input values at the pair $(x,y)$ \cite{kovachki2023neural}. The FNO is the same layer with two restrictions at once --- the domain becomes the torus $\mathbb{T}^d$, and the kernel becomes stationary and input-independent,
+\begin{equation}
+  \label{eq:ch8-fno-specialization}
+  \kappa_\ell(x,y,a(x),a(y);\phi_\ell) \;=\; \kappa_\ell(x-y;\phi_\ell),
+  \qquad
+  R_\phi(k) \;=\; \int_{\mathbb{T}^d} \kappa_\ell(z;\phi_\ell)\, e^{-2\pi \mathrm{i} k\cdot z}\, \mathrm{d}z,
+\end{equation}
+\index{Fourier multiplier $R_\phi(k)$}\index{kernel!translation-invariant (stationary)}
+so the integral of \eqref{eq:fredholm_kernel} becomes multiplication by the Fourier multiplier $R_\phi(k)$, which is exactly the convolution theorem invoked to reach \eqref{eq:fno_layer}. DeepONet sits at the opposite corner: its hypothesis class is not described by a kernel over $\Omega\times\Omega$ at all, but by $m$ point evaluations of the input and a rank-$p$ decomposition of the output in the query coordinates $y$ \cite{lu2021learning}. Written in kernel language, the two halves of that statement read
+\begin{equation}
+  \label{eq:ch8-deeponet-kernel}
+  \big(\mathcal{K}v\big)(x) \;=\; \sum_{j=1}^{m} \kappa(x,x_j)\, v(x_j)\, w_j,
+  \qquad
+  \kappa(x,y) \;=\; \sum_{r=1}^{p} t_r(x)\, \xi_r(y),
+\end{equation}
+the left identity being the branch side --- integration against a measure carried by $m$ prescribed sensors $x_j$ with weights $w_j$, rather than against $\mathrm{d}y$ over the whole domain --- and the right identity being the trunk side, a kernel of rank $p$ in the pair $(x,y)$: $t_r$ are the trunk functions of the output point, the basis constructed in \chapref{ch:part1-operator-approximation-theory-and-universa}, while $\xi_r$ is a function of the input coordinate that a trained branch replaces by a sensor-weighted combination. Graph-based operators constrain the \emph{support} of the kernel instead of its algebraic form: a Graph Neural Operator (GNO) \index{Graph Neural Operator (GNO)|(} layer integrates over the ball $\mathcal{B}_r(x_i)$ about each node, with an input-dependent kernel of the generic shape evaluated on relative coordinates and a quadrature weight $w_j$ given by the Voronoi dual measure of the vertex \cite{li2023geometry,brandstetter2022message}. The Geometry-Informed Neural Operator (GINO) \index{Geometry-Informed Neural Operator (GINO)|(} composes such layers with an FNO acting on a regular latent grid \cite{li2023geometry}. A restriction of a different kind acts on the multiplier array rather than on the kernel it represents: the array $R_\phi(k)$ is reshaped into three indices and constrained to low multilinear \emph{rank}. That last item is a factorization technique, not an entry in the comparison, and its arithmetic is done in Section~\ref{sec:ch8-cost}.
+
+Inductive bias, the second axis, is the one most often left vague, so it repays stating negatively: what the parameterization cannot do. A multiplier as in \eqref{eq:ch8-fno-specialization} acts diagonally across modes, so one spectral layer may rotate the channel vector within the mode $k$ but never moves energy between distinct $k$; transfer of energy between modes comes from the activation $\sigma$ and the pointwise bypass $W_\ell$, which mix frequencies in physical space, not from the kernel. A trunk of rank $p$, as in the right identity of \eqref{eq:ch8-deeponet-kernel}, confines its outputs to a $p$-dimensional subspace however the branch is trained. A radius-$r$ graph kernel transmits nothing farther than $r$ in one layer, which is why GINO pairs its graph encoder with a global spectral operator rather than merely deepening the graph. Each negative statement has a price tag, collected in Section~\ref{sec:ch8-cost}.
+
+The third axis is the relation between parameter space and discretization: whether the parameters are mesh-free in the sense of the diagram around \eqref{eq:limit_commute}, and whether what the code evaluates is the continuum operator or one of its discretizations. The fourth is cost per query, the fifth the strength of the rigorous statement available for the class --- universality without a rate, a rate under hypotheses, a complexity count, or nothing at all. Section~\ref{sec:ch8-cost} supplies the arithmetic and Section~\ref{sec:ch8-requirements} the hypotheses, so that each cell of Tables~\ref{tab:comparison} and~\ref{tab:ch8-ledger} can be checked rather than trusted.
+
+\begin{remark}[The inclusions above are formal, not literal]
+\label{rmk:ch8-inclusions}
+Neither identification is an equality of operators on function spaces of the kind stated in \eqref{eq:no_composition}. In \eqref{eq:ch8-deeponet-kernel} the sensor sum represents integration against the discrete measure $\sum_j w_j\delta_{x_j}$, and a Dirac mass $\delta_{x_j}$ belongs to $H^{-s}(\Omega)$ for $s>d/2$ but not to $L^2(\Omega)$; the expression is meaningful only once the input space is regular enough for point evaluation to be a bounded functional, which is the Sobolev embedding condition of \chapref{ch:part1-function-spaces-duality-and-sobolev-regula}. \index{point evaluation}\index{Dirac measure!as sensor model} Likewise, \eqref{eq:ch8-fno-specialization} discards the $a(x),a(y)$ arguments of the generic kernel, which restricts the \emph{layer} and makes no physical claim about the target operator. Reading these identities as nesting relations between hypothesis classes is safe; reading them as assertions that one architecture is a special case of another on a shared function-space domain is not.
+\end{remark}
+
+% -----------------------------------------------------------------------------
+\section{What Each Architecture Requires of the Target Operator}
+\label{sec:ch8-requirements}
+% -----------------------------------------------------------------------------
+
+The requirements differ more than the guarantees do, and they are where most misuse of the comparison begins.
+
+For the generic neural operator the requirement is the one in Theorem~\ref{thm:no_universality}: $\mathcal{G}$ must be continuous on a compact set $K\subset L^2(\Omega;\mathbb{R}^{d_a})$ with values in $L^2(\Omega;\mathbb{R}^{d_u})$ \cite{kovachki2023neural}. Compactness is not cosmetic. Part~I obtained it from smoothing: a solution operator mapping bounded sets into a higher Sobolev space, $\mathcal{G}:H^s\to H^{s+\alpha}$ with $\alpha>0$, has precompact image by Rellich--Kondrachov, which is why the elliptic and parabolic problems of \chapref{ch:part1-partial-differential-equations-as-solution} fall inside the theorem's reach on the strength of the compact embedding of \chapref{ch:part1-function-spaces-duality-and-sobolev-regula}, while a pure transport map that translates a discontinuity without regularizing it does not. \index{smoothing order $\alpha$} What the theorem does not supply is a rate. It asserts the existence of depth $L$, width $d_v$ and continuous kernels $\kappa_\ell$ with $\sup_{a\in K}\|\mathcal{G}(a)-\mathcal{G}_\theta(a)\|_{L^2}<\varepsilon$, and is silent on how large $L$, $d_v$ or the kernel parameters must become as $\varepsilon\to0$. Discretization invariance is a separate property, established for this class through the quadrature-consistency argument behind \eqref{eq:limit_commute} rather than as a corollary of universality.
+
+DeepONet inherits the same qualitative hypothesis --- continuity on compacta, from Theorem~\ref{thm:chen_chen} \cite{chen1995universal} --- and adds two requirements of its own, one on inputs, one on outputs. Inputs must be recoverable from $m$ point samples, which presupposes the regularity noted in Remark~\ref{rmk:ch8-inclusions}; outputs must be approximable by a $p$-dimensional subspace, since the trunk functions of \eqref{eq:ch8-deeponet-kernel} span at most $p$ directions. The reward for accepting both is that Theorem~\ref{thm:no_universality}'s silence on rates is partly broken: the three-term decomposition proved for DeepONet in \chapref{ch:part1-operator-approximation-theory-and-universa} \cite{lanthaler2022error} separates sensor, basis and network contributions, and each can be attacked on its own terms. For inputs in the unit ball of $H^s(\Omega)$, inverting the compact-embedding scaling $\log\mathcal{N}(\varepsilon,B_{H^s},L^2)\sim\varepsilon^{-d/s}$, recalled in \chapref{ch:part1-open-theoretical-problems-and-mathematical}, gives the sensor term the decay
+\begin{equation}
+  \label{eq:ch8-sensor-rate}
+  \mathcal{E}_{\mathrm{sensor}}(m) \;\lesssim\; m^{-s/d},
+  \qquad s > d/2,
+\end{equation}
+\index{sampling error!rate $m^{-s/d}$}\index{covering number}
+where the exponent measures how fast information is lost as the sampling set stays fixed and the field becomes rougher. Equation \eqref{eq:ch8-sensor-rate} is recorded as the expectation those covering asymptotics justify, not as a bound for a trained network: a sharp non-asymptotic sample-complexity statement for nonlinear operators is open, as \chapref{ch:part1-open-theoretical-problems-and-mathematical} makes explicit.
+
+The FNO demands the most. It requires a periodic or toroidal domain, fields represented on a grid that the discrete Fourier transform acts on, and, for the rate in Theorem~\ref{thm:fno_convergence}, a target operator that is continuous and smoothing of order $\alpha>0$, which yields the truncation term $C_1k_{\max}^{-\alpha}$ \cite{kovachki2021universal}. The translation invariance of \eqref{eq:ch8-fno-specialization} is easy to misread as an assumption about physics. It is not: the Darcy map of \eqref{eq:darcy} is decidedly not a Fourier multiplier, since the coefficient $a$ enters the operator itself. The architecture accommodates such inhomogeneous operators through the interaction of the lifted input channels with the multiplier layers and the local bypass $W_\ell$, and the rate theorem is a statement about the approximation capability of the resulting class under the smoothing hypothesis, not a justification of stationarity as a modeling choice. Two caveats belong on this row. The estimate is an $L^2$ statement, so pointwise behavior near a shock is not covered; and the spectral differentiation that makes the physics-informed residual of \eqref{eq:spectral_diff} cheap is available because the grid is uniform and periodic --- a property of the discretization, not of the architecture in the abstract.
+
+GNO and GINO require geometry rather than regularity. Their standing assumptions are that the domain admits a mesh or surface point cloud with usable local neighborhoods, that a regular latent grid exists which contains the body, and that shape is encoded in a form the network can consume, namely a signed distance function (SDF) together with point-cloud coordinates \cite{li2023geometry}. In exchange they relax the torus requirement that excludes most engineering geometries from the FNO. Nothing in this book proves a convergence rate, a discretization-invariance statement, or a universality claim for either architecture; the honest summary is that their justification is the commutative-diagram reasoning of \chapref{ch:part1-discretization-invariance-and-continuum-li} applied to a kernel with restricted support, plus experimental evidence reported in Parts~II and~III. \index{Graph Neural Operator (GNO)!no convergence theorem}\index{Geometry-Informed Neural Operator (GINO)!assumptions} Factorizing the multiplier array adds, on top of the FNO hypotheses, the premise that $R_\phi(k)$ be approximable by a low-rank multilinear model, a premise examined in Section~\ref{sec:ch8-cost}. Variants that modify frequency coverage rather than geometry --- multi-resolution branches for sharp saturation fronts \cite{wen2022ufno}, adaptive Fourier layers for global weather on the sphere \cite{pathak2022fourcastnet} --- move along these same axes and are taken up in Part~III.
+
+% -----------------------------------------------------------------------------
+\section{Mesh Dependence, Cost per Query, and the Ledger of Guarantees}
+\label{sec:ch8-cost}
+% -----------------------------------------------------------------------------
+
+Costs are counted per layer in multiply-add operations, for an input discretized at $N$ nodes with hidden width $d_v$, $K=\lvert Z_{k_{\max}}\rvert$ retained modes, and, for DeepONet, $m$ sensors, trunk basis size $p$ and branch and trunk hidden widths $d_b$ and $d_t$ --- widths inside the two networks, not their common output dimension $p$ --- plus $N_{\mathrm{out}}$ output query points, and a graph with $|E|$ edges and latent grid size $N_{\mathrm{lat}}$:
+\begin{equation}
+  \label{eq:ch8-costs}
+  \begin{aligned}
+    \text{generic NO (dense kernel)} & & \Theta\!\left(N^{2}d_v^{2}\right), \\
+    \text{FNO (spectral)} & & \Theta\!\left(d_v\,N\log N + K\,d_v^{2}\right), \\
+    \text{DeepONet (branch--trunk)} & & \Theta\!\left(m\,d_b + p\,d_t + p\,N_{\mathrm{out}}\right), \\
+    \text{GNO (radius-}r\text{ neighborhoods)} & & \Theta\!\left(|E|\,d_v^{2}\right), \\
+    \text{GINO (graph enc./dec.\ + latent FNO)} & & \Theta\!\left(|E| + N_{\mathrm{lat}}\log N_{\mathrm{lat}}\right).
+  \end{aligned}
+\end{equation}
+\index{cost per query}\index{computational complexity!of operator layers}
+These are counts over a chosen discretization, not bounds on learning. The dense kernel is quadratic in $N$ because every node speaks to every other, yet its parameters live in the continuous function $\kappa_\ell(\cdot,\cdot)$ and do not grow with $N$ at all, which is the content of the quadrature discussion around \eqref{eq:limit_commute}. The FNO line carries one term for the forward and inverse fast Fourier transforms (FFT) applied channel-wise and one for the mode-by-mode channel rotation; the quadratic interaction is bought down to quasi-linear, and the price is the torus. DeepONet is cheapest per query because it performs no spatial integration: branch and trunk evaluations are computed once and an inner product over $p$ basis functions yields each output value --- at the price of \eqref{eq:ch8-sensor-rate}, since information missed by the $m$ sensors is unrecoverable at any cost.
+
+The last two lines of \eqref{eq:ch8-costs} hide the real difficulty, so GINO's composition is worth writing out:
+\begin{equation}
+  \label{eq:ch8-gino}
+  \mathcal{G}_{\mathrm{GINO}}
+  = \mathcal{D}_{\mathrm{grid}\to\mathrm{mesh}}
+  \circ \mathcal{G}^{\mathrm{lat}}_{\mathrm{FNO}}
+  \circ \mathcal{E}_{\mathrm{mesh}\to\mathrm{grid}},
+  \quad
+  \mathcal{E}_{\mathrm{mesh}\to\mathrm{grid}}:\;
+  v_{\mathrm{grid}}(z)=\sum_{x_j\in\mathcal{M}_{\mathrm{surf}}}\kappa_{\mathrm{enc}}(z-x_j)\,v(x_j)\,w_j .
+\end{equation}
+\index{latent grid}\index{receptive field!graph layers}
+In \eqref{eq:ch8-gino}, $\mathcal{M}_{\mathrm{surf}}$ is the surface point cloud of the body and $z$ ranges over the nodes of the latent grid. The graph stage of \eqref{eq:ch8-gino} is linear in edges only when neighborhoods are genuinely local, and locality has a price: a radius-$r$ ball reaches at most distance $\ell r$ after $\ell$ compositions, so spanning a body of diameter $\operatorname{diam}(\Omega)$ takes on the order of $\operatorname{diam}(\Omega)/r$ layers, and that receptive-field arithmetic is what the latent FNO replaces. Note too that if the encoder kernel is evaluated for every latent node $z$ against every surface point $x_j$, the inclusion layer alone costs $\Theta(N_{\mathrm{lat}}N_{\mathrm{surf}})$ --- the dense interaction the generic operator pays --- so the linear count holds only for the neighborhood-sparsified variant implemented in Part~II. This is a tension in the comparison, not a bookkeeping detail: GINO buys geometry and global mixing by spending a graph layer whose cost depends on sparsification, whereas the FNO controls cost by discarding inhomogeneous kernels and irregular domains.
+
+Mesh dependence and cost interact in ways Table~\ref{tab:comparison} states but does not argue. For the generic operator and the FNO the parameter set is mesh-free, so one trained $\theta$ is queried on any resolution; the zero-shot super-resolution behind \eqref{eq:limit_commute} and Figure~\ref{fig:super_resolution} is exact only for inputs band-limited inside $Z_{k_{\max}}$, so the flat error reported across refinement densities is resolution transfer on an already-resolved input, not recovery of frequencies absent from the coarse grid. For GNO and GINO the graph is itself an input, so refinement changes the graph and with it the edge count $|E|$ of \eqref{eq:ch8-costs}, rather than $\theta$ --- the weights hold while the operator they realize moves --- and no invariance statement in this book covers that movement. For DeepONet with fixed sensors, refinement changes the meaning of the input vector and demands retraining the branch.
+
+A different lever acts on the FNO line of \eqref{eq:ch8-costs}: the mode-by-mode multiplier array, the $K d_v^{2}$ term, is reshaped into a tensor $\mathcal{R}$ with indices $(k,c_{\mathrm{in}},c_{\mathrm{out}})$ and replaced by a low-rank multilinear reconstruction, schematically a Tucker form
+\begin{equation}
+  \label{eq:ch8-tucker}
+  \mathcal{R}(k,c_{\mathrm{in}},c_{\mathrm{out}})
+  \;\approx\;
+  \sum_{r_1,r_2,r_3}\mathcal{C}_{r_1r_2r_3}\,
+  U^{(k)}_{k r_1}\,U^{(\mathrm{in})}_{c_{\mathrm{in}} r_2}\,U^{(\mathrm{out})}_{c_{\mathrm{out}} r_3},
+  \quad
+  \text{params} = \Theta\!\left(K r_1 + d_v(r_2+r_3) + r_1r_2r_3\right),
+\end{equation}
+\index{tensor factorization!Tucker form}\index{Tucker decomposition}\index{low-rank approximation!of the multiplier array}
+in place of the $\Theta(Kd_v^{2})$ entries of the un-factorized array; the ranks obey $r_i\le$ the corresponding dimension, and compression is large only when they are small. What \eqref{eq:ch8-tucker} reduces is parameter count. Whether the multipliers produced by a given solution operator are genuinely low-rank is an empirical premise that no theorem here supports, so the savings \eqref{eq:ch8-tucker} delivers on a given problem are a measured property of that problem's multipliers, not an extension of the FNO theory. Memory is not parameter count either: at three-dimensional resolutions it is often the intermediate spectral arrays rather than the weights that exhaust the device, which is a practical motivation for the factorizations above and for the U-Net-enhanced Fourier neural operator (U-FNO) \cite{wen2022ufno} taken up with the subsurface problems of Part~III.
+
+Table~\ref{tab:comparison} synthesizes the structural and analytical distinctions among the primary architectures \index{operator architectures!comparison table}; the conclusion a reader should draw from it is that no column dominates the others, and that its two most quoted rows are statements of different kinds. Discretization invariance is a property of the parameterization and can be proved or disproved. Physics-residual support is a property of the training functional \eqref{eq:pino_loss}, not of the architecture, and what varies across columns is only how cheaply and how accurately the residual $\mathcal{N}(\mathcal{G}_\theta(a);a)$ can be evaluated --- exactly through \eqref{eq:spectral_diff} on the torus, approximately by finite differences or automatic differentiation elsewhere. Table~\ref{tab:ch8-ledger} then reduces the comparison to the register a monograph must keep straight: which cells contain a theorem.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{\textbf{Analytical comparison of primary operator learning architectures.}}
+\label{tab:comparison}
+\begin{tabularx}{\textwidth}{l>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X}
+\toprule
+\textbf{Property} & \textbf{DeepONet \cite{lu2021learning}} & \textbf{Generic NO \cite{kovachki2023neural}} & \textbf{FNO \cite{li2021fourier}} & \textbf{GINO \cite{li2023geometry}} \\
+\midrule
+\textbf{Input Format} & Fixed sensor vector $\{u(x_j)\}_{j=1}^m$ & Continuous function $a \in \mathcal{A}$ & Field on uniform grid & Unstructured point cloud / mesh \\
+\textbf{Coordinate Query} & Continuous $y \in \Omega$ via trunk & Pointwise via projection $\mathcal{Q}$ & Uniform grid (FFT) & Arbitrary surface points \\
+\textbf{Kernel Parameterization} & Inner product of branch \& trunk & Dense spatial kernel $\kappa_\theta(x, y)$ & Diagonal Fourier multiplier $R_\phi(k)$ & Graph kernel + Latent FNO \\
+\textbf{Asymptotic Complexity} & $\mathcal{O}(m \cdot d_b + p \cdot d_t)$ & $\mathcal{O}(N^2)$ dense integration & $\mathcal{O}(N \log N)$ via FFT & $\mathcal{O}(|E| + N_{\text{lat}} \log N_{\text{lat}})$ \\
+\textbf{Discretization Invariant} & On output; fixed input sensors & Yes, fully invariant & Invariant on uniform tori & Invariant on irregular geometries \\
+\textbf{Physics Residual (PINO)} & Supported & Supported & Optimized via spectral differentiation & Supported \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{\textbf{Ledger of rigorous statements. ``none here'' records only that no theorem for that architecture is developed or cited in this book; it is not a claim that no result exists in the literature.}}
+\label{tab:ch8-ledger}
+\begin{tabularx}{\textwidth}{@{}l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Architecture} & \textbf{Standing hypothesis on $\mathcal{G}$ and the data} & \textbf{Proved statement available in Part~I} & \textbf{Where implemented} \\
+\midrule
+DeepONet \cite{lu2021learning}
+& point-evaluable inputs ($s>d/2$); outputs in an approximately $p$-dimensional subspace
+& universality on compacta \cite{chen1995universal}; three-term error split \cite{lanthaler2022error}; no invariance proof for fixed sensors
+& Part~II, branch--trunk chapter \\
+Generic NO \cite{kovachki2023neural}
+& $\mathcal{G}$ continuous, $K\subset L^2$ compact
+& universality via \eqref{eq:no_composition}--\eqref{eq:fredholm_kernel}; quadrature consistency under convergent rules; no rate
+& no dedicated Part~II layer; trainable integral kernels appear in the GNO chapter \\
+FNO \cite{li2021fourier}
+& torus; $\mathcal{G}$ continuous and smoothing of order $\alpha>0$
+& rate $\mathcal{O}(k_{\max}^{-\alpha})$ plus network term \cite{kovachki2021universal}; invariance for band-limited inputs
+& Part~II, FNO built from scratch \\
+GNO / graph-based \cite{li2023geometry,brandstetter2022message}
+& mesh with local neighborhoods of radius $r$
+& none here
+& Part~II, irregular geometries \\
+GINO \cite{li2023geometry}
+& body embeddable in a regular latent grid; shape encoded by signed distance function
+& none here
+& Part~II, GINO pipeline; Part~III, aerodynamics \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\takeaway{What the Taxonomy Actually Decides}{Each architecture is the integral-kernel layer \eqref{eq:no_layer} with a single constraint added: on the kernel's algebraic form (FNO), on its support (GNO, GINO), or on the input's representation and the output's rank (DeepONet); factorizing the multiplier array \eqref{eq:ch8-tucker} constrains the rank of the array a spectral layer stores, and nothing more. Universality is proved for the unconstrained and nearly unconstrained classes; rates exist only for the FNO, and only under a smoothing hypothesis; nothing is proved for the geometry-constrained variants, and a multiplier factorization inherits exactly the FNO results available before any rank is imposed. That distribution of evidence, not the cost column, is the chapter's real conclusion.}
+
+% -----------------------------------------------------------------------------
+
+Two rows of Table~\ref{tab:ch8-ledger} record no theorem, one rate is conditional on a smoothing order no one verifies before training, and the cost identities \eqref{eq:ch8-costs} are arithmetic over discretizations whose relation to what a trained network computes is established for only two of the five architectures. These are not gaps of exposition; they are the boundary of the theory, and \chapref{ch:part1-open-theoretical-problems-and-mathematical} takes them up in order of increasing difficulty. It first treats the statistical side, where covering numbers of Sobolev balls in $L^2$ make the sample-complexity question behind \eqref{eq:ch8-sensor-rate} genuinely infinite-dimensional and where no sharp non-asymptotic bound exists for the operators practitioners actually fit. It then turns to hyperbolic limits, where shocks destroy the smoothness hypothesis that buys the FNO its $k_{\max}^{-\alpha}$ rate and where a Fourier representation meets its own truncation tail. Finally it addresses autoregressive rollouts, the regime in which a learned one-step map is composed with itself repeatedly --- the setting in which discretization invariance, treated here as a static property of a column, must instead hold along a trajectory that accumulates every approximation error made on the way. Only after those gaps are stated precisely does the book turn, in Part~II, to code that must run regardless of them. \index{DeepONet|)}\index{generic neural operator|)}\index{Graph Neural Operator (GNO)|)}\index{Geometry-Informed Neural Operator (GINO)|)}\index{comparison of architectures|see{operator architectures}}

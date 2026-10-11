@@ -1,0 +1,481 @@
+% Chapter 3.3: Global Weather Forecasting and Climate Dynamics
+% Part III of the book.
+% STATUS: rewritten to book standard (Part III draft pass).
+
+\chapter{Global Weather Forecasting and Climate Dynamics}
+\label{ch:part3-global-weather-forecasting-and-climate-dyn}
+\label{sec:climate}
+% -----------------------------------------------------------------------------
+
+Global weather prediction is an initial-value problem on the spherical shell
+$\Omega = \mathbb{S}^2 \times [0, z_{\text{top}}]$, and it differs from the aerodynamic
+setting of \chapref{ch:part3-external-aerodynamics-and-surface-flows} in the one respect
+that governs the whole error budget: nothing about its domain varies. The geometry is a
+sphere of fixed radius, so the lattice and stationarity assumptions that
+\chapref{ch:part1-the-fourier-neural-operator-spectral-theor} had to surrender for a car
+body are available here again, and the transform machinery of Part~II applies without an
+encoder or a decoder in front of it. What has become hard is the number of applications.
+A ten-day forecast is forty successive uses of a six-hour map; an operational center
+integrates an ensemble of some fifty members at each forecast cycle --- the fifty-member,
+ten-day benchmark forecast that \cite{pathak2022fourcastnet} takes as its unit of cost
+comparison --- and that is the multi-query budget
+\chapref{ch:part3-the-multi-query-bottleneck-in-computationa} prices and which
+\chapref{ch:part2-production-deployment-and-high-throughput-} notes is already spent
+before any surrogate exists. \index{weather forecasting!as an operator problem}
+\index{numerical weather prediction (NWP)}
+
+The atmosphere also breaks the error accounting that Parts~I and~II assume. It is chaotic,
+so the amplification factor $\Lambda_\theta$ defined in \eqref{eq:ch09-onesided} exceeds one
+by an amount the leading Lyapunov exponents fix, the pathwise bound \eqref{eq:ch09-gronwall}
+saturates at that rate, and two trajectories with nearly identical starting states separate
+while sharing the same statistics; skill is therefore scored field-by-field at a lead
+time, not along a trajectory. The labels are not solver output either. They are a
+\emph{reanalysis} --- the optimal estimate of the observed history produced by cycling a
+data-assimilation system through the observational record \cite{hersbach2020era5} --- so whatever the assimilated
+model got wrong is inherited by the surrogate as ground truth. And the quantity a user
+cares about is often the part of the field the loss suppresses: the tail of the wind-speed
+distribution, the heaviest millimeters of rain, the mesoscale structure that an
+area-integral skill score barely notices.
+
+This chapter takes the four questions in order. Section~\ref{sec:ch33-primitive} states the
+hydrostatic primitive equations, isolates the three structural features that decide the
+design of anything that learns from them, and names the closure and the boundary data the
+equations do not supply themselves. Section~\ref{sec:ch33-fourcastnet} builds the actual
+surrogate, \textbf{FourCastNet} and its Adaptive Fourier Neural Operator backbone, from the
+architecture of Part~II outward: data, state tensor, mixing layer, training procedure.
+Section~\ref{sec:ch33-verification} reads the reported skill and cost numbers with their
+provenance pinned down, including the distinction between a wall-clock ratio and an
+aggregate node-time ratio. Section~\ref{sec:ch33-limits} collects the failures that the same sources
+report --- smoothed small scales, underestimated extremes, no extrapolation to unseen
+intensity --- and states plainly why none of them licenses a climate claim. The reader
+should bring the mode budget \eqref{eq:ch05-modeset}, the rollout recursion
+\eqref{eq:ch26-rollout}, and the pushforward objective \eqref{eq:ch26-pushforward}; the
+chapter adds a domain, a data policy, and a verification metric, not new theory.
+
+% -----------------------------------------------------------------------------
+\section{Governing Hydrodynamic Primitive Equations}
+\label{sec:ch33-primitive}
+% -----------------------------------------------------------------------------
+
+Atmospheric circulation at the scales that matter to a forecast is modeled by the
+hydrostatic primitive equations on a rotating sphere:
+\begin{align}
+  \label{eq:ch33-momentum}
+  \frac{D \mathbf{u}_h}{Dt} + f \hat{\mathbf{k}} \times \mathbf{u}_h &= -\frac{1}{\rho} \nabla_h p + \mathbf{F}_h, \\
+  \label{eq:ch33-hydrostatic}
+  \frac{\partial p}{\partial z} &= -\rho g, \\
+  \label{eq:ch33-continuity}
+  \nabla_h \cdot \mathbf{u}_h + \frac{\partial w}{\partial z} &= 0, \\
+  \label{eq:ch33-pottemp}
+  \frac{D \theta}{Dt} &= \frac{Q}{c_p} \left(\frac{p_0}{p}\right)^{R/c_p},
+\end{align}
+where $\mathbf{u}_h = (u, v)$ is horizontal velocity, $f = 2\Omega_{\text{rot}} \sin\phi$ is
+the Coriolis parameter at latitude $\phi$ for planetary rotation rate $\Omega_{\text{rot}}$,
+and $\theta$ is potential temperature. The remaining symbols are the horizontal gradient
+$\nabla_h$ and divergence on $\mathbb{S}^2$, the local vertical unit vector
+$\hat{\mathbf{k}}$, density $\rho$, pressure $p$, vertical velocity $w$, gravitational
+acceleration $g$, the material derivative
+$D/Dt = \partial_t + \mathbf{u}_h \cdot \nabla_h + w\,\partial_z$, specific heat at
+constant pressure $c_p$, the gas constant for dry air $R$, a reference pressure $p_0$, and
+the two forcing terms $\mathbf{F}_h$ and $Q$. The derivation and the scaling that justifies
+each term are standard geophysical fluid dynamics \cite{vallis2017atmospheric}, and
+\eqref{eq:ch33-momentum}--\eqref{eq:ch33-pottemp} are used here as the definition of what the
+surrogate is being asked to imitate. \index{primitive equations!hydrostatic}
+\index{Coriolis parameter}
+
+Three structural features of \eqref{eq:ch33-momentum}--\eqref{eq:ch33-pottemp} decide the
+design of anything that learns from them. The first is balance. Away from acoustic and
+gravity-wave noise, \eqref{eq:ch33-momentum} is close to geostrophic balance,
+$f\hat{\mathbf{k}}\times\mathbf{u}_h \approx -\rho^{-1}\nabla_h p$, and
+\eqref{eq:ch33-hydrostatic} is hydrostatic balance, so the state is not an arbitrary
+element of a high-dimensional space: the fast modes carry little of the information a
+verification metric rewards. This is why the geopotential height at $500\ \mathrm{hPa}$,
+a smooth mid-tropospheric proxy for the pressure field, is the conventional index of
+forecast quality in Section~\ref{sec:ch33-verification}, and why a surrogate that nails it
+can still be wrong about the surface winds a wind farm needs. The second is that
+\eqref{eq:ch33-continuity} is a constraint rather than an evolution equation: it makes the
+vertical velocity diagnostic, obtained by integrating the horizontal divergence, and it
+holds the mass of each atmospheric column in balance with the flux through its walls.
+Nothing in \eqref{eq:ch33-statemap} enforces it, so a learned state may satisfy
+\eqref{eq:ch33-momentum} and \eqref{eq:ch33-pottemp} to within its loss while quietly
+creating or destroying column mass --- the same defect
+\chapref{ch:part3-boundary-condition-enforcement-neural-oper} prices for the aerodynamic
+surrogate, but there invisible in a single field and here accumulating over forty steps.
+The third is that \eqref{eq:ch33-momentum} and \eqref{eq:ch33-pottemp} are not closed.
+$\mathbf{F}_h$ lumps subgrid momentum mixing and boundary-layer turbulence; $Q$ lumps
+radiative transfer and the latent heat release of convection, both of which are driven by
+processes orders of magnitude smaller than the $28\ \mathrm{km}$ cell of
+Section~\ref{sec:ch33-fourcastnet} and are supplied by parameterization schemes rather than
+by the equations themselves.
+\index{geostrophic balance}\index{physical parameterization!convection and radiation}
+
+The system is also incomplete in the ordinary boundary-value sense, and the omissions
+matter for what can be learned. \eqref{eq:ch33-momentum}--\eqref{eq:ch33-pottemp} require an
+initial condition on the shell plus side conditions: no flow through the ground, vanishing
+vertical velocity at the model top, periodicity in longitude, regularity at the poles. The
+vertical coordinate implicit in $z$ is not geometric height but a hybrid coordinate,
+pressure-like aloft and conforming to orography near the surface, so the same symbol denotes
+a different physical spacing at every level and the grid is baked into the archive the
+surrogate reads. The state that determines the future is larger still than the five fields
+displayed: surface temperature over land, sea ice, and ocean, soil moisture, and the
+radiative environment all enter $\mathbf{F}_h$ and $Q$, which is why a working surrogate is
+handed twenty coupled channels rather than the primitive variables alone.
+
+The consequence for operator learning is worth stating exactly. A solution operator is
+defined by a differential equation together with its closure; here the closure is a
+collection of tuned, non-exact models whose errors are a leading contributor to precipitation
+forecast error. So the map an atmospheric surrogate learns is not a partial
+differential equation (PDE) $\to$ solution map in the sense of
+\chapref{ch:part1-partial-differential-equations-as-solution}. It is
+$\text{PDE} + \text{parameterization package} + \text{assimilation system} \to \text{analysis sequence}$,
+and every later claim of ``accuracy'' in this chapter is accuracy against that composite.
+A classical solver at least knows which of its terms produced an error. A single learned
+map does not, and cannot be audited term by term --- an instance of the opacity that
+\chapref{ch:part3-boundary-condition-enforcement-neural-oper} treats from the
+conservation side.
+
+% -----------------------------------------------------------------------------
+\section{FourCastNet and Adaptive Fourier Neural Operators}
+\label{sec:ch33-fourcastnet}
+% -----------------------------------------------------------------------------
+
+\textbf{FourCastNet}~\cite{pathak2022fourcastnet} parameterizes the atmospheric solution
+operator using \textbf{Adaptive Fourier Neural Operators} (AFNO), the spectral token mixer
+of Guibas et al.~\cite{guibas2021afno}, whose construction the FourCastNet paper sets out
+alongside the model that uses it. Operating on
+the spherical equispaced latitude--longitude grid from the \textbf{European Centre for
+Medium-Range Weather Forecasts} (ECMWF) \textbf{ERA5} reanalysis dataset
+\cite{pathak2022fourcastnet,hersbach2020era5} --- $720 \times 1440$ pixels, corresponding to
+$0.25^\circ \approx 28 \text{ km}$ spatial resolution --- the model predicts 20 prognostic
+atmospheric variables:
+\begin{equation}
+  \label{eq:ch33-statemap}
+  \mathcal{G}_{\text{AFNO}} : \mathbf{X}(t) \in \mathbb{R}^{20 \times 720 \times 1440} \longmapsto \mathbf{X}(t + 6\text{ h}).
+\end{equation}
+Equation \eqref{eq:ch33-statemap} is the time-$\Delta t$ map of
+\chapref{ch:part1-open-theoretical-problems-and-mathematical} with $\Delta t = 6\ \mathrm{h}$
+and the state $\mathbf{X}$ a twenty-channel image on the sphere; a $K$-step forecast is
+$\mathcal{G}_{\text{AFNO}}^{K}$ applied as in \eqref{eq:ch26-rollout}. Two bookkeeping
+details matter for reproduction. The archived regular grid carries $721$ latitude nodes
+because both poles are included, so the tensor the code actually reads is
+$721 \times 1440 \times 20$; and ERA5's native horizontal grid is a \emph{Gaussian} grid,
+re-interpolated to the regular latitude--longitude arrangement by the Copernicus Climate
+Data Store service before training \cite{pathak2022fourcastnet}. The interpolation is
+benign arithmetically and not benign physically: it is a low-pass operation applied to the
+labels, and any claim about what the model resolves must be read against it. \index{ERA5 reanalysis}\index{FourCastNet}
+\index{latitude--longitude grid!pole singularity}
+
+The geometry of that grid is the reason the operator's global mixing is cheap and the
+reason its fine scales are not isotropic. At $0.25^\circ$ in both directions, a cell is
+$28\ \mathrm{km}$ wide in the meridional sense everywhere, while its zonal width shrinks as
+$\cos\phi$: the row one step below the pole is roughly $120\ \mathrm{m}$ wide in longitude
+while its meridional extent stays $28\ \mathrm{km}$, an aspect ratio near $2\times10^{2}$, and
+the polar row itself --- the $721$st latitude node --- is $1440$ stored copies of a single
+point.
+A spectral layer on such an array is not a spectral layer on the
+sphere, since the spherical Laplacian's eigenfunctions are spherical harmonics, whose
+degree-$n$ energy sits on cells of increasingly anisotropic shape. Operational models
+handle this with reduced grids or with spectral-transform methods on Gaussian grids; the
+surrogate instead treats the field as a Euclidean image and inherits the anisotropy. This
+is a genuine departure from the periodic-domain setting of
+\chapref{ch:part1-the-fourier-neural-operator-spectral-theor}, where the lattice is uniform
+by assumption, and it is one reason the small-scale results of
+Section~\ref{sec:ch33-limits} come out as they do. \index{spherical harmonics!versus latitude--longitude grids}
+
+The channels in \eqref{eq:ch33-statemap} are chosen to represent the instantaneous state
+rather than to be complete. Surface wind components $U_{10}, V_{10}$ at $10\ \mathrm{m}$,
+2-meter temperature $T_{2m}$, surface pressure and mean sea-level pressure; zonal and
+meridional wind and geopotential height at $1000\ \mathrm{hPa}$; temperature, wind,
+geopotential and relative humidity at $850$ and $500\ \mathrm{hPa}$; geopotential height at
+$50\ \mathrm{hPa}$; and integrated total column water vapor (TCWV) --- twenty fields in
+all. Total precipitation is deliberately \emph{not} among them: it is a six-hour
+accumulated diagnostic, and a second AFNO model maps the backbone's output onto it, with a
+final convolution and rectified linear unit appended so that negative rainfall cannot be
+produced \cite{pathak2022fourcastnet}.
+\index{precipitation!as a diagnostic head}
+
+Inside, the mixer is the AFNO layer rather than the \textbf{Fourier Neural Operator} (FNO)
+layer of \eqref{eq:fno_layer}. The $720 \times 1440$ frame is projected onto an $h \times w$
+grid of patches of size $p \times p$, with $p = 8$ in the published configuration, each patch
+embedded as a $d$-dimensional token; the
+tokens are transformed along the patch indices by a two-dimensional discrete Fourier
+transform, a two-layer perceptron with block-diagonal weights shared across all patches acts
+on each frequency's token embedding, and the result is sparsified and returned to the patch
+domain with a residual connection \cite{pathak2022fourcastnet,guibas2021afno}. The sparsification is the
+adaptive part and is what distinguishes it from a fixed low-pass truncation:
+\begin{equation}
+  \label{eq:ch33-shrink}
+  \tilde{z}_{m,n} = S_\lambda\!\left(\mathrm{MLP}\left(z_{m,n}\right)\right),
+  \qquad
+  S_\lambda(x) = \mathrm{sign}(x)\,\max\!\left(|x| - \lambda,\, 0\right),
+\end{equation}
+where $z_{m,n}$ is the token embedding at frequency index $(m,n)$, $\mathrm{MLP}$ is the
+two-layer perceptron with block-diagonal weights just described, and $\lambda$ is the
+sparsity-controlling threshold, listed as $10^{-2}$ in the published hyperparameters. Equation
+\eqref{eq:ch33-shrink} retains the modes whose coefficients survive
+shrinkage instead of retaining a box such as \eqref{eq:ch05-modeset} by construction, so
+the frequency support is input- and channel-dependent rather than fixed; the number of
+parameters does not scale with the number of patches, which is the resolution-invariance of
+\chapref{ch:part1-discretization-invariance-and-continuum-li} as an architectural property
+of the mixer. \index{adaptive Fourier neural operator (AFNO)!token mixing}
+\index{soft-thresholding!in the spectral domain}
+
+The engineering payoff of that choice is stated in the source paper in memory terms, and it
+is one of the two reasons that paper gives for preferring a transformer-style backbone over a
+convolutional one: at \eqref{eq:ch33-statemap} resolution the AFNO model's footprint is about
+$10\ \mathrm{GB}$ at batch size one, whereas carrying a nineteen-layer convolutional network
+previously trained at $32 \times 64$ over to the same frame would need roughly
+$83\ \mathrm{GB}$, and its receptive field would have to grow with the grid. The other reason
+is empirical rather than arithmetic: the authors report that their convolutional runs
+``showed poor performance on capturing small scales over many time steps in auto-regressive
+inference'' \cite{pathak2022fourcastnet}, which is why Section~\ref{sec:ch33-limits} has a
+subject at all. Compare the spectral-layer costing of \eqref{eq:ch23-cost}: the
+$\mathcal{O}(N\log N)$ mixing is the same object, but the alternative to paying it is not a
+cheaper network, it is a deeper one.
+
+Training uses hourly ERA5 snapshots subsampled to $00, 06, 12, 18\ \mathrm{UTC}$, with
+$54{,}020$ training frames drawn from 1979--2015, $2{,}920$ validation frames from
+2016--2017, and 2018 onward held out untouched as the out-of-sample test
+set \cite{pathak2022fourcastnet}. The procedure is two-stage and should be
+recognized from Part~II: a one-step pretraining on pairs
+$\big(\mathbf{X}(k),\mathbf{X}(k+1)\big)$, then fine-tuning in which the model is rolled out
+two steps on its own output and the loss is the sum of the two step errors. That is
+pushforward training \eqref{eq:ch26-pushforward} in all but name, at $K=2$. The source states
+the procedure without justifying it;
+\chapref{ch:part2-training-regimes-optimization-and-failure-} supplies the justification,
+which is exposure bias under the rollout recursion \eqref{eq:ch26-rollout}. End-to-end
+training takes about sixteen hours on sixty-four NVIDIA A100 graphics processing units
+(GPUs).
+\index{pushforward regularization!two-step fine-tuning}
+
+% -----------------------------------------------------------------------------
+\section{Comparison with Classical Operational Weather Models (ECMWF IFS)}
+\label{sec:ch33-verification}
+% -----------------------------------------------------------------------------
+
+The baseline is \textbf{numerical weather prediction} (NWP) with the ECMWF
+\textbf{Integrated Forecasting System} (IFS), a spectral-transform dynamical core solving
+\eqref{eq:ch33-momentum}--\eqref{eq:ch33-pottemp} with parameterized physics on a CPU
+cluster. The comparison is made on the metric operational services already use. For a
+forecast $\mathbf{X}$, a verification analysis $\mathbf{Y}$, and climatology
+$\mathbf{C}$, the \textbf{Anomaly Correlation Coefficient} (ACC) is
+\begin{equation}
+  \label{eq:ch33-acc}
+  \text{ACC} = \frac{\sum_{i,j} (\mathbf{X}_{ij} - \mathbf{C}_{ij}) (\mathbf{Y}_{ij} - \mathbf{C}_{ij})}{\sqrt{\sum_{i,j} (\mathbf{X}_{ij} - \mathbf{C}_{ij})^2 \sum_{i,j} (\mathbf{Y}_{ij} - \mathbf{C}_{ij})^2}},
+\end{equation}
+where the anomaly is the departure from a climatological mean, so that
+\eqref{eq:ch33-acc} is blind to any additive bias in $\mathbf{X}$: a forecast displaced
+uniformly from the analysis still scores one. The \textbf{root-mean-square error} (RMSE)
+\index{root-mean-square error (RMSE)}
+reported alongside it is the quantity such a displacement would move, which is why the two
+are always quoted together. The conventional instance of \eqref{eq:ch33-acc} is the
+geopotential height at $500\ \mathrm{hPa}$, one of the twenty channels of
+\eqref{eq:ch33-statemap}: smooth, mid-tropospheric, and the standard proxy for the pressure
+field aloft.
+\index{anomaly correlation coefficient (ACC)}
+
+Equation \eqref{eq:ch33-acc} as written is a sum over array indices, and on a sphere that
+is a defect rather than a simplification: the same field scored on a finer longitude
+spacing would receive a different number, because the sum weights a square kilometer near
+the pole far more heavily than a square kilometer near the equator. This is the
+grid-dependence that \chapref{ch:part1-discretization-invariance-and-continuum-li}
+identifies in the loss, and the remedy is the same --- insert the quadrature weights of the
+area element $\mathrm{d}A = R^2 \cos\phi\, \mathrm{d}\phi\, \mathrm{d}\lambda$:
+\begin{equation}
+  \label{eq:ch33-accw}
+  \text{ACC}_w = \frac{\sum_{i,j} w_j (\mathbf{X}_{ij} - \mathbf{C}_{ij}) (\mathbf{Y}_{ij} - \mathbf{C}_{ij})}{\left(\sum_{i,j} w_j (\mathbf{X}_{ij} - \mathbf{C}_{ij})^2 \; \sum_{i,j} w_j (\mathbf{Y}_{ij} - \mathbf{C}_{ij})^2\right)^{1/2}},
+  \qquad w_j = \cos\phi_j .
+\end{equation}
+The published FourCastNet verification uses \eqref{eq:ch33-accw}, together with the
+correspondingly weighted RMSE, averaged over many
+initial conditions spread through a full year so that seasonal variation in skill does not
+enter as a bias \cite{pathak2022fourcastnet}. \index{area weighting!on the sphere}
+
+What the numbers say, with the hedging the source itself supplies. ACC is a correlation
+that decays with lead time, so a forecast horizon is whatever threshold one agrees to
+cross; the FourCastNet authors report ACC above $0.6$ for TCWV beyond day eight, and state
+that their predictions are comparable to the IFS on ACC and RMSE at lead times of up to
+three days, after which ``predictions of all modeled variables lag
+close behind IFS'' out to a week \cite{pathak2022fourcastnet}. The stronger version of the
+claim --- that the surrogate matches the operational solver at short lead times for
+large-scale variables while outperforming it for small-scale variables, precipitation among
+them --- is also the authors' own, and it is a claim
+about $\mathbf{X}$ against ERA5 at a fixed lead time, not about the statistics of a long
+rollout. \index{forecast horizon!defined by a skill threshold}
+
+Cost accounting requires the same care, because the ratio depends entirely on what is being
+divided. The paper's own comparison is node-to-node for a $100$-member, $24$-hour ensemble:
+the IFS at $18\ \mathrm{km}$ is estimated to need roughly $984{,}000$ node-seconds and about
+$271\ \mathrm{MJ}$, while FourCastNet completes the same task in about $7$ node-seconds on
+a single four-GPU node at roughly $8\ \mathrm{kJ}$, the IFS needing on the order of
+$3{,}060$ nodes for the job. The resulting speedups are $145{,}000\times$ at the
+$30\ \mathrm{km}$ the trained model runs at --- the paper's rounding of the
+$0.25^\circ$ grid --- and $45{,}000\times$ for an $18\ \mathrm{km}$ realization of it, with
+energy ratios of $24{,}000\times$ and $12{,}000\times$ respectively; the second of those two
+speedups is an extrapolation rather than a
+measurement, since no $18\ \mathrm{km}$ version of the model was ever trained and its
+timing is obtained by interpolating data and parameters to that grid
+\cite{pathak2022fourcastnet}. A second, far smaller ratio is the one usually repeated: a
+week-long global forecast in under two seconds on one A100 --- $1.8\ \mathrm{s}$, the
+figure this book carries; this book also quotes roughly two hours of
+wall-clock for a single IFS member on a supercomputer cluster. Their ratio,
+$7{,}200/1.8$, is the familiar $4{,}000\times$. That division is arithmetic on two different
+machines, and the primary source does not report the elapsed time of one member on one
+partition at all: its only wall-clock figure is for a whole ensemble, a $15$-day,
+$51$-member IFS run on $1{,}530$ CPU nodes in $82$ minutes, from which the node-second
+totals above are derived. This chapter therefore reads the $4{,}000\times$ as a statement
+about latency on a device rather than as a costing. The two accountings answer different
+questions, and the
+difference between $4{,}000\times$ and $45{,}000\times$ is mostly the ensemble size divided
+out. Table~\ref{tab:ch33-cost} sets them side by side. \index{speedup!wall-clock versus node-hour}
+\index{European Centre for Medium-Range Weather Forecasts (ECMWF)}
+\index{Integrated Forecasting System (IFS)}
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Two accountings of the same surrogate. Wall-clock ratios compare one forecast
+member on one device; aggregate ratios compare the machine time of a whole ensemble.
+Values as reported or estimated by \cite{pathak2022fourcastnet}; the per-member wall-clock
+figures in the third row are the ones this book carries.}
+\label{tab:ch33-cost}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.30\textwidth}>{\raggedright\arraybackslash}p{0.30\textwidth}>{\raggedright\arraybackslash}p{0.32\textwidth}@{}}
+\toprule
+\textbf{Quantity} & \textbf{ECMWF IFS} & \textbf{FourCastNet (AFNO)} \\
+\midrule
+State represented & $>150$ variables, $>50$ vertical levels & 20 variables at five levels, surface included \\
+Time stepping & spectral-transform dynamical core and parameterized physics & learned six-hour map \eqref{eq:ch33-statemap} \\
+Week-long global forecast & $\approx 2\ \mathrm{h}$ per member; $82$ min for a $15$-day $51$-member run on $1{,}530$ nodes & under $2\ \mathrm{s}$ ($1.8\ \mathrm{s}$ as quoted) on one A100 \\
+$100$-member, $24$-h ensemble & $\approx 984{,}000$ node-s, $\approx 271\ \mathrm{MJ}$, $\approx 3{,}060$ nodes & $\approx 7$ node-s, $\approx 8\ \mathrm{kJ}$, one $4\times$A100 node \\
+Aggregate speedup & --- & $45{,}000\times$ ($18\ \mathrm{km}$, extrapolated) to $145{,}000\times$ ($30\ \mathrm{km}$) \\
+Energy ratio & --- & $12{,}000\times$ to $24{,}000\times$ lower \\
+Development cost & decades of model development & $\approx 16\ \mathrm{h}$ on $64$ A100 GPUs; training energy $\approx$ one 10-day 50-member IFS forecast \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:ch33-cost} makes the real argument of this chapter visible in one place: the
+surrogate's advantage is not that it forecasts, which the IFS also does, but that it makes
+ensemble size a free variable. The IFS reference run behind the accounting above is a
+$51$-member ensemble, and every extra member costs another slice of a $1{,}530$-node
+allocation; a thousand-member ensemble of a $7$ node-second model, by contrast, is an
+accounting exercise rather than a project, and initial-condition perturbation by Gaussian
+noise on the standardized state is enough to produce one \cite{pathak2022fourcastnet}.
+Part~II's
+throughput machinery of \chapref{ch:part2-production-deployment-and-high-throughput-} is
+exactly what turns that arithmetic into a batch dimension. Panel~(b) of
+Figure~\ref{fig:vol3_aero}, printed in \chapref{ch:part3-external-aerodynamics-and-surface-flows},
+shows the object these numbers are attached to: the sphere. That plate's other panel,
+(a), carries the vehicle surface treated in the present chapter; the two are printed
+together there because they are the same transform applied to a domain that is fixed
+and to one that is not.
+\index{ensemble forecasting!cost of}
+
+
+% -----------------------------------------------------------------------------
+\section{Limits of the Operator Reading: Scale, Extremes, and Climate}
+\label{sec:ch33-limits}
+% -----------------------------------------------------------------------------
+
+Panel~(b) of Figure~\ref{fig:vol3_aero} is also the first clue to what is missing. Its vorticity
+contours are smooth and its jets are broad; nothing in that panel shows a squall line, a
+frontal band, or the sub-structure of a precipitation field. The quantitative literature
+agrees with the eye test. Bonavita's 2024 audit~\cite{bonavita2024limitations}, which examines FourCastNet alongside two
+other leading learned forecasters, concludes that such models ``are not
+able to properly reproduce sub-synoptic and mesoscale weather phenomena and lack the
+fidelity and physical consistency of physics-based models,'' with consequences for the
+interpretation of their forecasts and of their perceived skill. The mechanism is not
+mysterious. A least-squares objective against a single future state estimates the conditional
+mean of
+that state given the input; the conditional mean of a field with sharp fronts is a smoothed
+field, and repeated application of \eqref{eq:ch33-statemap} compounds the smoothing. This
+is the same arithmetic as the coefficient-decay bound \eqref{eq:ch05-coefficient-decay},
+with the learned shrinkage of \eqref{eq:ch33-shrink} in place of a hard mode box.
+\index{mesoscale!under-resolved by learned forecasters}\index{conditional mean!smoothing toward}
+
+The model's own authors measure the consequence for tails rather than asserting it. They
+define a \textbf{relative quantile error} (RQE) over logarithmically spaced upper quantiles
+$Q = \{1-10^{-1}, \dots, 1-10^{-4}\}$,
+\begin{equation}
+  \label{eq:ch33-rqe}
+  \mathrm{RQE}(\ell) = \sum_{q \in Q} \frac{\mathbf{X}^{q}_{\text{pred}}(\ell) - \mathbf{X}^{q}_{\text{true}}(\ell)}{\mathbf{X}^{q}_{\text{true}}(\ell)},
+\end{equation}
+where $\mathbf{X}^{q}(\ell)$ is the $q$-th quantile of the field at lead-time index $\ell$,
+so that a negative value records systematic under-prediction of extremes. Equation
+\eqref{eq:ch33-rqe} trends negative for both the surrogate and the IFS on surface wind
+speed --- a few percentage points, with negligible difference between them --- and much
+more strongly for precipitation, where the reported under-prediction of the extreme
+percentiles is roughly $35\%$ against roughly $15\%$ for the IFS
+\cite{pathak2022fourcastnet}. The same paper reports that a $100$-member ensemble tracks
+Hurricane Michael's position well over its four-day trajectory but fails to reproduce the
+full extent of the sharp drop in minimum sea-level pressure between $36$ and $48\ \mathrm{h}$,
+and its authors hypothesize
+that the failure comes from processes the model does not represent, convective and radiative
+among them. That is the
+closure of Section~\ref{sec:ch33-primitive} reappearing as a forecast error. \index{relative quantile error (RQE)}
+\index{extremes!under-prediction of}
+
+Out-of-distribution intensity is a harder limit than under-prediction, because it is not a
+bias one can correct. Sun et al., in a 2025 study~\cite{sun2025grayswan}, retrained FourCastNet four times
+on the $1979$--$2015$ ERA5 record: once on all of it, and three times with Category~3--5
+tropical cyclones removed either globally or over a single ocean basin. Tested on the
+Category~5 cyclones of $2018$--$2023$, the versions give essentially unchanged global
+verification skill, but the version trained without Category~3--5 storms anywhere cannot
+forecast them: the model does not extrapolate from weaker storms present in the
+data to stronger ones absent from it. For a hazard-planning user, this is the property that
+matters, and no ACC reported at day five speaks to it. \index{out-of-distribution!gray-swan cyclones}
+
+Finally, the distinction this chapter's title invites and its evidence does not support.
+\eqref{eq:ch33-statemap} is fit to short-horizon transitions between analyzed states inside
+a record spanning four decades of one forced realization of the climate system. Climate
+questions are questions about the invariant measure of the dynamics and about its response
+to a forcing the training record does not contain. Part~I's rollout analysis is explicit
+that nothing licenses the extrapolation: the pathwise bound \eqref{eq:ch09-gronwall}
+becomes vacuous once the Lyapunov growth is resolved, the useful requirement is an
+absorbing or statistical one such as \eqref{eq:ch09-weak}, and a spatial correlation at one
+lead time says nothing about whether $\mathcal{G}_{\theta}^{K}$ has the right attractor as
+$K \to \infty$. A model that under-represents mesoscale
+variance, as \eqref{eq:ch33-rqe} shows, will misrepresent the statistics of any quantity
+that variance sets --- eddy heat transport, storm-track frequency, the intensity
+distribution --- even while its day-three anomaly correlations are excellent. Data
+availability compounds this: ERA5 is a product of an assimilation system that changed
+across the record \cite{hersbach2020era5}, so a learned map trained on the whole archive fits a non-stationary
+estimator as well as a non-stationary atmosphere. \index{weather forecasting!weather versus climate}
+\index{climate emulation!not provided by weather surrogates}
+\index{reanalysis!as training labels}
+
+\takeaway{What the Weather Numbers License}{A learned six-hour state map on the sphere
+reaches IFS-comparable anomaly correlation for large-scale variables out to about three
+days, lags slightly behind thereafter, and makes a $100$-member daily ensemble roughly four
+to five orders of magnitude cheaper in aggregate machine time. It does not resolve
+sub-synoptic structure, it under-predicts precipitation extremes by about $35\%$, it cannot
+extrapolate to cyclone intensities absent from its training record, and none of its skill
+scores constitutes evidence about climate.}
+
+% -----------------------------------------------------------------------------
+% Bridge to Chapter 3.4
+% -----------------------------------------------------------------------------
+
+The atmospheric case is the cleanest in this book because its geometry never changes, and
+that is precisely what makes its failures diagnostic: smoothing, tail under-prediction, and
+distribution shift are properties of the learned map and the loss, not of an awkward
+domain. Move the same three failures onto a domain where the geometry does change and where
+the front is not merely under-resolved but genuinely discontinuous, and the difficulty
+sharpens. \chapref{ch:part3-subsurface-multiphase-flow-and-carbon-stor} does exactly that.
+There the operator maps a permeability field and an injection schedule to the saturation of
+a supercritical phase --- lighter than the brine it displaces, which is why it rises ---
+migrating through layered rock beneath a low-permeability seal,
+over decades rather than days; the governing two-phase Darcy system has moving sharp
+saturation fronts whose spectral coefficients decay like the slow tail of
+\eqref{eq:ch05-coefficient-decay}, so a fixed mode budget is a worse approximation than the
+one the atmosphere tolerates. The remedy taken up there is architectural rather than
+statistical --- multi-resolution branches that restore the local detail a global transform
+suppresses --- and the verification target changes with it, from a correlation against an
+analysis to plume extent, front position, and pressure buildup at a well. The data regime
+changes too: where the atmosphere supplied four decades of hourly global analyses, the
+reservoir supplies a handful of core measurements and a stochastic geological prior, so the
+multi-query budget of \chapref{ch:part3-the-multi-query-bottleneck-in-computationa} returns
+as uncertainty quantification over permeability fields rather than as an ensemble of initial
+conditions.
+
+% -----------------------------------------------------------------------------

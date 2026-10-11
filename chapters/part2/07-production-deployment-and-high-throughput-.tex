@@ -1,0 +1,464 @@
+% Chapter 16: Production Deployment and High-Throughput Inference
+% Part II of the book.
+% STATUS: book-standard prose (Part II).
+
+\chapter{Production Deployment and High-Throughput Inference}
+\label{ch:part2-production-deployment-and-high-throughput-}
+\label{sec:deployment}
+% -----------------------------------------------------------------------------
+
+A trained parameter vector is, in principle, an inexpensive object to apply;
+making good on that principle is a separate piece of engineering from making the
+network trainable. Everything before this chapter ran inside a training loop,
+where the dominant cost is a gradient step and the forward pass is a subroutine
+of it. Deployment inverts the accounting. The offline phase --- data generation,
+the ensemble statistics and
+coordinate convention of
+\chapref{ch:part2-the-practitioner-s-paradigm-infinite-dimen}, the optimizer and
+schedule of
+\chapref{ch:part2-training-regimes-optimization-and-failure-}, the checkpoint ---
+is paid once. The online phase is paid per query, at whatever rate the
+application demands, and it must survive three things a training loop never
+tests: leaving the interpreter that produced it, changing grid or batch size
+without changing meaning, and answering, to a specified tolerance, the question a
+solver would have answered. Once trained, neural operator
+surrogates can be exported to optimized runtime environments for real-time
+digital twins and aerodynamic sweeps; this chapter is about what that export
+actually fixes and what it does not\index{model export}\index{digital twin}.
+
+The Part~I result being operationalized is discretization invariance, stated as
+Definition~\ref{def:ch06-discretization-invariance} and made exact for one
+spectral layer by Proposition~\ref{prop:ch06-zeroshot}. Its content is that one
+$\theta$ defines a map on functions rather than on arrays, so a model trained on
+one grid applies on another. Deployment must carry that property through
+serialization, and the warning of this chapter is that it does so automatically
+only if the exported artifact still computes its sizes from the tensor it is
+handed. The other two load-bearing imports are the per-layer
+cost ledger \eqref{eq:ch8-costs} of
+\chapref{ch:part1-comparative-theoretical-taxonomy-of-archit}, unfolded below into
+concrete counts, and the three-term error split \eqref{eq:ch06-decomp}, which
+governs what a published surrogate error number means once training is over.
+
+Prerequisites: fluency with the PyTorch module API --- how a layer
+reads its input's shape --- together with \chapref{ch:part2-fourier-neural-operators-fno-from-scratch}
+and \chapref{ch:part2-canonical-pde-benchmarks-and-reference-wor}, and the device
+vocabulary: a graphics processing unit (GPU) programmed through CUDA (Compute
+Unified Device Architecture) executes a sequence of kernels launched from the host
+at a small but nonzero fixed cost, and it holds tensor contents in device memory
+that must be filled and drained around each call\index{CUDA (Compute Unified Device Architecture)}\index{graphics processing unit (GPU)}.
+No vendor-specific toolchain
+is assumed. The route is three sections: freezing the graph and exporting it
+(Section~\ref{sec:ch27-export}), counting what one field costs and how batching
+divides that cost (Section~\ref{sec:ch27-cost}), and reading the speedup table
+against a stated accuracy budget (Section~\ref{sec:ch27-calibration}). The chapter
+closes Part~II; Part~III takes up the reason any of this is worth doing.
+
+% -----------------------------------------------------------------------------
+\section{Freezing the Graph: Tracing, Export, and Runtime Specialization}
+\label{sec:ch27-export}
+% -----------------------------------------------------------------------------
+
+A PyTorch model in training mode is an interpreter program: each call to
+\texttt{forward} runs Python, which reads \texttt{x.shape}, loops over a module
+list, and issues tensor operations to the device \cite{paszke2019pytorch}. A
+deployed surrogate cannot carry an interpreter, a checkpoint file, and the
+transitive closure of a scientific Python environment into the process that
+needs it. \texttt{torch.jit.trace} resolves this by recording the sequence of
+operations that a single execution performs and storing that sequence, together
+with the weights, as a just-in-time (JIT) compiled graph that a C++ front end
+loads and runs without Python\index{TorchScript}\index{just-in-time (JIT) compilation}. Tracing rather than source analysis is the right
+tool here for a specific reason: the operator loop in the
+\texttt{FNO2d} implementation iterates over the architecture, not over the data,
+so the recorded operation sequence is the same for every input. Had any branch
+depended on a tensor \emph{value} --- early stopping a rollout, selecting a mode
+count from an energy threshold --- the trace would silently record whichever
+branch the example input happened to take.
+
+Listing~\ref{lst:ch27-torchscript} is the whole export, and the argument lives in
+its first and last lines. The first is \texttt{model.eval()}. In the implementation of
+\chapref{ch:part2-fourier-neural-operators-fno-from-scratch} this is a genuine
+no-op: that model contains neither dropout nor batch normalization, so nothing
+about what the forward pass computes changes when the flag is set. It is written
+anyway because tracing records whatever the module does in the mode it is called
+in, and a module that did own such layers would have them recorded in their
+training behavior --- activations randomly zeroed on every query, running
+statistics quietly updated by the traffic meant to read them --- so the archive
+must be built from a model in inference mode rather than converted afterwards.
+The decisive lines are the last three. The graph is traced on a
+$(1, C_{\mathrm{in}}, 64, 64)$ example and then called on a
+$(1, C_{\mathrm{in}}, 256, 256)$ input, and the printed shape is an assertion
+rather than a comment. It must be read as a test, because the tracer's own
+consistency check re-runs the \emph{example} input and therefore cannot report a
+shape error at any other grid.
+
+\begin{lstlisting}[language=Python, caption={TorchScript (JIT) export of the FNO-2D implementation: trace on a $64\times64$ example, save the archive, then evaluate on a $256\times256$ grid. The printed output shape is the assertion that the export contract demands --- it is only satisfied if the graph still derives its sizes from the live input.}, label={lst:ch27-torchscript}]
+model.eval()
+example_input = torch.randn(1, in_channels, 64, 64, device='cuda')
+
+# Trace model computational graph
+traced_fno = torch.jit.trace(model, example_input)
+traced_fno.save("fno2d_surrogate_traced.pt")
+
+# Verify zero-shot super-resolution on refined test grid in C++ / TorchScript
+fine_input = torch.randn(1, in_channels, 256, 256, device='cuda')
+out_fine = traced_fno(fine_input)
+print("Super-resolution output shape:", out_fine.shape) # (1, out_channels, 256, 256)
+\end{lstlisting}
+
+Why that assertion can fail is worth understanding precisely, since it is the
+mechanism by which a mathematically invariant model becomes a mesh-bound
+artifact. Tracing freezes what Python computed, not what Python would compute.
+In \texttt{SpectralConv2d}, the statement \texttt{B, C, H, W = x.shape} produces
+four Python integers during the trace, and those integers are then consumed by
+Python-level arithmetic: the size of the zero-filled output spectrum, the
+half-width \texttt{W // 2 + 1}, the explicit \texttt{s=(H, W)} passed to the
+inverse real transform, and, in the coordinate embedding of
+\chapref{ch:part2-the-practitioner-s-paradigm-infinite-dimen}, the length of the
+\texttt{linspace} that builds the grid channels. Each of those quantities enters
+the archive as a constant fixed by the example input\index{shape specialization}.
+The batch size is baked
+the same way, which is why an example traced at $B=1$ cannot serve the batched
+sweep that Section~\ref{sec:ch27-cost} argues for. Three remedies exist and they
+differ in what they cost: derive the sizes inside the graph so that shape
+computations become recorded operations rather than Python values; trace one
+archive per served resolution, which is cheap because the weights are shared and
+only the graph differs; or export through a graph description format such as ONNX
+(Open Neural Network Exchange), in which the served dimensions are declared
+dynamic on the way out rather than inferred on the way in. In each case the check in the
+listing is what distinguishes a claim from a measurement.
+
+Two further caveats belong next to the shape check. First, a correct printed
+shape is a statement about the graph, not about accuracy. Proposition~\ref{prop:ch06-zeroshot}
+guarantees equality of the spectral branch's output across grids only for inputs
+band-limited inside the retained modes, and Figure~\ref{fig:super_resolution}
+records the accompanying caveat: evaluating a coarse-trained model on a fine grid
+is resolution transfer on a field the coarse grid already resolved, not recovery
+of detail that the coarse grid never carried. A deployment that refines the query
+grid expecting the surrogate to supply the missing content is asking the artifact
+for something no theorem in this book grants. Second, what the archive carries is
+weights and operations. The normalizer fields $\mu(x)$, $\sigma(x)$ of
+\chapref{ch:part2-the-practitioner-s-paradigm-infinite-dimen} are buffers of data
+rather than parameters of a layer, and if they are not explicitly registered or
+serialized alongside the model, the deployed operator silently consumes
+un-normalized inputs\index{normalization!state shipped with the artifact}. That failure is the dangerous kind: the output has the
+right shape, the right spatial structure, and the wrong amplitude, and nothing in
+the runtime reports it.
+
+The failure modes named above --- a baked shape, an omitted normalizer --- are not
+caught by a smoke test that only checks that the artifact runs, so it is worth
+stating the contract the artifact must satisfy as an object an operations reviewer
+can inspect. Implementation Pattern~\ref{imp:ch27-artifact} does that, in the order
+in which its four components are checkable.
+
+\begin{implementation}[The deployment artifact is a bundle, not a file]
+\label{imp:ch27-artifact}
+An archive that reproduces the trained operator's behavior consists of four
+components, and each is a separate failure mode if omitted: (i)~the traced graph
+and weights, traced at the shapes actually served; (ii)~the normalizer fields
+$\mu$, $\sigma$ and the interpolation rule that carries them to a new grid;
+(iii)~the coordinate convention, since the augmented channels of
+\chapref{ch:part2-the-practitioner-s-paradigm-infinite-dimen} fix the domain's
+orientation and scaling and a permuted grid channel is a different input
+function; and (iv)~the acceptance metric with its threshold, stated in the
+mesh-invariant relative $L^{2}$ form \eqref{eq:rel_l2_loss}. Taken together the
+four say what the artifact is certified on; missing any one of them leaves a
+model that runs and returns fields whose provenance nobody can state.
+\end{implementation}
+
+% -----------------------------------------------------------------------------
+\section{What One Field Costs: Arithmetic, Memory, and Overhead}
+\label{sec:ch27-cost}
+% -----------------------------------------------------------------------------
+
+Asymptotics answer ``how does it scale''; deployment asks ``how many
+floating-point operations, how many bytes, how many milliseconds''. Write $N = HW$
+for the number of grid unknowns, $d_v$ for the hidden channel width, $L$ for the
+number of spectral layers, $m_x, m_y$ for the retained modes, and $c_{\mathrm{in}}$,
+$c_p$, $c_{\mathrm{out}}$ for the input channels after coordinate augmentation, the
+projection width, and the output channels. Counting a real two-dimensional fast
+Fourier transform (FFT) at roughly $\tfrac{5}{2}N\log_2 N$ operations per channel, a
+complex multiply at six real operations, and a multiply-accumulate at two, one forward
+pass of the \texttt{FNO2d} of
+\chapref{ch:part2-fourier-neural-operators-fno-from-scratch} costs
+\begin{equation}
+  \label{eq:ch27-cost}
+  \begin{aligned}
+    \Phi(N) \;=\;
+    & \underbrace{5\,L\,d_v\,N\log_2 N}_{\text{forward and inverse FFTs}}
+      \;+\; \underbrace{12\,L\,d_v^{2}\,m_x m_y}_{\text{mode multiplies}} \\
+    & + \underbrace{2\,L\,d_v^{2}\,N}_{\text{local bypass}}
+      \;+\; \underbrace{2\,N\big(c_{\mathrm{in}}d_v + d_v c_p + c_p c_{\mathrm{out}}\big)}_{\text{lift and projection}}
+      \quad \text{operations},
+  \end{aligned}
+\end{equation}
+per field. Equation \eqref{eq:ch27-cost} refines the FNO line of the ledger
+\eqref{eq:ch8-costs}, which retains the first two groups: the two transform terms
+are $\Theta(d_v N\log N)$ and the mode multiplication is $\Theta(K d_v^2)$ for
+$K$ retained modes. The bypass and the pointwise lifting and projection are
+$\Theta(d_v^2 N)$ and $\Theta(N)$, asymptotically dominated by the transforms, and
+they are nonetheless worth writing out because at the resolutions a surrogate is
+actually served at they are not small.
+
+Take the reference configuration of that implementation, $d_v = 32$, $L = 4$,
+with $m_x = m_y = 12$ and $c_p = 128$, on a $64\times64$ grid. The four groups of \eqref{eq:ch27-cost}
+come to roughly $3\times10^{7}$, $7\times10^{6}$, $3\times10^{7}$ and
+$4\times10^{7}$ operations, so one field costs of order $10^{8}$ operations, and
+only about seven percent of them touch the learned spectral multipliers. On a
+$256\times256$ grid the same count gives about $2\times10^{9}$: sixteen times the
+unknowns, roughly seventeen times the work, the near-linearity in $N$ being exactly
+what the $\log$ factor predicts\index{Fourier neural operator!inference cost}\index{einsum contraction}. Two structural facts follow. The second group of
+\eqref{eq:ch27-cost} --- the Einstein-summation contraction (\texttt{einsum}) with
+which \texttt{SpectralConv2d} rotates the retained modes, its coefficient of twelve
+being six real operations for a complex multiply taken over the two multiplier
+arrays of \eqref{eq:ch23-paramcount} --- contains no factor of
+$N$, so refinement dilutes the very quantity that tensor factorization of the
+multiplier arrays, examined in
+\chapref{ch:part2-fourier-neural-operators-fno-from-scratch}, compresses; and the parameters, not the
+arithmetic, are resolution-independent, which is the sense in which
+\eqref{eq:ch8-costs} is a statement about a fixed $\theta$ rather than about a
+deployed service.
+
+Memory behaves less gracefully, because it is carried by activations rather than
+by weights:
+\begin{equation}
+  \label{eq:ch27-memory}
+  M(B) \;\approx\; B\,L_{\mathrm{live}}\Big[\,16\,d_v\,H\big(\lfloor W/2\rfloor+1\big)
+  \;+\; 4\,d_v\,N\Big]
+  \;+\; 16\,L\,d_v^{2}m_x m_y
+  \quad \text{bytes},
+\end{equation}
+where $B$ is the batch size, the two bracketed terms are the pair of complex
+spectrum buffers and the real hidden state of one layer, at eight bytes per
+\texttt{torch.cfloat} entry for each of the two frequency arrays and four bytes per
+single-precision real entry, $\lfloor W/2\rfloor+1$ is the half-spectrum width that a
+real-input transform returns by conjugate symmetry, and $L_{\mathrm{live}}$ counts
+layers whose working sets are simultaneously resident. The final term prices the
+multipliers themselves, the two arrays per layer of $m_x m_y d_v^{2}$ complex
+entries counted by \eqref{eq:ch23-paramcount}, again at eight bytes an entry.
+At inference, with no autograd graph to keep every
+layer's spectrum alive for a backward pass, $L_{\mathrm{live}}$ can be taken as
+one; in training it is $L$. For the $64\times64$ configuration the per-field
+working set is a little under two megabytes and the weight store is about nine; at
+$256\times256$ the activation term grows sixteenfold to twenty-five megabytes while
+the weight store does not move. As a cross-check, at $B=16$ with all four layers
+live the frequency term of \eqref{eq:ch27-memory} reproduces the seventy
+megabytes of frequency-domain intermediates that
+\chapref{ch:part2-fourier-neural-operators-fno-from-scratch} counts directly for
+\texttt{x\_ft} and \texttt{out\_ft} on the same configuration. Equation
+\eqref{eq:ch27-memory} is why the batch ceiling is set by memory rather than by
+arithmetic, and why a high-resolution sweep is issued in chunks rather than as one
+call\index{memory footprint!of inference activations}.
+
+The third term in the price is the one no operation count sees. Split the wall
+time of a call into a part fixed by the call and a part proportional to the work:
+\begin{equation}
+  \label{eq:ch27-latency}
+  T_{\mathrm{wall}}(B) \;=\; \underbrace{T_{\mathrm{fixed}}}_{\text{launches, host, input/output}}
+  \;+\; B\cdot \underbrace{\frac{\Phi(N)}{\eta\,\Phi_{\mathrm{peak}}}}_{t_{\mathrm{field}}},
+  \qquad
+  \bar{t}(B) \;=\; \frac{T_{\mathrm{wall}}(B)}{B} \;=\; \frac{T_{\mathrm{fixed}}}{B} + t_{\mathrm{field}} .
+\end{equation}
+Here $\Phi_{\mathrm{peak}}$ is the device's peak rate and $\eta$ the fraction of
+it that the realized kernels attain. Equation \eqref{eq:ch27-latency} separates
+the two quantities that a benchmark table routinely conflates. \emph{Latency} is
+$T_{\mathrm{wall}}(1)$, the time until one answer exists, which is what a
+feedback controller or an intraoperative guide is subject to; \emph{throughput} is
+$1/\bar{t}(B)$, the number of fields per second, which is what a design sweep or a
+posterior sampling loop is subject to. They are optimized in opposite directions,
+because $\bar{t}$ falls with $B$ while $T_{\mathrm{wall}}$ rises\index{latency and throughput}\index{kernel launch overhead}.
+
+The arithmetic makes the fixed part visible. A device in the class named in
+Table~\ref{tab:benchmarks_hardware} sustains single-precision work at tens of
+teraflops per second, so the $1.2$ milliseconds reported for the Darcy row
+corresponds to a realized throughput of order $10^{11}$ operations per second
+against a per-field count of order $10^{8}$ --- well under one percent of peak.
+That is the signature of a call bounded by kernel launches, host-side argument
+handling, and memory traffic rather than by arithmetic: a forward pass of that
+network issues a few tens of kernels, each with a launch and bookkeeping cost that
+does not care how large the batch is. Two of the four groups of \eqref{eq:ch27-cost} reach
+the device by different routes --- the pointwise convolutions through cuDNN (the
+CUDA Deep Neural Network library), with kernels chosen by the framework's dispatch,
+and the transforms through the platform's own FFT routine --- so a single $\eta$ in
+\eqref{eq:ch27-latency} should be read as an effective value for the whole call
+rather than as a property of any one operator\index{cuDNN (CUDA Deep Neural Network library)}.
+The consequence is the batching rule\index{batching}. Since
+$T_{\mathrm{fixed}}$ is divided across $B$ fields in \eqref{eq:ch27-latency}, the
+per-field time falls almost proportionally until the arithmetic term overtakes it,
+at a batch $B^{*} = T_{\mathrm{fixed}}/t_{\mathrm{field}}$ whose value depends on
+$\eta$ and therefore on the shapes; for the configuration above it lands somewhere
+between ten and a hundred fields. $B^{*}$ is a measurement, not an inference, and
+the recipe is to bisect on batch size until $\bar{t}$ stops falling, then to stop.
+Below $B^{*}$ the GPU is idle and the sweep is bounded by launches; above it the
+queue depth merely trades response time for volume, and a latency-sensitive
+consumer should stay at $B=1$ and pay the fixed cost knowingly.
+
+Precision policy enters \eqref{eq:ch27-latency} at a different place than batching
+does, and the caveats attached to automatic mixed precision (AMP) in
+\chapref{ch:part2-training-regimes-optimization-and-failure-} transfer to
+deployment unevenly rather than shrinking. Of the three situations named there as
+lying outside what AMP can be configured around, only the third --- binary16
+gradient range and the loss scaling that repairs it --- is a property of
+differentiation, and it dies with the autograd graph. The other two are arithmetic
+on the forward arrays and survive export untouched. The first, cancellation in a
+finite-differenced physics-informed residual, applies to any artifact that reports a
+residual at serving time, since subtracting nearly equal numbers stored with
+$2^{-8}$ relative resolution gives a derivative whose error is set by the format and
+not by the model. The second, the accumulation of the metric itself, becomes the
+acceptance test rather than the training loss, but it is still an accumulation over
+$B\,C_{\mathrm{out}}\,H\,W$ entries, and a rounding error no smaller than the unit
+roundoff of a 16-bit format is of the same order as the percent-level error floors a
+deployed surrogate is being asked to beat\index{automatic mixed precision (AMP)!at inference}.
+Behind both sits the unscaled \texttt{rfft2}: a field of unit spatial mean
+contributes a direct-current coefficient equal to the sum of every grid value, and
+refinement raises every fixed-wavenumber coefficient with it, so one buffer must
+hold that growing zero mode together with a band edge set only by the field's
+spectral decay --- the two ends whose ratio decides which way a reduced format
+breaks. That is the operation Listing~\ref{lst:ch27-torchscript} performs on
+its last three lines. The policy of \chapref{ch:part2-training-regimes-optimization-and-failure-}
+therefore holds at serving time unchanged --- the $1\times1$ lifting and projection in
+\texttt{bfloat16}, the transform and the mode rotation of \eqref{eq:ch27-cost} in
+single precision, and every reported error in single precision. Reduced precision is
+consequently a lever on $\eta$ --- how much of the machine's peak rate the pointwise
+groups actually deliver --- rather than on $T_{\mathrm{fixed}}$, and it changes
+neither the mode counts nor the accuracy the artifact was certified at. As with
+batching, the size of the gain is a measurement made on the deployed graph, not a
+property of the architecture.
+
+% -----------------------------------------------------------------------------
+\section{Reading the Speedups, and Calibrating Surrogate Error Against Solver Budget}
+\label{sec:ch27-calibration}
+% -----------------------------------------------------------------------------
+
+Table~\ref{tab:benchmarks_hardware} collects production inference timings across
+four application classes on the NVIDIA A100\index{NVIDIA A100}. Each row
+pairs one forward pass of a trained surrogate with one complete solve of the same
+problem by a conventional method: a finite element method (FEM) assembly and solve
+in FEniCS for the Darcy case\index{FEniCS}; a pseudo-spectral integration --- the method
+whose Fourier multiplier machinery Part~I analyzed --- for the two-dimensional
+turbulent Navier--Stokes case\index{pseudo-spectral method!as an inference baseline}; a
+volume discretization of the compressible flow around a car
+body, that is, computational fluid dynamics (CFD)\index{computational fluid dynamics (CFD)}, with the
+geometry-informed neural operator (GINO)\index{Geometry-Informed Neural Operator (GINO)!deployment on a surface mesh}
+of \chapref{ch:part2-graph-neural-operators-gno-and-irregular-g} on the surrogate side;
+and a global atmospheric forecast at $0.25^{\circ}$ resolution against the
+numerical integration of the European Centre for Medium-Range Weather Forecasts
+(ECMWF) Integrated Forecasting System (IFS)\index{ECMWF Integrated Forecasting System (IFS)}
+\cite{pathak2022fourcastnet}. The aerodynamic row alone reports the cited study's
+cost--accuracy comparison instead of a paired wall-clock time, as the table
+caption records.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{\textbf{Production inference benchmarks: Neural Operator vs. Classical Solvers.} Per-configuration wall-clock latencies as reported for the device named in the column heading; the final column is the quotient of the two preceding columns, except at the daggered aerodynamic row: $0.1$\,s per shape on a single NVIDIA V100 and the $2.6\times10^{4}$ figure are as reported by \cite{li2023geometry}, the latter a cost--accuracy ratio at $3\%$ drag error against a GPU volume-CFD baseline on the same device, whose wall-clock time the study does not pair with it.}
+\label{tab:benchmarks_hardware}
+\resizebox{\textwidth}{!}{\begin{tabular}{lcccc}
+\toprule
+\textbf{Application Domain} & \textbf{Classical Solver} & \textbf{Solver Latency} & \textbf{FNO Latency (A100)} & \textbf{Speedup Factor} \\
+\midrule
+2D Darcy Permeability Flow & Finite Element (FEniCS) & 1.45 s & 1.2 ms & $\approx 1,200\times$ \\
+2D Navier-Stokes Turbulence & Pseudo-Spectral & 4.80 s & 2.1 ms & $\approx 2,280\times$ \\
+3D Car Aerodynamics (GINO) & GPU Volume CFD & --- & $0.1$\,s (V100) & $2.6\times10^{4}$\,\dag \\
+Global Weather Forecast (0.25$^\circ$) & ECMWF IFS Numerical & 120 min & 1.8 s & $\approx 4,000\times$ \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+What the reader should conclude from Table~\ref{tab:benchmarks_hardware} is not
+the ranking of domains by multiplier. Each latency column spans more than three
+orders of magnitude on its own --- the classical timings run from $1.45$ seconds
+to two hours, the surrogate timings from $1.2$ milliseconds to $1.8$ seconds ---
+while the multipliers stay inside
+$1.2\times10^{3}$ to $2.6\times10^{4}$, a spread of a little over a factor of twenty: the
+acceleration is far more stable than either of the costs that produce it, which is
+the behavior a fixed-cost learned map exhibits against solvers whose price scales
+with the accuracy demanded. Note also that the speedup column adds no information;
+each entry is the quotient of the two latencies, so it can be checked and must be
+reproduced from the timings rather than the reverse. Read as a set of four
+quotients, the table says something a single benchmark cannot: the ratio is
+generated mostly by how much work the classical column does per query, not by
+anything in the surrogate's parameters\index{speedup factor}\index{benchmark!wall-clock comparison}.
+
+That asymmetry is the reason a speedup is not an accuracy claim, and the reason
+neither number licenses a decision on its own. With a conventional solver,
+accuracy is purchasable at query time: refine the mesh, tighten the convergence
+tolerance, take a smaller step, and the error in the delivered field falls, at a
+rate set by the method's order and the solution's regularity --- the same
+algebraic decay that \eqref{eq:ch06-rate} establishes for the surrogate's own
+grid error, with the roles of the two sides reversed.
+Inside a deployed surrogate there is no such dial.
+The mode count $m_x, m_y$, the width $d_v$, and the depth $L$ are frozen in the
+archive, so paying more compute per query buys no accuracy at all; accuracy is
+bought offline, in data and retraining. Whatever the operator is wrong about, it is
+wrong about at $1.2$ milliseconds and at twelve. A deployment therefore needs a
+budget rather than a ratio, and the natural one is the triangle inequality applied
+to the labeling data: if $u_{N_{\mathrm{lab}}}(a)$ is the discrete solve that
+produced the training labels on grid $N_{\mathrm{lab}}$ and $u(a)$ the exact
+solution, then
+\begin{equation}
+  \label{eq:ch27-budget}
+  \underbrace{\|\mathcal{G}_\theta a - u(a)\|_{L^{2}}}_{\text{error against the truth}}
+  \;\le\;
+  \underbrace{\|\mathcal{G}_\theta a - u_{N_{\mathrm{lab}}}(a)\|_{L^{2}}}_{\text{error against the labels, reported in training}}
+  \;+\;
+  \underbrace{\|u_{N_{\mathrm{lab}}}(a) - u(a)\|_{L^{2}}}_{\text{discretization error of the labels}},
+\end{equation}
+with norms in $L^{2}(\Omega)$ and each term readable in the mesh-invariant form
+\eqref{eq:rel_l2_loss}\index{error budget!surrogate against solver labels}.
+Equation \eqref{eq:ch27-budget} is the deployment reading
+of the decomposition \eqref{eq:ch06-decomp}: the reported validation error measures
+the surrogate against a solver's output, not against the solution, and the second
+term --- which the training loop never sees --- bounds how much of the first term
+means. It follows that a surrogate can be certified only down to the accuracy of
+its labels. Where a design decision is one the coarse solver would have made
+identically, that is a feature and the surrogate is a cheaper way of asking the
+same question; where the decision turns on the fine detail the labeling grid
+discarded, no retraining on that grid reaches it, and the budget is spent on
+labels.
+
+The practical test inherits this structure. It is run on held-out inputs, in the
+relative $L^{2}$ metric so that the number means the same thing on the grid used
+for labeling and on the grid being served, and then repeated in the functional the
+decision reads, because an $L^{2}$ tolerance says nothing about a drag coefficient,
+a plume front position, or the anomaly correlation used to score a forecast\index{verification!of a deployed surrogate}. That
+second step is where Part~III's fidelity columns come from, and where the residual
+hypotheses of \chapref{ch:part1-open-theoretical-problems-and-mathematical}
+still stand: every bound there is stated under a compactness hypothesis on the
+support of the training measure (Assumption~\ref{ass:ch09-compact}), so nothing in
+this book bounds what a surrogate does to an input
+drawn from outside it, and an out-of-distribution
+(OOD)\index{out-of-distribution (OOD) failure} field returns a plausible field rather than an error message. Export makes that
+gap operationally sharper, not duller, since a runtime that cannot warn and a
+model that cannot refuse are combined in the same artifact; the roadblocks of
+\chapref{ch:part3-synthesis-matrix-and-real-world-deployment} begin exactly there.
+
+\takeaway{Summary of Part II}{Part II provides the practical engineering foundation for neural operators: from tensor layout standards and continuous grid embeddings to complete PyTorch implementations of DeepONet, FNO, and GNO/GINO. By coupling spectral convolutions with stable training regimes and production runtime tracing, practitioners can deploy discretization-invariant surrogates that accelerate physical simulations by up to four orders of magnitude.}
+
+% -----------------------------------------------------------------------------
+% Bridge to Part III
+% -----------------------------------------------------------------------------
+
+Every cost in this chapter has been priced per field, with the number of fields
+treated as given. That is the assumption a single application permits and the
+assumption the rest of the book abandons. Part~III opens with
+\chapref{ch:part3-the-multi-query-bottleneck-in-computationa}, which begins from
+the algebraic system a classical solver must form for every query,
+$\mathbf{A}(\mathbf{u};\mathbf{p})\mathbf{u} = \mathbf{f}(\mathbf{p})$ with $N$
+between $10^{7}$ and $10^{9}$ unknowns --- two to five orders beyond the grids
+\eqref{eq:ch27-cost} prices here, so the geometry, memory, and resolution
+questions that Part~II handled on tori of a few thousand points return at a
+different scale. That chapter's claim is about counts rather than recipes:
+posterior sampling over a permeability or tissue-stiffness field, a Bayesian
+inverse problem in the sense of \cite{stuart2010inverse}, is stated there to
+consume $\mathcal{O}(10^{5}\text{--}10^{7})$ forward evaluations by Markov chain
+Monte Carlo (MCMC), shape optimization explores thousands of geometries, ensemble
+weather forecasting integrates fifty perturbed initial states twice daily, and
+clinical guidance needs answers inside a procedure\index{Markov chain Monte Carlo (MCMC)}\index{multi-query surrogate problem!query counts at scale}.
+Against those numbers the millisecond scale of
+Table~\ref{tab:benchmarks_hardware} stops being a benchmark and becomes a budget,
+and the pieces assembled in Part~II --- a batched, exported, calibrated surrogate
+bundle --- become the objects that the aerodynamic, atmospheric, subsurface,
+cardiac, and tomographic chapters of Part~III must each rebuild under their own
+geometry and their own verification standard.
+
+\vspace{1.5em}

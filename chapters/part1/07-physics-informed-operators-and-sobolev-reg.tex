@@ -1,0 +1,357 @@
+% Chapter 7: Physics-Informed Operators and Sobolev-Regularized Losses
+% Part I of the book.
+% STATUS: book-standard prose (Part I).
+
+\chapter{Physics-Informed Operators and Sobolev-Regularized Losses}
+\label{ch:part1-physics-informed-operators-and-sobolev-reg}
+\label{sec:pino}
+% -----------------------------------------------------------------------------
+
+Everything proved so far in this part is an existence statement: an architecture of a given
+shape approximates a continuous operator on a compact input set to within $\varepsilon$
+(\chapref{ch:part1-operator-approximation-theory-and-universa}), spectral truncation leaves
+an error of known order (\chapref{ch:part1-the-fourier-neural-operator-spectral-theor}), and
+the discrete realization converges to a mesh-free continuum map
+(\chapref{ch:part1-discretization-invariance-and-continuum-li}). None of this names the
+parameters a training procedure returns. Between good approximants existing and a minimizer
+of a finite-sample least-squares functional being found sits the question this chapter takes
+up: what objective should be minimized, and what does it control?
+\index{objective functional!in operator learning}
+
+The standard recipe trains against paired solver output: draw inputs, run the simulation,
+regress. It fails in three regimes that recur in computation. A three-dimensional
+time-resolved solve makes labels scarce. Observational data---fields recorded below the
+resolution at which the surrogate will be queried---carry fewer degrees of freedom than the
+target function. And when the physics is varied, labels generated for one viscosity or one
+forcing family are not labels for the next. In each case the empirical loss has a large flat
+set: any candidate reproducing the recorded samples scores identically whether or not it
+satisfies the equation elsewhere. Supervision constrains a surrogate where data
+exist and leaves it free where they do not.
+
+The remedy developed here is to make the equation part of the objective.
+\index{Physics-Informed Neural Network (PINN)}\emph{Physics-Informed Neural Networks}
+(PINNs)~\cite{raissi2019physics} minimize a residual for one instance of a
+\emph{partial differential equation} (PDE);
+\index{Physics-Informed Neural Operator (PINO)}\emph{Physics-Informed Neural Operators}
+(PINO)~\cite{li2021physics} impose the same constraint on a whole parametric family, so that
+a single trained map is penalized for violating the equation on every input it is shown. Two
+further ingredients are then required: derivatives of a network output with respect to
+physical coordinates, cheap enough to appear inside every training step; and a choice of the
+norm that measures the residual, since a residual is a distribution, not a function, when the
+trial field is too rough for the differential expression. Both come from machinery already
+assembled: the Sobolev scale and duality pairing of
+\chapref{ch:part1-function-spaces-duality-and-sobolev-regula}, the weak formulations of
+\chapref{ch:part1-partial-differential-equations-as-solution}, and the multiplier calculus of
+\chapref{ch:part1-the-fourier-neural-operator-spectral-theor}.
+
+The chapter proceeds in three moves: the composite loss and what its terms control; how the
+residual is differentiated on a grid, and where that computation stops being honest; and what
+derivative-based metrics buy. The accounting is explicit throughout: physics enters as a
+penalty, penalties cost derivative evaluations, and no choice of weights converts a
+regularized least-squares problem into a convergence proof.
+
+% -----------------------------------------------------------------------------
+\section{The Variational Loss Functional}
+\index{variational loss functional}
+
+Let $\mathcal{N}(\,\cdot\,;a)$\index{$\mathcal{N}$@$\mathcal{N}$, differential expression}
+denote a nonlinear differential expression depending on an input field $a$, and let
+$\mathcal{B}$\index{$\mathcal{B}$@$\mathcal{B}$, boundary operator} be a boundary or initial
+operator. The parametric problems collected in
+\chapref{ch:part1-partial-differential-equations-as-solution} all fit the form
+\begin{equation}
+  \label{eq:ch07-bvp}
+  \begin{cases}
+    \mathcal{N}(u; a) = 0, & x \in \Omega, \\
+    \mathcal{B}(u; a) = 0, & x \in \partial\Omega.
+  \end{cases}
+\end{equation}
+For a stationary problem $\mathcal{N}$ is the elliptic expression $-\nabla\cdot(a\nabla u)-f$
+of Darcy flow; for an evolutionary one the unknown $u$ is read as a trajectory in the
+Bochner space $L^2(0,T;\mathcal{U})$ introduced in
+\chapref{ch:part1-function-spaces-duality-and-sobolev-regula} and $\mathcal{N}$ contains
+$\partial_t$. The exact solution map is $\mathcal{G}_{\text{true}}:a\mapsto u$, the surrogate
+is $\mathcal{G}_\theta$. Inputs are drawn from a probability measure
+\index{$\mu$@$\mu\in\mathcal{P}(\mathcal{A})$, training measure}$\mu\in\mathcal{P}(\mathcal{A})$, the same measure whose
+support supplies the compact sets of the universality
+theorems. All expectations below are population quantities; stochastic training replaces
+each by a minibatch average, which is the only place where discretization enters the
+objective.
+
+The composite training loss for a parameter vector $\theta$ is
+\begin{equation}
+  \label{eq:pino_loss}
+  \mathcal{L}_{\text{PINO}}(\theta) = \lambda_{\text{data}} \mathcal{L}_{\text{data}}(\theta) + \lambda_{\text{pde}} \mathcal{L}_{\text{pde}}(\theta) + \lambda_{\text{bc}} \mathcal{L}_{\text{bc}}(\theta),
+\end{equation}
+\index{PDE residual penalty}\index{loss weighting!$\lambda$ coefficients}where
+\begin{align}
+  \mathcal{L}_{\text{data}}(\theta) &= \mathbb{E}_{a \sim \mu} \left[ \frac{\|\mathcal{G}_\theta(a) - \mathcal{G}_{\text{true}}(a)\|_{L^2(\Omega)}^2}{\|\mathcal{G}_{\text{true}}(a)\|_{L^2(\Omega)}^2} \right], \label{eq:ch07-data-loss}\\
+  \mathcal{L}_{\text{pde}}(\theta) &= \mathbb{E}_{a \sim \mu} \left[ \|\mathcal{N}(\mathcal{G}_\theta(a); a)\|_{X(\Omega)}^2 \right], \label{eq:ch07-pde-loss}\\
+  \mathcal{L}_{\text{bc}}(\theta) &= \mathbb{E}_{a \sim \mu} \left[ \|\mathcal{B}(\mathcal{G}_\theta(a); a)\|_{Y(\partial\Omega)}^2 \right]. \label{eq:ch07-bc-loss}
+\end{align}
+Set $\lambda_{\text{pde}}=\lambda_{\text{bc}}=0$ in \eqref{eq:pino_loss} and only
+\eqref{eq:ch07-data-loss} survives: that is supervised regression on paired simulations, the
+procedure the previous chapters analyzed. The two added terms
+\eqref{eq:ch07-pde-loss}--\eqref{eq:ch07-bc-loss} measure, respectively, how much the
+predicted field violates the equation inside $\Omega$ and how much it violates the imposed
+trace on $\partial\Omega$.
+
+Two features of \eqref{eq:ch07-data-loss}--\eqref{eq:ch07-bc-loss} repay attention. Only the
+data term is normalized by the energy of its target, so it is scale-free and dimensionless;
+the residual and boundary terms carry the physical units of $\mathcal{N}$ and
+$\mathcal{B}$. Consequently $\lambda_{\text{pde}}$ and $\lambda_{\text{bc}}$ are dimensional
+quantities whose usable size depends on the nondimensionalization chosen for the problem,
+and balancing the three terms is a hyperparameter decision rather than a consequence of the
+formulation. Next, the terms are not independent constraints but penalties: what
+physics-informed training really asserts is a conditional. If a parameter $\theta^{*}$
+annihilates all three terms, then $\mathcal{G}_{\theta^{*}}(a)=\mathcal{G}_{\text{true}}(a)$
+for $\mu$-almost every $a$, \emph{provided} the problem \eqref{eq:ch07-bvp} has a unique
+solution in the class containing both fields. Well-posedness---the Lax--Milgram argument of
+\chapref{ch:part1-partial-differential-equations-as-solution}---is therefore a hypothesis of
+the method, not background decoration. What the residual term changes about data
+requirements is visible in this statement: instead of requiring a full solution field as a
+label, an input $a$ together with the equation supplies a target, and the two can be
+combined at different resolutions, as in the coarse-data, fine-residual training reported
+in~\cite{li2021physics}.
+
+The choice of the space $X(\Omega)$ in \eqref{eq:ch07-pde-loss} is where the functional
+analysis does work. With $X=L^2(\Omega)$ the residual is evaluated in the \emph{strong form},
+pointwise on the grid, which demands that the trial field possess as many classical
+derivatives as $\mathcal{N}$ has. With $X=H^{-s}(\Omega)$, $s>0$, the residual is measured in
+the \emph{weak form}: for a trial field $v=\mathcal{G}_\theta(a)$ whose residual is denoted
+$r_v$, the norm is the dual one,
+$\|r_v\|_{H^{-s}}=\sup_{\varphi\neq0}|\langle r_v,\varphi\rangle|/\|\varphi\|_{H^{s}}$, and
+integration by parts transfers derivatives from $v$ onto the smooth test function
+$\varphi$. For a second-order divergence-form operator the
+strong residual needs two derivatives of $v$ while the weak residual needs one. By Parseval's
+identity the same distinction is a weighting of modal coefficients,
+$\|r_v\|_{H^{-s}}^{2}=\sum_{k}(1+|k|^{2})^{-s}|\hat{r}_v(k)|^{2}$---a relaxation of
+attention on fine scales, in direct contrast with the sharpening that the Sobolev-norm
+penalty of the third section performs.
+
+For coercive problems the weak penalty is more than a convention: it controls the error. Take
+the Darcy problem under uniform ellipticity, with $v\in H^1_0(\Omega)$ a trial field of the
+correct trace and $r_v$ its weak residual,
+$\langle r_v,w\rangle:=\int_\Omega a\nabla v\cdot\nabla w\,dx-\langle f,w\rangle_{H^{-1},H^1_0}$.
+Subtracting the weak form of the exact solution from that of $v$, testing with
+$w=v-\mathcal{G}_{\text{true}}(a)$, and using coercivity
+$B_a(e,e)\ge a_{\min}\|\nabla e\|_{L^2}^2$ gives the a priori estimate
+\begin{equation}
+  \label{eq:ch07-apriori}
+  \big\|\nabla(v-\mathcal{G}_{\text{true}}(a))\big\|_{L^2(\Omega)}
+  \;\le\; \frac{1}{a_{\min}}\,\|r_v\|_{H^{-1}(\Omega)}.
+\end{equation}
+Here $\|\cdot\|_{H^{-1}(\Omega)}$ is the dual of the energy norm
+$\|\nabla\cdot\|_{L^2(\Omega)}$ on $H^1_0(\Omega)$; measured against the full $H^1$ norm, a
+Poincar{\'e} constant joins the right-hand side, as in
+\chapref{ch:part1-partial-differential-equations-as-solution}. This is the precise sense in
+which minimizing \eqref{eq:ch07-pde-loss} substitutes for
+labeling: the estimate \eqref{eq:ch07-apriori} says that a small weak residual plus a correct
+trace forces a small energy-norm error. Read it
+also as a warning, because the estimate is conditional on coercivity and degrades as
+$a_{\min}\to0$; where no such estimate is available---the inviscid limit, formation of
+shocks---a small residual is not evidence of a small error. It is worth recording that the
+empirical ranking does not follow the analysis: in the Darcy experiments reported in~\cite{li2021physics},
+the strong-form residual trained better than the weak-form one, which
+suggests that the test space is an implementation choice entangled with how derivatives are
+computed, taken up next.
+
+The boundary term deserves one further comment. On the torus $\mathbb{T}^d$ there is no
+$\partial\Omega$, so \eqref{eq:ch07-bc-loss} vanishes identically and the vorticity-form
+Navier--Stokes problem of \chapref{ch:part1-partial-differential-equations-as-solution} is
+trained on data and residual alone. Where a boundary does exist, \eqref{eq:ch07-bc-loss} is
+still a soft penalty. The alternative is a hard constraint---compose the surrogate with a
+lifting of the boundary data so that the trace is satisfied by construction---which removes
+one weight from the hyperparameter list but requires the trace operator to be meaningful for
+the output regularity at hand, that is $v\in H^{s}(\Omega)$ with $s>1/2$.
+
+% -----------------------------------------------------------------------------
+\section{Spectral Differentiation in Operator Learning}
+\index{spectral differentiation}\index{pseudo-spectral method}
+
+In a PINN~\cite{raissi2019physics} the network is itself the solution ansatz,
+$u_\theta:x\mapsto u(x)$, evaluated at scattered collocation points, and the spatial
+derivatives $\partial_x u$ and $\partial_{xx}u$ in the residual are obtained by reverse-mode
+automatic differentiation. Nothing is approximated there in the numerical-analysis sense:
+the derivative is exact for the model, since the model is a differentiable function of $x$.
+The price is structural. A second derivative requires a second backward pass through the
+computational graph, time and memory grow with depth times the number of collocation points,
+and each point is evaluated independently, so representing a field means representing its
+samples.
+
+A neural operator is organized the other way round. Its output is a field on a discretization
+$\mathcal{M}_N$, and its internal spectral layer---a learned Fourier multiplier, as
+\chapref{ch:part1-the-fourier-neural-operator-spectral-theor} constructs it---is a global
+operation on that field, defined only for the whole grid at once. Querying such a network at
+a single coordinate $x$ means running the transforms; forcing it into a form on which
+automatic differentiation yields second $x$-derivatives is possible but forfeits exactly the
+structure that made the architecture cheap. When the output is a discrete field on a periodic
+mesh $\mathbb{T}^d$, spatial derivatives can instead be evaluated directly in Fourier space:
+\begin{equation}
+  \label{eq:spectral_diff}
+  \frac{\partial^m \mathcal{G}_\theta(a)}{\partial x_j^m} = \mathcal{F}^{-1} \left( (2\pi i k_j)^m \cdot \mathcal{F}\big( \mathcal{G}_\theta(a) \big)(k) \right).
+\end{equation}
+The identity is one line. For $N$ equispaced nodes of $[0,1)^d$ with discrete Fourier
+coefficients $\hat v(k)$ of a grid function $v$, differentiation of the trigonometric
+interpolant acts diagonally,
+\begin{equation}
+  \label{eq:ch07-diff-prop}
+  \big(\mathcal{F}(\partial_{x_j}^{m} v)\big)(k) = (2\pi i k_j)^{m}\,\hat v(k),
+  \qquad k\in\mathbb{Z}^{d},
+\end{equation}
+and \eqref{eq:spectral_diff} is \eqref{eq:ch07-diff-prop} followed by the inverse transform.
+\index{Fourier multiplier!differentiation as}
+
+Two consequences make this the right tool for a physics-informed operator. First,
+\eqref{eq:ch07-diff-prop} is a Fourier multiplier with symbol $(2\pi i k_j)^m$: the very
+primitive the architecture already applies, with the learned tensor $R_\phi(k)$ replaced by a
+fixed one. Differentiating a field costs two traversals of the
+\emph{fast Fourier transform} (FFT) pipeline, $\mathcal{O}(N\log N)$ operations for the
+entire field at once, rather than a per-point differentiation of a network graph. Second,
+\eqref{eq:spectral_diff} is exact on band-limited inputs and, for smooth ones, converges
+faster than any power of the mesh width: if $v$ extends analytically to a complex
+neighborhood of the torus, its coefficients decay geometrically, so truncating at $k_{\max}$
+leaves an error in the $m$-th derivative of the same exponential order, whereas a finite
+difference of order $p$ carries a truncation error $\mathcal{O}(h^{p})$ that shrinks only
+algebraically~\cite{leveque2002finite}. \index{exponential convergence!of spectral differentiation}
+
+Both statements need qualifying, and the qualification matters more than the advantage. What
+\eqref{eq:spectral_diff} differentiates is the interpolant of the stored samples, not the
+continuum field they came from. Where the two differ, the discrepancy is amplified rather
+than damped, because the symbol in \eqref{eq:ch07-diff-prop} has magnitude
+$(2\pi|k|)^{m}$: an error component at the highest resolvable wavenumber $k\approx N/2$ is
+multiplied by $(\pi N)^{m}$ in the $m$-th derivative, so grid-scale noise or truncation
+content dominates a residual built this way. For even $N$ the Nyquist coefficient is not
+resolved by the samples at all---two interpolants agree at the nodes and disagree in their
+derivative---and it is conventionally discarded before an odd-order
+differentiation~\index{aliasing!in spectral derivatives}\index{Nyquist mode}. Nor is a
+nonlinear residual free of the same difficulty.
+\begin{example}[pseudo-spectral Burgers residual]
+For $\mathcal{N}(u) = \partial_t u + u\,\partial_x u - \nu\,\partial_{xx}u$ on $\mathbb{T}$,
+each linear term comes from \eqref{eq:spectral_diff}, while the product $u\,\partial_x u$ is
+formed pointwise on the grid and, if it is ever transformed again, contains wavenumbers
+beyond the cutoff that fold back onto resolved modes. Classical dealiasing (zero-padding or
+the two-thirds rule) suppresses that \emph{aliasing}; a PINO implementation inherits the
+requirement because the residual is recomputed every step. The same restriction is recorded
+in~\cite{li2021physics}: spectral differentiation presumes smoothness and a uniform grid, and
+derivative error is amplified downstream in the predicted solution. For fields with jumps,
+such as the vanishing-viscosity Burgers limit discussed in
+\chapref{ch:part1-partial-differential-equations-as-solution}, no nodal differentiation rule
+is accurate---the Gibbs phenomenon identified as an open problem in
+\chapref{ch:part1-open-theoretical-problems-and-mathematical} is precisely this failure.
+\end{example}
+
+Finally, note where the differentiation is \emph{not} taken. In
+\eqref{eq:spectral_diff} the derivatives are with respect to the physical coordinates $x$, at
+fixed $\theta$; the training gradient still requires derivatives with respect to $\theta$,
+computed by backpropagation through the field-producing network. Because the operator in
+\eqref{eq:ch07-diff-prop} is linear, its adjoint is the multiplier with the conjugated
+symbol, so the backward pass through a spectral derivative is another pair of FFTs rather
+than a second-order differentiation of the network graph. The practical cost is therefore
+memory, not algebra: intermediates of the forward pass must be retained so that the residual
+branch can be differentiated, and the residual must be assembled at every grid point of every
+sample in every step.
+
+% -----------------------------------------------------------------------------
+\section{Sobolev \texorpdfstring{$H^1$ and $H^2$}{H1 and H2} Norm Regularization}
+\index{Sobolev space!$H^1$ regularization}\index{Sobolev space!$H^2$ regularization}
+
+Training neural operators solely with the relative $L^2$ loss \eqref{eq:ch07-data-loss} can
+lead to \emph{spectral bias}\index{spectral bias}, where the model captures low-frequency
+energy but exhibits phase errors or high-frequency oscillations in gradients. The mechanism
+is visible in Fourier coefficients. Write the prediction error as
+$e_\theta(a)=\mathcal{G}_\theta(a)-u$, where $u=\mathcal{G}_{\text{true}}(a)$ is the label
+field. Parseval's identity gives
+$\|e_\theta\|_{L^2}^{2}=\sum_k|\hat e_\theta(k)|^{2}$ while
+$\|\partial_{x_j}e_\theta\|_{L^2}^{2}=\sum_k(2\pi k_j)^2|\hat e_\theta(k)|^{2}$, so a defect
+at wavenumber $k$ counts $(2\pi|k|)^2$ times more heavily in the derivative metric than in
+the $L^2$ metric. Since the target's own spectrum decays with $|k|$
+(cf.\ the coefficient bound in \chapref{ch:part1-the-fourier-neural-operator-spectral-theor}),
+residual error is concentrated exactly where relative $L^2$ error is nearly blind, and a
+first-order optimizer spends its early iterations on the high-energy modes.
+
+Regularizing the objective with higher Sobolev norms enforces derivative fidelity:
+\begin{equation}
+  \label{eq:ch07-sobolev-loss}
+  \mathcal{L}_{H^s}(\theta) = \mathbb{E}_{a \sim \mu} \left[ \frac{\|\mathcal{G}_\theta(a) - u\|_{L^2}^2}{\|u\|_{L^2}^2} + \beta \sum_{j=1}^d \frac{\|\partial_{x_j} \mathcal{G}_\theta(a) - \partial_{x_j} u\|_{L^2}^2}{\|\partial_{x_j} u\|_{L^2}^2} \right].
+\end{equation}
+The sum runs over the $d$ coordinate
+directions, and $\beta$\index{$\beta$@$\beta$, derivative-tradeoff weight} balances the two
+quotients. In spite of the subscript, \eqref{eq:ch07-sobolev-loss} controls values and first
+derivatives only, that is the inhomogeneous $H^1$ norm; the $H^2$ case named in the section
+title appends the second multi-index terms, which in Fourier variables means weighting modal
+errors by $(1+|k|^{2})^{2}$ rather than $(1+|k|^{2})^{1}$. Read this way, \eqref{eq:ch07-sobolev-loss}
+and the negative-norm residual penalty of \eqref{eq:ch07-pde-loss} are the same device on
+opposite sides of the Sobolev scale\index{Sobolev space!as objective weighting}: a positive
+index sharpens attention on fine structure, a negative index relaxes it.
+
+\index{Sobolev embedding theorem!and $L^\infty$ control}What the sharpening buys is a change
+of metric, and one metric inequality. The Sobolev embedding theorem
+(\chapref{ch:part1-function-spaces-duality-and-sobolev-regula}; see
+also~\cite{evans2010partial,brezis2011functional}) states that $H^{s}(\Omega)\hookrightarrow
+C^{k}(\overline{\Omega})$ continuously when $s>d/2+k$, so with $k=0$ an error $e$ obeys
+$\|e\|_{L^\infty}\le C_s\|e\|_{H^{s}}$. Controlling $\|\cdot\|_{H^s}$ with $s>d/2$ therefore
+excludes localized pointwise spikes: no defect can be large somewhere without being large in
+the norm the objective measures. The statement is an implication between metrics, not an
+algorithmic guarantee---nothing in \eqref{eq:ch07-sobolev-loss} forces the optimizer to make
+that norm small, and in dimension $d=3$ the hypothesis $s>d/2$ requires two derivatives,
+which is why the $H^2$ variant rather than the $H^1$ one is the natural target for
+three-dimensional fields. It is also why such losses are attractive independently of any
+physics term: the quantities practitioners read off a simulation are derivatives of the
+state---the Darcy flux $-a\nabla u$, the vorticity $\nabla\times u$, the wall shear
+stress---so an $L^2$-accurate field may still be a poor model of the diagnostic. The
+companion claim, that derivative regularization preserves conservation properties, should be
+read in the same register: it suppresses non-physical oscillation in gradients, which is
+consistent with better behaved balance laws, but it is not a proof that a trained network
+satisfies any conservation identity.
+
+\index{discretization invariance!of the loss functional}A second consistency check comes from
+\chapref{ch:part1-discretization-invariance-and-continuum-li}. Each quotient in
+\eqref{eq:ch07-sobolev-loss} approximates a ratio of integrals, so on $N$ nodes the sums must
+carry the cell volume $h^{d}$ to be quadratures at all; the relative normalization then cancels
+the remaining mesh factor, which is why the objective is a mesh-consistent quantity whereas an
+unnormalized discrete seminorm grows with refinement. The normalization has its own failure
+mode: when $\|\partial_{x_j}u\|_{L^2}$ is small---a label that is nearly constant along a
+coordinate, as for shear-driven or symmetry-reduced data---the corresponding term is
+ill-conditioned and its gradient is dominated by the surrogate's own derivative fluctuation.
+Normalizing over a batch instead of per sample repairs the scaling but makes an individual
+sample's contribution depend on which other samples were drawn.
+
+\index{no free lunch!in physics-informed regularization}It remains to state what the two
+regularization devices cost, since neither is free. A Sobolev-metric loss requires
+differentiating the label as well as the prediction; for fixed grid-function labels those
+derivatives can be computed once offline, but the prediction derivatives recur at every
+step. A physics-informed loss requires assembling \eqref{eq:ch07-bvp} on the surrogate's
+output at every step, adding spectral derivatives, nonlinear pointwise products, and a
+backward pass through them, and adding two further hyperparameters to
+\eqref{eq:pino_loss}. Neither penalty alters the approximation classes of
+\chapref{ch:part1-operator-approximation-theory-and-universa}: they change which element of
+the class is found, not which elements exist. Nor do they immunize training against the
+equation being wrong---when $\mathcal{N}$ encodes a closure or a solver's discretization
+rather than the physics of interest, the residual term biases the fit away from the data that
+was generated by that same model. The reported benefits are correspondingly empirical and
+specific: PINO trained with both terms is reported to need fewer labels than a purely
+data-driven \emph{Fourier Neural Operator} (FNO), to generalize better at resolutions
+above the training one, and on transient
+and Kolmogorov flows to reduce average relative error by roughly $7\%$, while remaining
+trainable in a data-free regime where a PINN is reported to fail on the optimization
+landscape of the PDE constraint~\cite{li2021physics,raissi2019physics}. Those are benchmark
+outcomes, not theorems, and they are the honest boundary of what this chapter can claim.
+
+% -----------------------------------------------------------------------------
+
+What this chapter leaves unresolved is comparative. It treated the objective as if it were
+architecture-independent, and \eqref{eq:pino_loss} is not: the residual term is cheap when
+\eqref{eq:spectral_diff} applies, which requires a uniform periodic grid and a field smooth
+enough that the multiplier's $(2\pi|k|)^m$ amplification is harmless; it must be rebuilt from
+graph or mesh-based difference operators on the unstructured discretizations that the
+geometry-informed architectures use; and for an architecture whose input is a fixed sensor
+vector, the data term and the residual term are not measured on comparable discretizations at
+all. Likewise the derivative penalties of \eqref{eq:ch07-sobolev-loss} presuppose that
+$\partial_{x_j}\mathcal{G}_\theta(a)$ has a well-defined discrete meaning. \chapref{ch:part1-comparative-theoretical-taxonomy-of-archit}
+assembles these axes into a single comparison---input format, coordinate query, kernel
+parameterization, cost per layer, discretization invariance, and support for physics-residual
+evaluation---across DeepONet, the generic neural operator, the FNO, and the geometry-informed
+neural operator. Reading it after this chapter is worthwhile precisely because the two
+decisions it tabulates, how to represent a map and what to minimize, are one decision made
+twice.

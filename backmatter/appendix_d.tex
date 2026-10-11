@@ -1,0 +1,238 @@
+% APPENDIX D: Training Recipes and Failure Modes
+% BASIS: Part II of the book -- Ch 2.6 ("Training Regimes, Optimization, and Failure
+%   Modes"), whose numbers and mechanisms this file restates and never contradicts,
+%   together with the three benchmark subsections of Ch 2.5 consolidated into it.
+%   Regime names and grid sizes in the recipe table are
+%   transcribed from Ch 2.5 through Appendix C's specification sheets, and the
+%   weather row's K=2 is Ch 3.3's recorded two-step fine-tuning horizon.
+% CONVENTION: "not recorded" marks silence in that record; nothing here
+%   supplies a setting the record does not give.
+% STATUS: authored (back-matter pass); verified line by line against Ch 2.6,
+%   Ch 2.5, Appendix C and Ch 3.3 (adversarial back-matter pass).
+
+\chapter{Training Recipes and Failure Modes}\label{app:d}
+
+\chapref{ch:part2-training-regimes-optimization-and-failure-} argues; this appendix
+lists. No number here is absent from that chapter, from the rest of Part~II, or
+from the specification sheets of Appendix~\ref{app:c} that the first three rows
+transcribe, save the weather row's $K=2$, named below. Where the record carries no
+setting, the entry says so. Mechanisms are cited, not
+re-derived (\eqref{eq:ch26-mode-gradient}, Table~\ref{tab:ch26-formats},
+\eqref{eq:ch09-gronwall}). Nothing below is a measured outcome, and the qualification attached to any recipe
+that is not a guarantee travels with it.
+\index{training recipes!consolidated by regime}
+\index{failure modes!quick reference}
+
+% -----------------------------------------------------------------------------
+\section{Schedule}
+\label{sec:appd-schedule}
+% -----------------------------------------------------------------------------
+
+\chapref{ch:part2-training-regimes-optimization-and-failure-} states the symptom:
+because complex multipliers modulate the modes directly, a constant learning rate
+destabilizes early training. By
+\eqref{eq:ch26-mode-gradient} gradient magnitude falls algebraically across one
+array and is smallest at the band edge. The reference configuration,
+Listing~\ref{lst:ch26-onecycle}, is \texttt{AdamW} at \texttt{weight\_decay=1e-4}
+with \texttt{OneCycleLR} peaking at \texttt{max\_lr=5e-3}, rising from one
+twenty-fifth of that, $2\times10^{-4}$, over the first fifth of the run
+(\texttt{pct\_start=0.2}) and annealing to $2\times10^{-7}$.
+
+Four settings carry it. \texttt{max\_lr} is the only absolute rate, so the
+\texttt{lr=1e-3} in the \texttt{AdamW} call is a placeholder the first scheduler step
+overwrites. \texttt{total\_steps} counts iterations and \texttt{scheduler.step()}
+sits in the batch loop; mismatch them and the cycle ends early, the rate rests at
+its floor, and the curve reads as a plateau. The \texttt{max\_norm=1.0} clip is a
+global norm: one outlier gradient shrinks every tensor's update, and because Adam
+divides out a clip that persists across steps, clipping guards against transients
+rather than against an ill-scaled array. The annealing
+law is cosine: band and schedule are one decision.
+
+Two procedures follow. A sweep over mode budgets of eight, sixteen and twenty-four
+must each hold \emph{steps per run proportional to the band}, since doubling it divides
+the truncation contribution by roughly $2^{\,s-1/2}$ --- about $1.4$, $2.8$, $5.7$
+at $s=1,2,3$ --- and if widening still moves nothing with steps scaled, the binding
+term is capacity or the statistical and discretization contributions of
+\cite{subedi2024controlling}. A port between grids requires rechecking rate and
+decay: gradient magnitude grows with the grid under the unscaled forward transform, and orthonormal normalization shrinks that product by the whole grid,
+absorbed by Adam but not by a fixed \texttt{weight\_decay}, so decay tightens at the
+least-signal end; no compensating setting is recorded. The library workflow of
+\chapref{ch:part2-fourier-neural-operators-fno-from-scratch} sets \texttt{lr=8e-3}
+with no scheduler: an initial value, not a rate to be held constant.
+\index{learning rate scheduling!reference configuration}
+\index{gradient clipping!global norm}
+
+% -----------------------------------------------------------------------------
+\section{Numerical format}
+\label{sec:appd-precision}
+% -----------------------------------------------------------------------------
+
+The symptom is a loss that becomes \texttt{NaN}, or gradients that become infinite,
+a few hundred steps in on a graphics processing unit (GPU) with automatic mixed
+precision (AMP) enabled, the same run being uneventful on the host central
+processing unit (CPU).
+
+The policy on record runs the $1\times1$ lifting and projection
+convolutions in \texttt{bfloat16} and keeps the transform and the complex
+multiplication in \texttt{float32}, and stops there.
+\chapref{ch:part2-training-regimes-optimization-and-failure-} widens the
+reduced-precision set to the bypass $W_\ell$ and the stored activations, on the
+ground that nothing there accumulates. The demotion must be an explicit cast
+at the spectral-layer boundary, or autocast disabled there, since
+\texttt{torch.cuda.amp.autocast} assigns types by operation kind and not by role.
+
+\texttt{float16} is excluded on range. Forward-unscaled, a unit-mean field on a
+$256\times256$ grid has a direct-current coefficient of $65\,536$, thirty-two past
+the largest finite binary16 value, and ensemble normalization does not repair it.
+Sampling four times as finely in each direction multiplies a fixed-wavenumber
+coefficient by about sixteen, while a steep spectrum takes modes near $k_{\max}$
+below the least normal value $2^{-14}$. Where binary16 must be used, loss scaling
+repairs the backward pass: multiply the loss by a large power of two, step, unscale.
+\texttt{bfloat16} needs no scaler, its exponent matching \texttt{float32}.
+
+Three cases are exclusions, not choices: a differenced residual, as in the
+physics-informed neural operator (PINO) functional \eqref{eq:pino_loss}, where
+cancellation and not range sets the derivative's error; the metric, since
+\eqref{eq:rel_l2_loss} accumulated in \texttt{bfloat16} carries rounding no smaller
+than its unit roundoff $2^{-8} = 3.9\times10^{-3}$, the order of the reported
+floors; and binary16 gradient range. Losses and reported errors belong in single precision.
+\index{automatic mixed precision (AMP)!policy recorded here}
+\index{bfloat16!boundary cast at the spectral layer}
+
+% -----------------------------------------------------------------------------
+\section{Rollout horizon}
+\label{sec:appd-rollout}
+% -----------------------------------------------------------------------------
+
+The trained object is the time-$\Delta t$ map \eqref{eq:ch26-rollout} applied to its
+own output, and \eqref{eq:ch09-gronwall} amplifies one-step error at a rate set by
+$\Lambda_\theta$: past one, the bound grows geometrically in the step count. The symptom is excellent single-step
+accuracy with a rollout that dies around step twenty.
+
+The recipe is the pushforward objective \eqref{eq:ch26-pushforward}, paid for by
+truncated backpropagation --- unroll $K$ steps, detach the intermediate states,
+keep gradients on the final segment only --- since one step of the full sum costs
+$\mathcal{O}(K)$ transforms and, if differentiated exactly, $\mathcal{O}(K)$ stored
+activations. The mechanism is a change of
+sampling distribution, not a new penalty: the terms do not bound $\Lambda_\theta$, no
+theorem here relates $\lambda_k$ or $K$ to \eqref{eq:ch09-lipschitz}, and detaching
+leaves composed stability only weakly supervised, the network accurate \emph{at} the
+states it reaches and not \emph{by the route}.
+
+The inherited record states that $\lambda_k$ must decay geometrically or $K$ be
+capped near the horizon the physics allows, uniform $\lambda_k$ being the aggressive
+setting; it gives no value of any $\lambda_k$, and the horizon the remedy names is the
+word ``modest''; where the book attaches a number to an unrolled objective, the
+weather row below carries it --- $K=2$, a two-step fine-tuning. The check precedes
+them: evaluate
+\eqref{eq:ch09-lipschitz} at the checkpoint, which Proposition~\ref{prop:ch09-lip}
+bounds from the parameters; if it exceeds one and grows, the objective is satisfied
+and the dynamics are not. Then, in increasing cost, reduce the peak rate or deepen
+the anneal, add pushforward terms at modest $K$, and ask whether the model collapsed
+to a smooth state rather than diverged --- the conditional-mean failure, judged by
+the weak error \eqref{eq:ch09-weak}. Pushforward's inputs are finitely many
+trajectories, so a drifting rollout outruns its frozen normalizer.
+\index{pushforward regularization!horizon and weights as recorded}
+\index{truncated backpropagation!detached rollout states}
+
+% -----------------------------------------------------------------------------
+\section{Two checks and one diagnosis}
+\label{sec:appd-checks}
+% -----------------------------------------------------------------------------
+
+Bookkeeping explains a floor that moves when only the batch size or device count
+changed. The per-sample normalization of \eqref{eq:rel_l2_loss} weights
+low-amplitude members heavily. Then \texttt{total\_steps} must equal the calls
+\texttt{scheduler.step()} will actually make: recompute it and the cosine keeps its
+shape while the update count halves, leave it stale and the run stops mid-descent
+with the rate still high. Only the second is a mistake, caught by logging the rate
+and not the loss. A batch study must fix the step count or it measures the
+schedule, not the batch.
+
+The second check surveils the spectral branch, the failure that leaves every curve
+falling. Plot $\sup_k \lVert R_{\phi,\ell}(k)\rVert$ against $\lVert W_\ell\rVert$
+per layer per epoch and reduce the decay coefficient if the ratio trends downward:
+decay shrinks a multiplier's magnitude and leaves its phase untouched, so a
+driven-small branch leaves the bypass as the layer's only content, a shallow
+feedforward map without the global coupling that made it an operator.
+
+The last is a diagnosis: a plausible but visibly smoothed output on a refined grid
+is not a broken model, since refinement raises the truth's Nyquist frequency while
+the band addresses only the fixed wavenumbers of \eqref{eq:ch05-modeset}. Reported
+super-resolution assumes inputs band-limited inside the retained set, so it demonstrates resolution transfer and not
+recovery of lost detail, and \eqref{eq:limit_commute} should be read with that premise
+attached; if content above $k_{\max}$ is needed, widen the band and retrain.
+\index{weight decay!spectral-branch surveillance}
+\index{resolution transfer!diagnosis of a smoothed output}
+
+% -----------------------------------------------------------------------------
+\section{Recipes by regime}
+\label{sec:appd-table}
+% -----------------------------------------------------------------------------
+
+Table~\ref{tab:appd-recipes} collects these entries by regime, naming the first
+three rows after the specifications of Appendix~\ref{app:c} and the last after a
+port rather than a problem. Take its conclusion before the cells: the
+schedule column repeats because Part~II supplies one configuration and not six, and
+the regimes separate on three axes --- whether the map is consumed once or composed,
+whether the transform sits inside the reduced-precision region, and whether a
+differenced residual enters the objective at all.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\caption{Training recipes consolidated by regime. Every cell is stated in
+\chapref{ch:part2-training-regimes-optimization-and-failure-}, elsewhere in Part~II, or in
+the specification sheets of Appendix~\ref{app:c} that the first three rows transcribe,
+and ``not recorded'' marks silence there; the one exception, $K=2$ on the weather
+row, is the fine-tuning horizon of
+\chapref{ch:part3-global-weather-forecasting-and-climate-dyn}. The schedule column
+repeats because only one reference configuration is on record
+(Listing~\ref{lst:ch26-onecycle}), not a schedule per benchmark.}
+\label{tab:appd-recipes}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.165\textwidth}
+  >{\raggedright\arraybackslash}p{0.125\textwidth}
+  >{\raggedright\arraybackslash}p{0.195\textwidth}
+  >{\raggedright\arraybackslash}p{0.18\textwidth}
+  >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Regime} & \textbf{Schedule} & \textbf{Precision} & \textbf{Rollout strategy} & \textbf{Known failure and first check} \\
+\midrule
+Steady coefficient-to-state, $64^2$ (\eqref{eq:ch25-darcy})
+& Listing~\ref{lst:ch26-onecycle}
+& $1\times1$ maps \texttt{bfloat16}; transform and product \texttt{float32}
+& None: no time step
+& Flat across mode budgets: scale steps with the band before blaming truncation \\
+\addlinespace
+Evolution map on $t\in[0,1]$, $N=128$ (\eqref{eq:ch25-burgers})
+& Same; a constant rate destabilizes early
+& Same policy; one-dimensional transform
+& Not recorded: one model per $t$, $t$ as a channel, or an iterated map
+& Early instability on a fixed rate \\
+\addlinespace
+Time-marching map rolled fifty to one hundred steps (\eqref{eq:ch25-navierstokes})
+& Same; no per-benchmark rate recorded
+& Same policy; on \texttt{float16}, add loss scaling
+& Pushforward \eqref{eq:ch26-pushforward}, truncated backpropagation, detached states, geometric $\lambda_k$, ``modest'' $K$
+& Dies near step twenty: compute \eqref{eq:ch09-lipschitz} at the checkpoint first \\
+\addlinespace
+Planetary-scale rollout, six-hour steps over days \cite{pathak2022fourcastnet}
+& Not recorded
+& Not recorded
+& Same objective at $K=2$; a horizon past predictability is the failure
+& Bounded, smooth and wrong: the conditional mean, judged by \eqref{eq:ch09-weak} \\
+\addlinespace
+Physics-informed residual objective (\eqref{eq:pino_loss})
+& Not recorded
+& Residual and metric outside reduced precision
+& Not recorded
+& Derivative error set by the format; a wider exponent does not help \\
+\addlinespace
+Any of the above, ported to a refined grid
+& Recheck peak rate and decay
+& \texttt{float16} overflows: direct-current term past $65\,504$ on $256^2$
+& Unchanged; no refinement-specific setting recorded
+& \texttt{NaN} on GPU with AMP, clean on CPU: act on the range, not the model \\
+\bottomrule
+\end{tabularx}
+\end{table}

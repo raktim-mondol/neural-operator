@@ -1,0 +1,198 @@
+% STATUS: authored (back-matter pass).
+% Every pointer was grepped in book/chapters and book/frontmatter. LNO and MGNO occur
+% nowhere in the book and are recorded as absent.
+% Bibliography pass: the two tomographic and the one tensor-factorized variant rows were
+% deleted together with their arXiv-only entries; multiplier-array factorization survives
+% above as a technique remark tied to the book's own \eqref{eq:ch8-tucker}, carrying no
+% citation and no measured compression ratio.
+\chapter{Index of Architectural Variants}\label{app:e}
+\index{architectural variants!index of|textbf}
+\index{LNO (linear neural operator)!not treated in this book}
+\index{MGNO (multi-grid neural operator)!not treated in this book}
+\index{FourCastNet|see{adaptive Fourier neural operator (AFNO)}}
+
+Table~\ref{tab:synthesis_matrix} of
+\chapref{ch:part3-synthesis-matrix-and-real-world-deployment} orders the deployed
+architectures by the domain that consumes them. This appendix inverts that ordering for
+the reader who arrives with a name and wants the place the book builds it, the citation
+attached there, and the one constraint separating the variant from the layer it modifies.
+Nothing here is new: each distinguishing feature restates a restriction already written
+out in \S\ref{sec:ch8-axes}, where every architecture is the generic integral-kernel layer
+\eqref{eq:no_layer} with the kernel's algebraic form, its support, or the representation of
+its input and output constrained. Which variants carry a theorem is kept in
+Table~\ref{tab:ch8-ledger} and is not duplicated below. Section~\ref{sec:ape-notation}
+then turns the front matter's Table~\ref{tab:notation-master} into a locator for the
+argument.
+
+\section{The Variants by Name}
+\label{sec:ape-variants}
+% -----------------------------------------------------------------------------
+
+Read Table~\ref{tab:variant-index} as a set of deltas from one template. Its
+\emph{introduced in} column names where the variant is built or defined, not where its
+name first appears: \chapref{ch:part1-introduction-the-paradigm-shift-to-infinit}
+previews the graph, geometry-informed, physics-informed, multi-scale and adaptive-Fourier
+descendants of the spectral layer in a single passage, and
+\S\ref{sec:ch8-requirements} states their hypotheses and costs, but the construction each
+citation points to lies in Part~II or Part~III. The conclusion the table bears out is the
+taxonomy chapter's: these variants differ by \emph{where} they spend their restriction, and
+none is a rival to the Fourier neural operator (FNO) of \eqref{eq:fno_layer} as a general
+method. The FNO, the generic neural operator and DeepONet are primary objects of
+\chapref{ch:part1-the-fourier-neural-operator-spectral-theor},
+\chapref{ch:part1-operator-approximation-theory-and-universa} and
+\chapref{ch:part2-deeponet-engineering-branch-trunk-networks}, and are not indexed here as
+variants. Neither is the low-rank multilinear reconstruction of the multiplier array: that is
+a factorization technique acting on the weights of an existing layer, its arithmetic is
+\eqref{eq:ch8-tucker} in \S\ref{sec:ch8-cost}, what it reduces is parameter count, and the
+premise that the multipliers of a given solution operator are genuinely low-rank is empirical
+rather than proved.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{\textbf{Index of architectural variants}, read from the architecture side. Names,
+citations and constraints are as printed in the chapter named, compressing the analysis of
+\S\ref{sec:ch8-axes}.}
+\label{tab:variant-index}
+\begin{tabularx}{\textwidth}{@{}l >{\raggedright\arraybackslash}X l
+  >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Variant} & \textbf{Name as printed} & \textbf{Cited} & \textbf{Introduced in} & \textbf{Distinguishing constraint} \\
+\midrule
+GNO & graph neural operator & \cite{li2023geometry,brandstetter2022message} &
+\S\ref{sec:ch24-continuous-kernel} of \chapref{ch:part2-graph-neural-operators-gno-and-irregular-g} &
+Support restriction: the layer \eqref{eq:no_layer} integrates over the ball
+$\mathcal{B}_r(x_i)$ of a mesh, with Voronoi weights. \\
+GINO & geometry-informed neural operator & \cite{li2023geometry} &
+\S\ref{sec:ch24-gino}, same chapter; applied in \S\ref{sec:ch32-gino} &
+Graph encoder and decoder bracket a latent-grid FNO, as composed in \eqref{eq:ch8-gino}. \\
+AFNO & adaptive Fourier neural operator & \cite{guibas2021afno,pathak2022fourcastnet} &
+\S\ref{sec:ch33-fourcastnet} of \chapref{ch:part3-global-weather-forecasting-and-climate-dyn} &
+Patch token mixer; soft thresholding \eqref{eq:ch33-shrink} makes retained frequencies
+input-dependent, not a fixed box \eqref{eq:ch05-modeset}. \\
+U-FNO & U-Net-enhanced Fourier neural operator & \cite{wen2022ufno} &
+\chapref{ch:part3-subsurface-multiphase-flow-and-carbon-stor}, its U-FNO
+section$^{\dagger}$ &
+Adds a parallel local branch $\mathcal{U}_\ell$ to the spectral layer \eqref{eq:ch34-layer},
+for fronts whose spectral tail is \eqref{eq:ch09-jump-tail}. \\
+PINO & physics-informed neural operator & \cite{li2021physics} &
+\chapref{ch:part1-physics-informed-operators-and-sobolev-reg}$^{\dagger}$; applied in
+\S\ref{sec:ch35-map}, \S\ref{sec:ch37-operator} &
+Not a kernel restriction but the training functional \eqref{eq:pino_loss}; residual
+differentiation exact on the torus via \eqref{eq:spectral_diff}, approximate elsewhere. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Three readings need guarding. First, the dagger marks the two loci that resolve at chapter
+granularity because the sections concerned carry no \texttt{sec:} label --- the U-FNO
+section of the subsurface chapter, and the physics-informed chapter entire; a label there
+would sharpen the pointer without changing what it names. Second, the book attaches two
+names at different levels in \S\ref{sec:ch33-fourcastnet}: FourCastNet is the weather
+system, AFNO \cite{pathak2022fourcastnet,guibas2021afno} the mixer it is built from, and the
+synthesis matrix's weather row names the layer --- one architecture, one row here. Last, two
+variants that would round out the index are missing from it: neither the linear neural
+operator (LNO) nor the multi-grid neural operator (MGNO) is introduced, cited or mentioned
+anywhere in this book, and no bibliographic entry corresponds to either. The nearest
+material is negative --- \chapref{ch:part3-the-multi-query-bottleneck-in-computationa}
+names multigrid only as a feature of the classical solver being accelerated --- so both are
+indexed as absent rather than left to be discovered by omission.
+
+\section{Symbols to Their Chapters}
+\label{sec:ape-notation}
+% -----------------------------------------------------------------------------
+
+The master notation table defines each symbol where it is defined; it cannot say where the
+symbol begins to carry weight, which is what a reader returning to an argument needs.
+Table~\ref{tab:symbol-map} gives one pointer per principal symbol, anchored on an equation
+or section label so it can be followed mechanically. The conclusion is that the book's
+notation is local to its parts: the objects of \eqref{eq:fredholm_kernel} are never
+restated when Part~II writes them as tensor axes, and Part~III introduces its physical
+symbols with their governing equations rather than with the network.
+
+{\small
+\begin{xltabular}{\textwidth}{@{}l >{\raggedright\arraybackslash}X@{}}
+\caption{\textbf{Symbol-to-chapter map} for the principal symbols of
+Table~\ref{tab:notation-master}.}
+\label{tab:symbol-map}\\
+\toprule
+\textbf{Symbol} & \textbf{First used seriously} \\
+\midrule
+\endfirsthead
+\multicolumn{2}{r}{\textit{Table~\ref{tab:symbol-map}, continued}}\\
+\toprule
+\textbf{Symbol} & \textbf{First used seriously} \\
+\midrule
+\endhead
+\midrule
+\multicolumn{2}{r}{\textit{Table~\ref{tab:symbol-map}, continued on the next page}}\\
+\endfoot
+\bottomrule
+\endlastfoot
+\multicolumn{2}{l}{\textit{Part I: the objects}}\\
+\addlinespace
+$\mathcal{A}$, $\mathcal{U}$, $\mathcal{G}_\theta$, $\mu$ & \eqref{eq:ch01-solution-operator}
+and the risk \eqref{eq:ch01-risk}, where $\mu$ is the input measure. \\
+$L^{p}$, $H^{s}$, $D^{\alpha}u$, $\mathcal{L}(X,Y)$, $\langle\cdot,\cdot\rangle_{X^{*},X}$ &
+\chapref{ch:part1-function-spaces-duality-and-sobolev-regula}, via
+Theorem~\ref{thm:ch02-riesz-rep} and the compact embedding Theorem~\ref{thm:ch02-rellich}. \\
+$\mathbb{T}^{d}$, $\mathcal{F}$, $\mathcal{F}^{-1}$, $R_{\phi}(k)$ & The torus as evolution
+domain in \chapref{ch:part1-partial-differential-equations-as-solution}; as the FNO's
+hypothesis, and the transform as multiplier calculus, in \S\ref{sec:ch05-multipliers}. \\
+$Z_{k_{\max}}$, $k_{\max}$ & \eqref{eq:ch05-modeset} in \S\ref{sec:ch05-truncation}. \\
+$\kappa_{\ell}$, $W_{\ell}$, $d_v$, $L$ & \eqref{eq:no_layer} and \eqref{eq:fredholm_kernel}
+of Definition~\ref{def:generic_no}. \\
+$\mathcal{M}_N$, $P_N$, $h_N$, $w_j$, $\Delta x$ & \S\ref{sec:ch06-definition} and
+\S\ref{sec:ch06-quadrature}; the weights become mesh-derived in
+\S\ref{sec:ch24-continuous-kernel}. \\
+$\mathcal{N}(\cdot\,;a)$, $\mathcal{B}$, $\lambda_{\text{bc}}$ & \eqref{eq:pino_loss}; their
+dimensionality is restated for boundaries in \S\ref{sec:ch37-operator}. \\
+\addlinespace
+\multicolumn{2}{l}{\textit{Part II: the tensors}}\\
+\addlinespace
+$B$, $C$, $C_{\mathrm{in}}$, $C_{\mathrm{out}}$, $H$, $W$, $X_{\mathrm{nodes}}$, $N_{\mathrm{nodes}}$ &
+\eqref{eq:ch21-grid-layout} and \eqref{eq:ch21-node-layout} in \S\ref{sec:ch21-layouts};
+coordinate augmentation in \eqref{eq:ch21-augment}. \\
+$m$, $P$, $p$, $h$ & DeepONet's sensors, queries, latent and hidden widths in
+\S\ref{sec:ch22-blueprint}. \\
+$m_x$, $m_y$, $Z_m$, $R^{(1)}$, $R^{(2)}$ & \eqref{eq:ch23-corners} and
+\eqref{eq:ch23-Rtensors} in \S\ref{sec:ch23-spectral-arithmetic}. \\
+$M$, $\mu(x)$, $\sigma(x)$, $r$, $\mathcal{N}_r(i)$ & \eqref{eq:ch21-normalize} in
+\S\ref{sec:ch21-normalization}; the radius $r$ and its ball in
+\S\ref{sec:ch24-continuous-kernel}. \\
+\addlinespace
+\multicolumn{2}{l}{\textit{Part III: the physics}}\\
+\addlinespace
+$Q$, $Q^{\star}$, $\mathcal{T}$, $\Delta_{\mathcal{T}}$ & \eqref{eq:ch31-ledger} in
+\S\ref{sec:ch31-hypothesis}; crossover \eqref{eq:ch38-crossover} in \S\ref{sec:ch38-columns};
+conservation defect \eqref{eq:ch38-defect} in \S\ref{sec:ch38-roadblocks}. \\
+$Re$, $U_\infty$, $C_d$, $C_l$, $y^{+}$, $\tau_w$, $\mu_t$ & \eqref{eq:ch32-reynolds} and
+\eqref{eq:ch32-force-coeff} in \S\ref{sec:ch32-formulation}. \\
+$\mathbf{u}_h$, $w$, $\theta$, $f$, $\Omega_{\mathrm{rot}}$, $\phi$ &
+\S\ref{sec:ch33-primitive}, where $\phi$ is latitude and $w$ vertical wind. \\
+$\mathbf{K}(x)$, $\phi(x)$, $S_w$, $S_g$, $k_{r\alpha}$, $\mu_\alpha$ &
+\eqref{eq:ch34-cons-w} and \eqref{eq:ch34-flux} of
+\chapref{ch:part3-subsurface-multiphase-flow-and-carbon-stor}. \\
+$V_m$, $C_m$, $\chi$, $\mathbf{D}(x)$, $\mathbf{w}$, $h$, $\Delta t$ & \eqref{eq:monodomain},
+\eqref{eq:ch35-recovery} and \eqref{eq:ch35-cost} of
+\chapref{ch:part3-cardiac-electrophysiology-and-arrhythmia-d}, where $h$ is micrometers. \\
+$\mathcal{R}$, $\mathbf{M}$, $\mathcal{A}$, $p(\theta,s)$, $m_k$ & \eqref{eq:ch36-radon} in
+\S\ref{sec:ch36-radon}; the sampled operator recurs in \eqref{eq:ch36-consistency}. \\
+$\mathrm{ACC}$, $\mathrm{RQE}$, $\mathrm{PSNR}$, $\mathrm{SSIM}$, $\mathrm{RMSE}$ &
+\eqref{eq:ch33-acc} in \S\ref{sec:ch33-verification}, \eqref{eq:ch33-rqe} in
+\S\ref{sec:ch33-limits}, \eqref{eq:ch36-metrics} in \S\ref{sec:ch36-metrics}. \\
+\end{xltabular}
+}
+
+The double readings the master table warns about are visible here as pairs of loci: $h$ a
+hidden width in \S\ref{sec:ch22-blueprint} and a mesh width in \eqref{eq:ch35-cost}, $M$ an
+ensemble size in \eqref{eq:ch21-normalize} and a view count in \S\ref{sec:ch36-radon}, $\mu$
+a measure, a pointwise mean and a phase viscosity in three rows above, $\phi$ a latitude and
+a porosity in two. Reading the paired rows is what disambiguates them; no symbol in the book
+carries a silent second meaning.
+
+What this index cannot do is rank the variants, and so it carries no cost column: the
+arithmetic is in \eqref{eq:ch8-costs}, the hypotheses in \S\ref{sec:ch8-requirements}, and
+the measured quotients in Table~\ref{tab:synthesis_matrix}, whose baselines are choices. For definitions of the terms both tables use, see the
+glossary in Appendix~\ref{app:glossary}; for page-level lookup of these architectures and
+symbols, the subject index that follows carries the entries authored chapter by chapter.

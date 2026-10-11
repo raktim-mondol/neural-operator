@@ -1,0 +1,32 @@
+# LaTeX / latexmk build artifacts
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.lol
+*.bbl
+*.blg
+*.fls
+*.fdb_latexmk
+*.idx
+*.ind
+*.ilg
+*.inl
+*.brf
+*.synctex.gz
+*.bck
+
+# Compiled book (regenerate with latexmk; attach to a Release instead of committing)
+Neural_Operator_Book.pdf
+
+# OS/editor cruft
+.DS_Store
+
+# Local build tool; it rewrites the chapter files in place, so a stray run
+# would overwrite the authored text. Kept locally only.
+tools/extract_chapters.py
+
+# Internal editorial ledger (build history). Kept local.
+PROGRESS.md

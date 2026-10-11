@@ -1,0 +1,485 @@
+% Chapter 3.8: Synthesis Matrix and Real-World Deployment Roadblocks
+% Part III of the book.
+% STATUS: rewritten to book standard (Part III draft pass).
+
+\chapter{Synthesis Matrix and Real-World Deployment Roadblocks}
+\label{ch:part3-synthesis-matrix-and-real-world-deployment}
+\label{sec:synthesis}
+\index{synthesis matrix|textbf}\index{deployment roadblocks|textbf}
+% -----------------------------------------------------------------------------
+
+The five application chapters of this part each replaced one solver with one surrogate and each
+reported two numbers: a ratio of wall-clock times and an error against a reference field. Those
+numbers are defensible one at a time; taken together---the way a design office or a clinic must
+take them---they are not comparable. The aerodynamic multiplier was formed
+against a volume discretization of computational fluid dynamics (CFD) on a graphics processing
+unit (GPU); the reservoir multiplier against an implicit finite difference simulator on a
+central processing unit (CPU); the atmospheric multiplier against the spectral-transform
+dynamics of the European Centre for Medium-Range Weather Forecasts (ECMWF) Integrated
+Forecasting System (IFS); and in the tomographic row the honest comparison is not a timing but
+a reconstruction quality at fixed radiation dose.\index{speedup factor!provenance of} A
+synthesis records provenance before it records figures.
+Table~\ref{tab:synthesis_matrix} does that, and adds the column the inherited accounting
+leaves out:
+which rigorous statement, if any, Part~I supplies for the architecture in the row.
+
+The rest of the chapter concerns what a multiplier does not price. Every application here
+was chosen because the query count $Q$ of \eqref{eq:ch01-cost-bookkeeping} --- $M$ as Part~I writes it --- is large, so the
+amortization argument of
+\chapref{ch:part1-introduction-the-paradigm-shift-to-infinit} holds; deployment is governed
+by obstacles that argument does not reach. A certifier cannot run the reference solver on
+the field being decided upon, so a reported error is anchored to a machine no longer in the
+loop. A conservation law that a finite volume method (FVM) satisfies cell by cell is
+satisfied by a trained network only on average. The labels that made the surrogate possible
+were themselves solver runs, and that cost recurs with every retraining. A guarantee stated
+over a compact subset of the training measure---the hypothesis
+Assumption~\ref{ass:ch09-compact} makes explicit---licenses nothing about the geometry,
+aquifer, pacing protocol, or scanner that arrives next.
+
+Prerequisites are the book's: the error split \eqref{eq:ch01-error-split} in ledger
+form \eqref{eq:ch06-decomp}, the architecture comparison of
+Tables~\ref{tab:comparison} and~\ref{tab:ch8-ledger}, the deployment budget
+\eqref{eq:ch27-budget}, and the five application chapters. Section~\ref{sec:ch38-matrix}
+builds the matrix; Section~\ref{sec:ch38-columns} reads its columns against the arithmetic
+that produced them;
+Sections~\ref{sec:ch38-roadblocks} and~\ref{sec:ch38-data-shift} state the obstacles, each
+with the estimate that makes it precise rather than rhetorical; Section~\ref{sec:ch38-closing}
+returns to the question the book opened with and hands off to the back matter. No new
+measurement, architecture, or theorem appears here; a closing chapter's value is that its
+claims are already in print and can be held against one another.
+
+% -----------------------------------------------------------------------------
+\section{The Synthesis Matrix and What Its Columns Mean}
+\label{sec:ch38-matrix}
+% -----------------------------------------------------------------------------
+
+Table~\ref{tab:synthesis_matrix} is ordered by application rather than by architecture,
+because the domain fixes the equation, the mesh, the metric, and the reviewer. Each row is
+the version of the multi-query surrogate problem \eqref{eq:ch01-solution-operator} that its
+chapter posed: the Reynolds-averaged Navier--Stokes (RANS) equations for a rigid body in a
+free stream, the hydrostatic primitive equations on a rotating sphere, two-phase Darcy flow
+in a heterogeneous aquifer, the monodomain reaction--diffusion system on a patient-specific
+ventricle, and the inverse Radon transform under angular
+undersampling.\index{Darcy flow!two-phase}\index{monodomain equation}\index{Radon transform!inverse problem}\index{Reynolds-averaged Navier--Stokes (RANS) equations}\index{hydrostatic primitive equations}
+The five rows are served by five architectures: the geometry-informed neural operator (GINO)
+\cite{li2023geometry}, FourCastNet \cite{pathak2022fourcastnet} built on the adaptive Fourier
+neural operator (AFNO), the U-Net-enhanced Fourier neural operator (U-FNO)
+\cite{wen2022ufno}, the physics-informed neural operator (PINO) \cite{li2021physics}
+applied to the monodomain system with an Aliev--Panfilov ionic gate
+\cite{aliev1996simple}, and, in the tomographic row, a Fourier-neural-operator-class
+reconstruction \cite{li2021fourier} arranged either as an unrolled data-consistency
+cascade or as a learned filtering stage inside filtered backprojection (FBP). The first
+three are named models with published evaluations; the last two are formulations this
+book's own chapters build rather than released networks, which is why their rows are
+scored on quantities rather than on a published model's figures. Those quantities are the
+drag coefficient $C_d$, the anomaly
+correlation coefficient (ACC), relative $L^2$ saturation and pressure errors, and the
+image-quality measures defined in \eqref{eq:ch36-metrics}: peak signal-to-noise ratio
+(PSNR), structural similarity index measure (SSIM), and root-mean-square error (RMSE) in
+Hounsfield units (HU).
+
+\begin{table}[t]
+\centering
+\footnotesize
+\caption{\textbf{Synthesis matrix: application, governing system, architecture, cost ratio as formed, fidelity as reported, and the rigorous statement Part~I supplies.} Each cost ratio is a quotient of two measured latencies or, in the aerodynamic row, the cost--accuracy ratio reported by \cite{li2023geometry}, and is in either case a hardware-bound system comparison rather than an algorithmic one; the remaining quotients are formed from $1.8$\,s against $120$\,min of IFS dynamics (Table~\ref{tab:benchmarks_hardware}), and $0.01$\,s against the $10$\,min end of the $10$--$30$\,min implicit finite difference solve on a CPU reported for the reservoir row. Where a published study reports no pair of timings the ratio cell says so instead of printing a multiplier; a fidelity cell carries a measured claim only where a published study states one, and otherwise records this book's own accounting in the quantities its chapter defines. The final column follows Table~\ref{tab:ch8-ledger}: ``none here'' records that this book proves nothing for that architecture, not that the literature has no result.}
+\label{tab:synthesis_matrix}
+\begin{tabularx}{\textwidth}{@{}l >{\raggedright\arraybackslash}X l l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Domain} & \textbf{Governing system} & \textbf{Operator} & \textbf{Cost ratio} & \textbf{Fidelity as reported} & \textbf{Guarantee in Part~I} \\
+\midrule
+Aerodynamics
+& steady incompressible RANS
+& GINO \cite{li2023geometry}
+& $2.6\times10^{4}$
+& $C_d$ within $3\%$ at the reported cost ratio
+& none here: neither graph stage nor latent grid proved
+\\
+\addlinespace
+Global weather
+& hydrostatic primitive equations on $\mathbb{S}^{2}$
+& AFNO \cite{pathak2022fourcastnet}
+& $4\times10^{3}$
+& $\mathrm{ACC}>0.6$ through day~7
+& none here: the rate theorem holds on the torus
+\\
+\addlinespace
+Carbon storage
+& two-phase Darcy flow, $S_w+S_g=1$
+& U-FNO \cite{wen2022ufno}
+& $6\times10^{4}$
+& $L^2$ saturation error $1.6\%$, pressure $0.68\%$
+& truncation tail at a front, \eqref{eq:ch09-jump-tail}
+\\
+\addlinespace
+Cardiac
+& mono\-domain reaction--diffusion, anisotropic $\mathbf{D}(x)$
+& PINO \cite{li2021physics}
+& not reported
+& no measured field error here; residual term \eqref{eq:ch07-pde-loss} only
+& no parabolic analogue of \eqref{eq:ch07-apriori}
+\\
+\addlinespace
+Tomography
+& inverse Radon transform, angularly undersampled
+& FNO-class reconstruction \cite{li2021fourier}
+& not established
+& no operating point carried; metric conventions \eqref{eq:ch36-metrics}
+& none here: no stability constant for the inverse
+\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Read the cost column first: it is where a synthesis is sloppiest. Each
+entry is a quotient of two measured latencies, formed as
+Table~\ref{tab:benchmarks_hardware} forms them, and the baseline is a choice rather than a
+fact. The baselines are recoverable from this part's own chapters: an OpenFOAM-class finite
+volume solve for aerodynamics, an Eclipse-class implicit finite difference simulator for the
+reservoir, openCARP finite elements for the cardiac row, the IFS for the atmosphere, and FBP
+for tomography. The first of those names is already doing work its multiplier cannot support. The
+$2.6\times10^{4}$ of the aerodynamic row is the cost--accuracy ratio at $3\%$ drag error
+reported by \cite{li2023geometry}, formed against a GPU volume-CFD solve on the same
+single V100 rather than against the OpenFOAM solve reported in
+\chapref{ch:part3-external-aerodynamics-and-surface-flows}, which costs $15$--$45$ minutes on a
+many-core CPU node; price the same GINO surrogate against that solve
+and the multiplier changes again. Neither quotient describes an algorithm alone, since a CPU
+solver and an accelerator sit on opposite sides of the
+ratio.\index{wall-clock ratio!choice of baseline}
+The two cells this part's inherited ledger filled with $1{,}500\times$ and $100\times$
+are entered here as unestablished: neither is traceable to a pair of timings over the
+baseline its row names. The cardiac row carries no multiplier because the comparison
+there is against a fine-mesh finite element solve whose cost this book does not price;
+the tomographic row carries none because what is bought there is image quality at a
+dose rather than time, and the reconstruction's expense is reckoned in reprojection
+passes \eqref{eq:ch36-consistency}, not in seconds saved. Claims of parity with FBP's
+runtime, or of a wide margin over other learned reconstructions, would be claims about
+particular reconstructors, and this book makes none. An unreconstructable number in a table is how an
+unsupported figure acquires a citation, and a synthesis is where the circulation stops.
+
+% -----------------------------------------------------------------------------
+\section{The Cost Column's Second Reading, Fidelity, and the Guarantee Column}
+\label{sec:ch38-columns}
+% -----------------------------------------------------------------------------
+
+The cost column has a second reading. Expand the training cost into what it is---solver runs
+plus an optimization---and the crossover query count of
+\eqref{eq:ch01-cost-bookkeeping} becomes
+\begin{equation}
+  C_{\mathrm{sur}}(Q)
+  \;=\;
+  \underbrace{n_{\mathrm{lab}}\,c_{\mathrm{sim}}(N_{\mathrm{lab}}) + c_{\mathrm{opt}}}_{c_{\mathrm{train}}}
+  + Q\,c_{\mathrm{eval}}(N),
+  \qquad
+  Q^{\star}
+  \;=\;
+  \frac{n_{\mathrm{lab}}\,c_{\mathrm{sim}}(N_{\mathrm{lab}}) + c_{\mathrm{opt}}}
+       {c_{\mathrm{sim}}(N) - c_{\mathrm{eval}}(N)}.
+  \label{eq:ch38-crossover}
+\end{equation}
+\index{crossover query count}
+Equation \eqref{eq:ch38-crossover} is arithmetic; its consequence is a design rule. Where
+$c_{\mathrm{eval}}(N)<c_{\mathrm{sim}}(N)$ and the labels were generated on a grid at least
+as fine as the one served, $c_{\mathrm{sim}}(N_{\mathrm{lab}})\ge c_{\mathrm{sim}}(N)$ pushes
+$Q^{\star}$ above the number of labeled solves $n_{\mathrm{lab}}$. A surrogate must answer
+more fields than it was trained on before it costs less than the solver it replaced, and
+labeling more finely than one serves raises the threshold without any change in the network.
+That is why the five rows were worth building. Sampling a permeability or stiffness field by
+Markov chain Monte Carlo (MCMC) is stated in
+\chapref{ch:part3-the-multi-query-bottleneck-in-computationa} to want $10^{5}$--$10^{7}$
+forward evaluations; a fifty-member atmospheric ensemble run twice daily is $36{,}500$ solves
+in a year; an ablation plan is queried per candidate lesion under a latency no tetrahedral
+solve meets. A single verification run should by contrast stay with a classical
+solver, the qualification attached to \eqref{eq:ch01-cost-bookkeeping} in
+\chapref{ch:part1-introduction-the-paradigm-shift-to-infinit}. The tomographic row differs in
+kind: the operator is bought for image quality at lower dose rather than for wall-clock, and
+the two defects it is bought against are not interchangeable. Sparse-view acquisition leaves
+the angular arc complete with too few samples inside it, so one trained model may be asked
+to serve several projection sampling rates; the limited-angle case removes an arc of the
+acquisition entirely, and no density of sampling inside what remains recovers it.
+\chapref{ch:part3-medical-imaging-and-tomographic-reconstruc} separates the two
+arrangements along exactly that line. The gain figures an earlier version of this table
+carried --- a margin at $18$ views, and an average margin over sampling rates measured
+against convolutional baselines --- are dropped rather than restated: they were measured on
+reconstructors this book does not name, and a point on a curve and an average over rates
+are in any case different objects, which is why neither was convertible into the other.
+
+The fidelity column asks for the same skepticism. Every metric printed
+there is computable, which is why it was reported; none is the quantity a decision reads. A
+$3\%$ error in $C_d$ is an integral over the surface, constraining neither the separation
+location nor the wall shear stress (WSS) a drag-reduction change actually moves. The ACC is a
+spatial correlation of two fields at one lead time, and \eqref{eq:ch09-weak} is this book's
+reason for refusing to extrapolate it to the long-horizon statistics a climate application
+consumes. A $1.6\%$ relative $L^2$ saturation error says nothing about where the
+$\mathrm{CO}_2$ front sits or how much flux crosses the caprock, and the Gibbs analysis
+around \eqref{eq:ch09-gibbs} explains why the number stays quiet: an error of fixed height on
+a set of vanishing measure costs little in $L^2$ and a great deal in a permit. PSNR, SSIM,
+and RMSE in HU \eqref{eq:ch36-metrics} are the most decision-adjacent of the five, being defined against a reference
+reconstruction a radiologist accepts---a reference that exists in the evaluation and not in
+the clinic, where only the undersampled sinogram is
+available.\index{fidelity metrics!as proxies for decisions}\index{tomography!sparse-view reconstruction}\index{aerodynamics!surface quantities not priced by drag error}\index{weather forecasting!skill over long horizons}
+
+The last column is the one this book can sign. None of the five architectures above
+carries a convergence theorem proved for it as used: Table~\ref{tab:ch8-ledger} gives GINO a
+row and no theorem; the spectral layer behind FourCastNet is not the
+translation-invariant multiplier of Theorem~\ref{thm:fno_convergence}, whose hypotheses live
+on the torus; U-FNO contributes exactly the multi-scale content that rate does not price, and
+\eqref{eq:ch09-jump-tail} shows what a front costs it; a reconstruction whose kernels are
+parameterized on the continuum decouples its weights from the detector sampling density but
+inherits no modulus of continuity for an undersampled inverse problem; and the arrangement
+that keeps the analytic ramp and backprojection \eqref{eq:ch36-fbp} intact leaves the learned
+part to extrapolate the missing angular wedge, for which this book supplies no
+analysis.\index{Geometry-Informed Neural Operator (GINO)!in deployment}\index{adaptive Fourier neural operator (AFNO)}\index{U-Net-enhanced Fourier neural operator (U-FNO)!multi-scale content}\index{tomography!operator-learning reconstruction}\index{Physics-Informed Neural Operator (PINO)!cardiac application}
+PINO is the one row with a theorem adjacent to it, and the adjacency is conditional: the
+residual-to-error implication \eqref{eq:ch07-apriori} is proved there for a coercive
+divergence-form problem whose trial field already has the correct trace, and no parabolic
+counterpart is derived in this book for the monodomain system with its nonlinear ionic
+current. The matrix thus records an exchange rate of five to one: real-time and lower-dose
+answers, purchased with guarantees never attached to the purchased object.
+
+% -----------------------------------------------------------------------------
+\section{Translational Roadblocks to Production Deployment}
+\label{sec:ch38-roadblocks}
+% -----------------------------------------------------------------------------
+
+The first obstacle is the one the ratio conceals: error estimation without a reference
+solver. In the classical workflow a reviewer asks for a residual, a refinement study, or
+both, because the solver is available and accuracy is purchasable at query
+time---the point \chapref{ch:part2-production-deployment-and-high-throughput-} makes against
+its own speedup table. A deployed surrogate has no such dial: mode counts, width, and depth
+are frozen in the archive of Implementation Pattern~\ref{imp:ch27-artifact}, so more compute
+per query buys no accuracy. The principled substitute is a stability estimate, bounding the
+error in the functional actually decided upon by the residual the surrogate's own output
+produces:
+\begin{equation}
+  \big|J(u)-J(v)\big|
+  \;\le\;
+  L_J\,\big\|v-u\big\|_{\mathcal{U}}
+  \;\le\;
+  L_J\,C_{\mathrm{st}}\,\big\|\mathcal{N}(v;a)\big\|_{X^{*}(\Omega)},
+  \qquad v = \mathcal{G}_{\theta}(a),
+  \label{eq:ch38-residual}
+\end{equation}
+\index{error estimation!without a reference solver}\index{certification of learned surrogates}
+Here $J$ is a functional on the output space $\mathcal{U}$, Lipschitz with constant $L_J$;
+$\mathcal{N}(\,\cdot\,;a)$ is the residual operator of \eqref{eq:ch07-pde-loss}; $X^{*}(\Omega)$
+is the dual test space measuring the weak residual; $u$ is the exact state; and
+$C_{\mathrm{st}}$ is the stability constant of the underlying a priori estimate---for Darcy
+flow under the uniform ellipticity of Assumption~\ref{ass:ellipticity},
+$C_{\mathrm{st}}=1/a_{\min}$ in the energy norm. Equation \eqref{eq:ch38-residual} is the
+deployment form of \eqref{eq:ch07-apriori} and inherits its conditions: the trial field must
+carry the correct trace, coercivity or an equivalent inf-sup condition must hold, and the
+bound degrades as the ellipticity constant does. Read against the matrix, that machinery
+exists in model form for at most one row---the elliptic Darcy parent of the subsurface
+problem---and for none of the five as deployed. It has one further merit and one further
+limit: the residual in \eqref{eq:ch38-residual} is computable at inference from the output
+and the equation alone, with no label required, but its cost and its fidelity depend on being
+able to differentiate the surrogate's output field---exactly on the uniform periodic grids
+of \chapref{ch:part2-fourier-neural-operators-fno-from-scratch}, approximately and at added
+expense on the surface stages of \chapref{ch:part3-external-aerodynamics-and-surface-flows}. Where the estimate is
+unavailable, the honest substitute is a schedule rather than a theorem: run the reference
+solver on a randomly selected fraction of queries. That returns the audit to
+\eqref{eq:ch38-crossover} as a term $Q_{\mathrm{audit}}\,c_{\mathrm{sim}}(N)$ and preserves
+the surrogate's advantage exactly while $Q_{\mathrm{audit}}\ll Q$. Certification by sampling
+is slower than inference and quicker than hope.
+
+The second obstacle is conservation. Certifiers ask for guaranteed balance of mass,
+momentum, and energy; an $L^2$-trained network delivers a bound on a global quantity and
+nothing more. Let $\mathcal{T}(w)=\int_{\Omega}w\,\mathrm{d}x$ be the conserved total of a balance law
+with no flux through $\partial\Omega$. H{\"o}lder's inequality converts the training error
+into a defect estimate,
+\begin{equation}
+  \Delta_{\mathcal{T}}(v,u)
+  \;:=\;
+  \frac{\big|\mathcal{T}(v)-\mathcal{T}(u)\big|}{\big|\mathcal{T}(u)\big|}
+  \;\le\;
+  \frac{1}{\big|\mathcal{T}(u)\big|}\int_{\Omega}\!\big|v-u\big|\,\mathrm{d}x
+  \;\le\;
+  \frac{|\Omega|^{1/2}}{\big|\mathcal{T}(u)\big|}\,\big\|v-u\big\|_{L^{2}(\Omega)}.
+  \label{eq:ch38-defect}
+\end{equation}
+\index{conservation laws!guarantees for learned surrogates}
+The two inequalities in \eqref{eq:ch38-defect} are the global case of a family: test the same
+argument against the indicator of a control volume rather than of $\Omega$ and it bounds that
+cell's defect, which is the local form an FVM forecloses by construction, as
+\chapref{ch:part3-boundary-condition-enforcement-neural-oper} develops. A small aggregate
+defect is therefore entirely compatible with large cancelling imbalances between neighboring
+cells. The
+normalization itself deserves caution: $\Delta_{\mathcal{T}}$ is meaningless for a conserved quantity
+whose net value vanishes---circulation, net charge, the integral of a vorticity anomaly---and
+must then be measured against $\int_{\Omega}|u|\,\mathrm{d}x$ instead. The surrogate compounds
+the difficulty by emitting states rather than the interface fluxes
+$\mathbf{F}\cdot\hat{\mathbf{n}}$ a balance would be audited against, so the cell-wise defect
+cannot be read from its output without a separate flux reconstruction. Imposing the balance by
+construction is the right shape of answer and this book does not supply one: the
+distance-envelope device of the chapter just cited enforces a trace, not a divergence
+identity. What remains is weaker and should be reported as such---penalize the balance
+residual in the objective, in the spirit of the soft penalty \eqref{eq:ch07-bc-loss}, and
+release on measured $\Delta_{\mathcal{T}}$ and its cell-wise analogue alongside the acceptance metric
+Implementation Pattern~\ref{imp:ch27-artifact} requires the artifact to carry.
+
+The third obstacle is the price of the labels, which \eqref{eq:ch38-crossover} places inside
+$c_{\mathrm{train}}$ rather than outside the analysis. Supervised training needs paired fields, produced by the solver the
+surrogate is meant to retire, at a resolution fine enough for the budget
+\eqref{eq:ch27-budget} to certify against; retraining on the same labels does not shrink the
+discretization term of that budget, and storing a three-dimensional field times a long
+trajectory times hundreds of realizations is often the first line item in a project plan,
+ahead of the optimizer. Two levers appear in this part's own chapters. Buy labels where they
+are cheap and enforce physics where they are not: coarse-data, fine-residual training
+\cite{li2021physics} is intelligible precisely because \eqref{eq:ch07-apriori} says a small
+weak residual plus a correct trace forces a small energy-norm error---a separation of
+statistical, discretization, and truncation contributions that \cite{subedi2024controlling}
+makes explicit in a linear model. Or share an archive: the atmospheric row trains on the ERA5
+reanalysis rather than on a purpose-built ensemble of solver runs, so the marginal cost of
+another forecast experiment is nearly zero. The marginal epistemic cost is not, because a
+reanalysis is itself the output of a data-assimilation system whose biases the surrogate
+inherits with no term waiting to receive
+them.\index{data generation cost}\index{carbon sequestration!uncertainty quantification over realizations}
+
+% -----------------------------------------------------------------------------
+\section{Distribution Shift and Clinical Clearance}
+\label{sec:ch38-data-shift}
+% -----------------------------------------------------------------------------
+
+The obstacles so far have concerned the missing reference: a solver that would certify the
+field, balance the flux, or generate the labels. The last two concern the population the
+field belongs to and the institution that must accept it. The fourth is distribution shift,
+the out-of-distribution (OOD) problem this part raised earlier in outline. Classical
+solvers fail visibly: Newton iterations diverge, the Courant--Friedrichs--Lewy condition is
+violated, the mesh tangles. A neural operator returns
+a field of the right shape and the right spatial structure for an input it has never seen,
+which is why
+\chapref{ch:part2-production-deployment-and-high-throughput-} treats a silently
+un-normalized exported artifact as the dangerous class of failure. The quantitative content is
+two lines. Write $\ell(a,\theta)$ for the relative squared error of \eqref{eq:ch01-risk} at
+input $a$, $\mathcal{R}_{\mu}$ for its expectation under the training measure $\mu$, and
+$\mathcal{R}_{\nu}$ for the same quantity under a deployment measure $\nu$. If the loss is
+bounded, with $B=\sup_{a\in\mathcal{A}}\ell(a,\theta)<\infty$, then
+\begin{equation}
+  \big|\mathcal{R}_{\nu}(\theta)-\mathcal{R}_{\mu}(\theta)\big|
+  \;\le\;
+  B\,\big|\nu-\mu\big|(\mathcal{A}),
+  \label{eq:ch38-shift}
+\end{equation}
+where $|\nu-\mu|(\mathcal{A})$ is the total variation mass of the signed measure
+$\nu-\mu$.\index{distribution shift!risk under a changed measure}\index{out-of-distribution (OOD) failure!in deployed surrogates}
+Equation \eqref{eq:ch38-shift} makes the obstacle exact in three ways. It is vacuous unless
+$B$ is finite, and finiteness for a relative metric requires $\|\mathcal{G}(a)\|_{\mathcal{U}}$
+to stay bounded away from zero---the qualification already attached to \eqref{eq:ch01-risk},
+which a field near rest, near zero saturation, or near isoelectric potential violates. The
+right-hand side belongs to the two measures and not to the network, so no further epochs on
+$\mu$ shrink it; widening $\mu$ does, which is the honest description of what an augmented
+training ensemble buys. And $|\nu-\mu|(\mathcal{A})$ cannot be estimated from the training
+data, because that data came from $\mu$. Two responses are standard and neither is a fix in
+the sense a reviewer wants. A posterior over parameters---the Bayesian reading of a surrogate,
+in the measure-based inverse-problem sense of \cite{stuart2010inverse}---prices uncertainty in
+directions the prior admits, so its calibration is a hypothesis about the prior rather than a
+bound on the field. Distribution-free intervals of conformal type promise finite-sample
+coverage of the form ``the next exchangeable sample falls inside with probability at least
+$1-\alpha$'', the very guarantee that fails when the next sample is not exchangeable with the
+calibration set, which is to say in the shifted deployment the obstacle names. Uncertainty
+quantification (UQ) is best used as a tripwire inside the training distribution and not as a
+certificate outside
+it.\index{uncertainty quantification!for learned surrogates}\index{conformal prediction!and exchangeability}
+
+The fifth obstacle belongs to the two rows that touch a patient. A reconstruction operator and
+a cardiac wavefront surrogate enter clinical use as intended-use claims, and the evidence
+reviewers expect is prospective validation across centers and heterogeneous cohorts, under
+the clearance routes administered by the United States Food and Drug Administration (FDA) and
+the CE marking regime for devices sold in Europe. Two features of these applications lengthen
+the pathway rather than merely cost more. The reference standard moves: the full-dose
+reconstruction or the fine-mesh finite element method (FEM) simulation used as truth in
+evaluation is unobtainable at the point of care, so accuracy claims must be restated through
+reader studies or protocol-level endpoints. And the artifact is not a fixed object: a
+retrained network is a changed device, and Table~\ref{tab:synthesis_matrix} records how little
+of such a change is certifiable---two of its five cost ratios have no traceable pair of timings
+behind them, and not one row carries a guarantee. Neither
+obstacle is peculiar to operator learning---a conventional solver in the same indication
+answers the same reviewers---but a solver's answers are written in a vocabulary those
+reviewers already accept and a surrogate's are
+not.\index{regulatory clearance!medical imaging and cardiac guidance}\index{cardiac electrophysiology!ablation planning}
+
+\takeaway{Summary of Part III}{Five domains, five architectures, three cost ratios of
+hardware-bound provenance and two cells the record leaves empty, and one shared column of
+guarantees that no theorem in Part~I
+fills. What operator learning demonstrably bought here is query-count independence: the
+crossover $Q^{\star}$ of \eqref{eq:ch38-crossover} is cleared by the workloads that were
+selected, and each field is served on the grid its query names---under the band-limited reading
+of \eqref{eq:limit_commute} that Proposition~\ref{prop:ch06-zeroshot} supplies, and not beyond
+it. What it has not bought is
+certification: a residual bounds an error only where a stability constant supplies
+$C_{\mathrm{st}}$ in \eqref{eq:ch38-residual}, conservation holds on average rather than cell
+by cell as \eqref{eq:ch38-defect} shows, label cost sits inside the amortization it
+justifies, and a risk estimated under $\mu$ says nothing about $\nu$ beyond
+\eqref{eq:ch38-shift}.}
+
+% -----------------------------------------------------------------------------
+\section{What the Three Parts Established, and What Remains Open}
+\label{sec:ch38-closing}
+% -----------------------------------------------------------------------------
+
+\chapref{ch:part1-introduction-the-paradigm-shift-to-infinit} opened the book with a problem
+rather than a method: simulation answers one question at a time, the sciences ask many, and
+stretching a fixed-dimensional network over the second shape of work leaves resolution
+coupling, geometry coupling, and a semantic failure in which the network has learned \emph{a}
+solution instead of the rule that generates solutions from data. The remedy proposed there was
+to take the solution operator \eqref{eq:ch01-solution-operator} as the object of learning and
+minimize the risk \eqref{eq:ch01-risk} under a measure on the data space. That program is now
+carried as far as this book can support, and the three parts' contributions are worth stating
+in the order they were earned.
+
+Part~I established when the program is possible in principle: density on compact sets for
+integral-kernel operators (Theorem~\ref{thm:no_universality}), an explicit spectral rate for
+the Fourier neural operator under a smoothing hypothesis (Theorem~\ref{thm:fno_convergence}),
+and a precise content for mesh-independence---the commuting diagram \eqref{eq:limit_commute},
+whose zero-shot reading is confined to inputs band-limited inside the retained modes, as
+Proposition~\ref{prop:ch06-zeroshot} and Figure~\ref{fig:super_resolution} record. Part~II
+turned those objects into tensor programs and accounted for them: layer cost
+\eqref{eq:ch8-costs} unfolded into per-field arithmetic \eqref{eq:ch27-cost}, training regimes
+whose failure modes are diagnosable rather than occult, and an export artifact whose four
+components state what the model was certified on. Part~III asked the question that decides
+whether any of it matters, which is whether $Q$ is large enough. In aerodynamic sweeps,
+atmospheric ensembles, century-scale carbon risk, electrophysiology planning, and low-dose
+tomography it is, and the discretization-invariant surrogate is the mechanism that makes the
+answer affordable.\index{multi-query surrogate problem!resolved by amortization}
+
+What remains open is the boundary of the theory, marked in
+\chapref{ch:part1-open-theoretical-problems-and-mathematical} and re-encountered in every row
+of Table~\ref{tab:synthesis_matrix}. Sample complexity: the estimation term of
+\eqref{eq:ch09-risk} and the accuracy \eqref{eq:ch09-rate} it implies are known only under
+Assumption~\ref{ass:ch09-compact}, and no bound in this book is explicit in depth, channel
+count, and mode count for the operators Part~III trained. Discontinuities: a saturation front
+or a shock leaves the Sobolev scale that buys the rate, \eqref{eq:ch09-jump-tail} prices the
+tail left behind, and \eqref{eq:ch09-gibbs} fixes the overshoot no $L^2$ number reports.
+Rollouts: the accumulation in \eqref{eq:ch09-gronwall} is governed by the Lipschitz product
+\eqref{eq:ch09-lipschitz}, which no loss term in Part~II controls and only the optimizer's
+weight decay touches, and what a climate or
+arrhythmia application reads is the weak error \eqref{eq:ch09-weak}, which can be small while
+the pathwise error grows exponentially. Each roadblock of
+Sections~\ref{sec:ch38-roadblocks} and~\ref{sec:ch38-data-shift} is
+one of those gaps seen from the far side of a deployment: the missing stability constant is
+\eqref{eq:ch38-residual} with no $C_{\mathrm{st}}$, the missing cell balance is a term the
+split \eqref{eq:ch01-error-split} does not contain, and the unestimable shift is the question
+\eqref{eq:ch09-risk} of Section~\ref{sec:ch09-sample-complexity} does not ask, its bound being
+an $L^{2}(\mu)$ statement that says nothing about inputs outside the support of $\mu$. Nothing new is claimed here; a closing chapter that added measurements would be a sixth
+application rather than a synthesis.
+
+The reader who wants the book's components laid out rather than argued will find them in the
+back matter. Appendix~\ref{app:a} collects the functional-analysis and Sobolev results Part~I
+leans on, with the embeddings the convergence proofs consume. Appendix~\ref{app:b} is the
+complete runnable one-dimensional Fourier neural operator for periodic heat diffusion, its
+errors reported as measured and the band-limited caveat on resolution transfer kept visible
+rather than footnoted away. Appendix~\ref{app:c} fixes the benchmark
+specifications---domain, nondimensionalization, forcing, input measure, error
+metric---against which \chapref{ch:part2-canonical-pde-benchmarks-and-reference-wor} reports,
+and Appendix~\ref{app:d} consolidates the training schedules and failure modes.
+Appendix~\ref{app:e} indexes the architectural variants by name, an inventory wider than
+Table~\ref{tab:synthesis_matrix} and read from the architecture side instead of the domain
+side. The glossary in Appendix~\ref{app:glossary} defines each technical term in its own words;
+the bibliography collects every work cited in these three parts in one alphabetized sequence,
+recording the venue and, wherever the publisher's record supplies one, the DOI or preprint
+identifier; and the subject index carries the entries authored chapter by chapter, with
+cross-references
+between the theory that produced them and the applications that spent
+them.\index{back matter!appendices, glossary, bibliography, index}
+
+\vspace{1.5em}

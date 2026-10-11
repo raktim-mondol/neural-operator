@@ -1,0 +1,30 @@
+% Part III opener: the scope of Chapters 17--24, applications in science and medicine.
+\noindent Part~III carries the architectures of Parts~I and~II out of the idealized
+benchmark problems they were built on and into multi-scale physical and biomedical
+systems, where the governing geometry is a triangulated car surface rather than a
+torus, the coefficients are heterogeneous tensors, and the deliverable is a force
+coefficient, a lead-time skill score, a plume contour, or an image. Its organizing
+question is the multi-query bottleneck: five domains --- computational fluid
+dynamics, geophysical climate modeling, geological carbon sequestration, cardiac
+electrophysiology, and inverse problems in medical tomography --- were selected
+because each issues the same equation many times over, and it is that repetition,
+not the accuracy of any single solve, that operator learning answers. For each
+domain the Part establishes the underlying partial differential equation (PDE)
+formulation, analyzes continuous boundary condition enforcement, details the
+architectural adaptation it required --- the Geometry-Informed Neural Operator
+(GINO), FourCastNet on the Adaptive Fourier Neural Operator (AFNO), the
+U-Net-enhanced Fourier Neural Operator (U-FNO), the Physics-Informed Neural
+Operator (PINO), and, in tomography, a Fourier-neural-operator-class
+reconstruction of undersampled data, arranged either as an unrolled
+data-consistency cascade or as a learned filtering stage inside filtered
+backprojection (FBP) --- and
+evaluates quantitative speedup and fidelity against the classical solvers it
+displaces: the finite element method (FEM), the finite volume method (FVM),
+implicit finite difference, and pseudo-spectral or spectral-transform dynamics.
+Accounting is treated as part of the evaluation. Every ratio is read against the
+baseline, the hardware, and the accuracy target that produced it, and a multiplier
+whose pair of timings cannot be recovered is recorded as unestablished rather than
+printed. The Part closes with an interdisciplinary taxonomy synthesizing those
+performance metrics, the physical conservation guarantees each architecture does
+and does not carry, and the translational roadblocks standing between a published
+surrogate and clinical or industrial deployment.

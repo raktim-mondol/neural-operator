@@ -1,0 +1,458 @@
+% Chapter 3.1: The Multi-Query Bottleneck in Computational Science
+% Part III of the book.
+% STATUS: rewritten to book standard (Part III draft pass).
+
+\chapter{The Multi-Query Bottleneck in Computational Science}
+\label{ch:part3-the-multi-query-bottleneck-in-computationa}
+\label{sec:intro_apps}
+% -----------------------------------------------------------------------------
+
+Parts~I and~II of this book were written against a physics that stays out of the way. The
+domains are the periodic box, the torus, and the unit square; the equations are Darcy flow,
+Burgers' equation, and forced two-dimensional Navier--Stokes; the error is a relative $L^{2}$
+distance between two fields; and the operator is applied once, to one input, on a grid of a few thousand points. That
+austerity was deliberate.
+\chapref{ch:part1-operator-approximation-theory-and-universa} and
+\chapref{ch:part1-the-fourier-neural-operator-spectral-theor} could state approximation and
+convergence guarantees only by holding the geometry simple enough that the solution operator
+carries the continuity their hypotheses demand, and
+\chapref{ch:part2-canonical-pde-benchmarks-and-reference-wor} could price a training run only by
+fixing benchmarks every reader can reproduce\index{multi-query surrogate problem!Part III verification standard|seealso{surrogate verification}}.
+
+Part~III withdraws those concessions one at a time. The physics a laboratory or a clinic actually
+pays for arrives with a triangulated surface, a heterogeneous tensor coefficient, a boundary
+condition that must hold to tolerance, a horizon of thousands of steps, and --- above all --- a
+demand for many solutions of one governing system.
+\chapref{ch:part1-introduction-the-paradigm-shift-to-infinit} named that pattern the multi-query
+surrogate problem and wrote down its arithmetic; here the same pattern is priced against the
+solvers it is meant to displace. Section~\ref{sec:ch31-one-solve} accounts for the cost of a
+single classical solve at production resolution and explains why \eqref{eq:ch31-discrete-system}
+is a floor rather than an estimate. Section~\ref{sec:ch31-workloads} separates the four workload
+families --- posterior sampling, shape optimization, ensemble forecasting, procedural clinical
+guidance --- along the axis that matters: not how many queries each issues, but how those queries
+relate to one another. Section~\ref{sec:ch31-hypothesis} states the surrogation hypothesis and
+repairs its cost accounting; Section~\ref{sec:ch31-fidelity} fixes what counts as evidence for
+the five application chapters that follow. No architecture is introduced here and no measurement
+is reported for the first time; the chapter is the ledger the rest of the Part is kept
+in\index{surrogate verification!standard for Part III}. Notation follows
+Table~\ref{tab:notation-master}.
+
+% -----------------------------------------------------------------------------
+\section{The Price of One Forward Solve}
+\label{sec:ch31-one-solve}
+% -----------------------------------------------------------------------------
+
+High-fidelity numerical simulation is the standard instrument of modern engineering, geophysics,
+and clinical diagnostics, and its expense is structural rather than accidental. Whether the task
+is the compressible Navier--Stokes equations around an aircraft, multi-phase flow in a deep
+geological reservoir, or a wavefront crossing a patient-specific ventricle, the classical
+workflow discretizes continuous differential operators into large sparse linear or non-linear
+algebraic systems,
+\begin{equation}
+  \mathbf{A}(\mathbf{u}; \mathbf{p})\, \mathbf{u} = \mathbf{f}(\mathbf{p}), \qquad
+  \mathbf{u} \in \mathbb{R}^{N}, \quad N \sim 10^{7} \text{--} 10^{9},
+  \label{eq:ch31-discrete-system}
+\end{equation}
+where $\mathbf{p}$ collects the parameters --- boundary data, coefficient fields, geometry ---
+and $\mathbf{u}$ stacks the unknown nodal or cell-averaged degrees of freedom
+(DOF)\index{degrees of freedom (DOF)!in a production mesh}. Equation
+\eqref{eq:ch31-discrete-system} carries three costs, and the exponent on $N$ is only the first.
+Because the operator depends on its own solution --- an eddy viscosity $\mu_{t}$ that is a function
+of the field being solved, a relative permeability that is a function of the saturation being
+tracked --- a converged answer means a nested loop, each outer non-linear step driving an inner
+Krylov or multigrid solve of a matrix that has just changed.
+Solving such systems requires millions of floating-point operations per time step, and memory
+follows $N$ times the number of transported fields, so a mesh at the middle of
+\eqref{eq:ch31-discrete-system} is a distributed-memory job, not a workstation one.
+
+Refinement compounds the arithmetic and the memory cost together. In $d$ spatial dimensions a
+mesh of spacing $\Delta x$ over a
+domain of size $L$ carries $N = (L/\Delta x)^{d}$ unknowns, and an explicit scheme stable at the
+Courant--Friedrichs--Lewy (CFL) number $\mathrm{CFL}$ must take
+$\Delta t \le \mathrm{CFL}\,\Delta x / |\mathbf{u}|_{\max}$, so that a physical horizon
+$T$ fixes the unknown count and the step count,
+\begin{equation}
+  \label{eq:ch31-refine}
+  N(\Delta x) = \Bigl(\frac{L}{\Delta x}\Bigr)^{d}, \qquad
+  K(\Delta x) = \frac{T}{\Delta t} \;\ge\; \frac{|\mathbf{u}|_{\max} T}{\mathrm{CFL}\,\Delta x},
+\end{equation}
+and the arithmetic of one run is their product $N K = \mathcal{O}(N^{1+1/d})$, since $K$
+grows like $N^{1/d}$.
+Equation \eqref{eq:ch31-refine} is why a refinement study is not a
+linear expense: halving
+$\Delta x$ in three dimensions multiplies storage by eight and the step count by two. Implicit
+treatments buy back the step count and pay in conditioning, since the condition number grows
+like $\Delta x^{-2}$ and the iteration count with it unless an optimal preconditioner is carried
+along
+\cite{leveque2002finite, quarteroni2008numerical}\index{CFL condition!cost of explicit time marching}.
+
+The application literature reports the wall-clock consequences of \eqref{eq:ch31-refine} at the
+resolutions industry uses, and those numbers are Part~III's starting ledger. Every one of them
+arrives through this Part's working record, and each is audited in the chapter that owns it against
+the study named beside it; where that audit finds the study did not print the pairing, the ledger
+says so here rather than quietly inheriting a citation. A converged
+Reynolds-averaged Navier--Stokes (RANS) volume solve for one road-car geometry, on a body-fitted
+mesh with boundary-layer prisms refined to $y^{+} < 1$ and roughly $2 \cdot 10^{7}$ cells, takes
+1{,}500--3{,}000 Semi-Implicit Method for Pressure Linked Equations (SIMPLE) or
+Pressure-Implicit with Splitting of Operator (PISO) iterations and 15--45 minutes on 64 central
+processing unit (CPU) cores. That pairing is the applications literature's: the aerodynamic study
+this Part cites, \cite{li2023geometry}, prices its surrogate against a
+graphics-processing-unit (GPU) volume solver and reports its own evaluation on a single NVIDIA
+V100, as \chapref{ch:part3-external-aerodynamics-and-surface-flows} spells out
+\index{Reynolds-averaged Navier--Stokes (RANS)}\index{finite volume method (FVM)!pressure--velocity coupling}.
+One global numerical weather prediction (NWP) member integrated with the European Centre for
+Medium-Range Weather Forecasts (ECMWF) Integrated Forecasting System (IFS) dynamical core takes
+roughly 2 hours on a supercomputer; that elapsed time is inherited, not reported by the
+study:
+\cite{pathak2022fourcastnet} compares whole ensembles node-to-node and gives no timing for a
+single member on one partition\index{numerical weather prediction (NWP)}.
+One 30-year injection history in a single realization of the two-phase Darcy system takes about
+ten minutes on one dedicated Intel Xeon core in the implicit finite-difference simulator that
+generated the labels of \cite{wen2022ufno}, the 10--30 minute range quoted across this Part being
+the working envelope carried forward for that class of problem. And a monodomain action-potential
+rollout runs to minutes on the secondhand estimate; the workload belongs to
+\chapref{ch:part3-cardiac-electrophysiology-and-arrhythmia-d}, whose surrogate is the
+physics-informed neural operator (PINO) formulation \cite{li2021physics} applied to the monodomain
+equation closed by the Aliev--Panfilov reaction model \cite{aliev1996simple}. No study
+this Part cites for that workload prices a data-generating solve against a trained rollout, so
+the minutes stand as a carried-forward framing rather than one side of a measured
+ratio\index{monodomain equation!cost of a production rollout}.
+Where such pairs are on the record, as they are for the reproducible benchmarks,
+\chapref{ch:part2-production-deployment-and-high-throughput-} tabulates them --- solver and
+surrogate on one configuration --- in Table~\ref{tab:benchmarks_hardware}.
+
+Two cautions belong in the reader's hands before the first application chapter. First, the four
+figures above are not comparable: each is a price struck on one machine at one mesh density, and
+it is informative only beside the surrogate it was printed against. A
+speedup is a property of a configuration, not of an architecture, and Part~III's convention is to
+carry baseline and surrogate together or not at
+all\index{speedup factor!measured on one configuration|seealso{multi-query surrogate problem}}.
+Second, per-solve arithmetic is not the whole of a query: generating a body-fitted mesh is a
+per-geometry step with its own failure modes, and neither the ledger nor the cited studies price
+it,
+so the
+unpriced term in \eqref{eq:ch31-discrete-system} is precisely the term that varies when a design
+sweep changes shape\index{mesh generation!cost left unreported}. Tomography
+inverts the whole picture. Its baseline, filtered backprojection (FBP), is no large sparse solve
+but a direct, non-iterative filtering and backprojection, so the computed tomography (CT) chapter
+of this Part competes on accuracy under a dose constraint rather than on wall clock: the
+difficulty there is ill-posedness, not
+arithmetic\index{ill-posed inverse problem}.
+
+% -----------------------------------------------------------------------------
+\section{Four Ways to Ask One Equation Many Times}
+\label{sec:ch31-workloads}
+% -----------------------------------------------------------------------------
+
+Individual forward simulations are routinely executed on high-performance computing (HPC)
+clusters, and one simulation justifies no surrogate. What breaks the classical workflow is the
+multiplicative structure of real campaigns: a task needing $Q$ solutions of one system costs $Q$
+copies of the prices just listed. Table~\ref{tab:ch31-workloads} collects the four families this
+Part works through, arranged by the relation among their queries --- chained, neighboring,
+perturbed, or independent --- since that relation decides which surrogate machinery earns its
+keep.
+
+Bayesian inverse problems are the chained case. Estimating a subsurface permeability field or a
+tissue stiffness distribution from scattered measurements replaces the point estimate with a
+posterior measure, which under Gaussian measurement error has density
+\begin{equation}
+  \label{eq:ch31-posterior}
+  \frac{\mathrm{d}\mu_{\mathrm{post}}(\theta \mid y)}{\mathrm{d}\mu_{\mathrm{prior}}(\theta)}
+  = \frac{1}{Z(\sigma)} \exp\bigl(-\Phi(\theta)\bigr), \qquad
+  \Phi(\theta) = \tfrac{1}{2}\,\bigl\| y - \mathcal{G}(\theta) \bigr\|_{\Gamma}^{2}, \qquad
+  \Gamma = \sigma^{2} I,
+\end{equation}
+relative to the prior, where $\mathcal{G}$ is the parameter-to-solution map, $\Phi$ the likelihood
+potential, and $\Gamma$ the measurement covariance \cite{stuart2010inverse}. Markov chain Monte
+Carlo (MCMC) sampling of \eqref{eq:ch31-posterior} evaluates $\Phi$ once per proposal, so the
+forward model runs $\mathcal{O}(10^{5}\text{--}10^{7})$ times --- the count this Part inherits,
+stated as an order of magnitude and not a measurement, and in
+practice a function of the parameterization and of whether the sampler is
+dimension-robust\index{Bayesian inverse problem}\index{Markov chain Monte Carlo (MCMC)!forward evaluations per chain}.
+Two features of the chained case matter downstream. Consecutive queries are neighbors in
+parameter space, which lets a classical solver warm-start from the previous iterate; a stateless
+surrogate discards that advantage. And the deliverable is a measure, not a field: error in $\Phi$
+biases the posterior rather than degrading a picture, so accuracy is priced in the likelihood
+potential, not in the $L^{2}$ norm.
+
+Shape optimization is the neighboring case, where the query count and the derivative count
+multiply. Iterative gradient-based design sweeps explore thousands of geometric perturbations to
+minimize drag subject to lift constraints; with $n$ design variables a finite-difference gradient
+costs $n+1$ solves per step, which is why production computational fluid dynamics (CFD) adjoints
+exist at all\index{computational fluid dynamics (CFD)}. A differentiable surrogate changes that
+arithmetic: the adjoint field $\partial \mathcal{L}/\partial v_{\ell+1}$ whose appearance in
+\eqref{eq:ch26-mode-gradient} Part~II used to explain a learning-rate schedule is the same object
+the design gradient needs, and reverse-mode differentiation through the trained network --- the
+autograd engine of \cite{paszke2019pytorch}, whose treatment of complex tensors Part~II also
+relies on --- returns $\mathrm{d}\mathcal{G}_\theta/\mathrm{d}\mathbf{p}$ for a small multiple of
+one forward pass\index{aerodynamic shape optimization!gradient cost under a surrogate}. The hazard mirrors the benefit:
+an optimizer does not evaluate a surrogate where it was trained
+but where the surrogate says the objective is smallest, so a systematic bias in the field error
+becomes an artificial optimum. Nothing in Part~I bounds that
+behavior, because every guarantee there holds on a compact set of inputs
+(Assumption~\ref{ass:ch09-compact}) and the point of a design search is to leave the sampled
+set\index{surrogate exploitation|seealso{out-of-distribution (OOD) failure}}.
+
+Ensemble forecasting is the perturbed case and the mildest of the four. Characterizing atmospheric chaos
+necessitates rolling out 50-member ensembles of global
+atmospheric simulations twice daily, each a perturbed initial state of the same system, so the
+classical cost is fifty copies of the 2-hour IFS integration above. The queries share one grid and one
+model, the best circumstance for the batching argument of
+\chapref{ch:part2-production-deployment-and-high-throughput-}: fifty fields ride one batch axis
+and the same weights\index{ensemble forecasting}. What is scored, however, is the ensemble's reliability
+rather than any single trajectory, so the
+fidelity standard moves from field error to skill measures such as the anomaly correlation
+coefficient (ACC).
+
+Clinical decision support is the independent-and-novel case and the hardest. Intraoperative guidance
+during cardiac ablation or trauma assessment demands sub-second
+predictions, which precludes the multi-hour finite element method (FEM) runs that
+patient-specific geometry requires; the constraint is a wall clock inside a procedure, not a batch
+quota\index{real-time clinical decision support}\index{finite element method (FEM)!patient-scale runs}.
+Cardiac electrophysiology approaches that deadline with PINO \cite{li2021physics}, the physics-informed
+formulation of the operator problem, which
+\chapref{ch:part3-cardiac-electrophysiology-and-arrhythmia-d} trains on the monodomain equation with
+Aliev--Panfilov kinetics \cite{aliev1996simple}: the governing residual in the loss is what keeps the
+number of expensive labeled solves affordable offline, and it is the trained rollout, not the solve,
+that has to fit inside the procedure.
+Patient-specific soft-tissue biomechanics is posed against the same deadline with a different kind of map:
+there a learned operator runs from an anatomy to the displacement field measured by magnetic
+resonance elastography (MRE), which is an anatomy-to-displacement regression rather than a
+simulation of a head undergoing impact, and no clinical validation is established for
+it\index{soft-tissue biomechanics!elastographic displacement, not impact simulation}.
+Hemodynamics sit in the same regime with a different constraint: Velikorodny, Lu, and Dudenkov
+\cite{deeponetblood2025} couple a low-fidelity computational-fluid-dynamics surrogate to
+high-fidelity in-vitro measurements in a multi-fidelity DeepONet for flow through stenosed
+coronary vessels, so that the simulation need not be repeated for each new geometry; the
+instantaneous pressure error they report against the in-vitro reference is $1.2 \pm 3.5$
+millimeters of mercury (mmHg), and the validation is against phantoms and simulations rather than
+prospective patient measurements. Here the scarce
+resource is admissible training data and a geometry outside the sampled distribution, not
+floating-point operations.
+
+\begin{table}[t]
+\centering
+\small
+\caption{\textbf{The four multi-query workload families of Part~III, organized by the relation
+among their queries.} Query counts and per-query costs are those this Part inherited; the
+citation names the surrogate study associated with the row, and the row states
+explicitly when the study does not itself report the baseline timing beside it. The rows are not
+comparable with one another and are not combined anywhere in this book.}
+\label{tab:ch31-workloads}
+\begin{tabularx}{\textwidth}{@{}l l >{\raggedright\arraybackslash}X
+  >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Workload} & \textbf{Queries} & \textbf{Relation among queries} & \textbf{Cost per query, as reported} \\
+\midrule
+Bayesian inversion & $\mathcal{O}(10^{5}\text{--}10^{7})$ & chained; warm-startable & $\approx$10 min per
+30-yr realization, one Xeon core \cite{wen2022ufno}; the 10--30 min range is unattributed \\
+Shape optimization & thousands & neighboring, driven by gradients & 15--45 min per geometry on 64 CPU cores (unattributed pairing; \cite{li2023geometry} prices a GPU solve) \\
+Ensemble NWP & 50 members, twice daily & perturbed initial states, one grid & $\approx$ 2 h per member,
+ECMWF IFS (figure with no primary reference; the study times ensembles \cite{pathak2022fourcastnet}) \\
+Procedural clinical & one per patient, per step & independent, often novel geometry & minutes per rollout (framing with no primary reference; the associated study reports no solve-versus-rollout pairing for this workload) \cite{li2021physics} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Table~\ref{tab:ch31-workloads} thus says what the query counts conceal: the four families stress
+four different properties. Inversion asks whether an error survives
+the logarithm in \eqref{eq:ch31-posterior}; optimization asks whether the search stays inside the
+training support; ensembles ask whether the spread is honest; clinical use asks what the model may
+be wrong about. An architecture shown to serve one family has not been shown to serve the others,
+and Part~III reports them separately for that reason.
+
+% -----------------------------------------------------------------------------
+\section{The Surrogation Hypothesis and Its Ledger}
+\label{sec:ch31-hypothesis}
+% -----------------------------------------------------------------------------
+
+The response developed across this Part is the one
+\chapref{ch:part1-introduction-the-paradigm-shift-to-infinit} set up in the abstract: instead of
+solving \eqref{eq:ch31-discrete-system} once per query, learn the map from data to solution once,
+offline, and evaluate the learned map per query. The bookkeeping was written down as
+\eqref{eq:ch01-cost-bookkeeping}, where $M$ denoted the query count; from here $Q$ is used,
+because $M$ already carries the training-ensemble size of Table~\ref{tab:notation-master} and the
+projection-view count of
+\chapref{ch:part3-medical-imaging-and-tomographic-reconstruc}. The Part's claim, as this
+book received it, follows.
+
+\takeaway{The Operator Surrogation Hypothesis}{Neural operators resolve the multi-query bottleneck by separating computational cost into an expensive offline training phase and a near-instantaneous online evaluation phase. Once trained across a distribution of parameters, the operator predicts continuous solution fields in milliseconds, achieving acceleration factors of $10^{3}\times$ to $10^{5}\times$ over traditional numerical solvers.}
+
+That statement is precise enough to audit, and three items deserve attention. The first is the
+cost of the offline phase, which the application literature reports rarely and the headline tables
+never. Supervised
+training consumes paired samples, and paired samples are produced by running the solver being
+replaced:
+\begin{equation}
+  \label{eq:ch31-ledger}
+  c_{\mathrm{train}} \;\approx\; Q_{\mathrm{lab}}\, c_{\mathrm{solve}}(N_{\mathrm{lab}}) \;+\; c_{\mathrm{opt}},
+  \qquad
+  Q^{\star} \;=\; \frac{c_{\mathrm{train}}}{c_{\mathrm{solve}}(N_{\mathrm{prod}}) - c_{\mathrm{infer}}(N_{\mathrm{prod}})},
+\end{equation}
+with $Q_{\mathrm{lab}}$ the number of labeled simulations, $c_{\mathrm{opt}}$ the optimizer's own
+cost, $N_{\mathrm{lab}}$ and $N_{\mathrm{prod}}$ the labeling and production grid sizes, and
+$Q^{\star}$ the break-even query count beyond which the surrogate is cheaper than the solver it
+replaces. Every acceleration figure in this Part divides $c_{\mathrm{solve}}$ by
+$c_{\mathrm{infer}}$ at one $N_{\mathrm{prod}}$; none divides $C_{\mathrm{sur}}$ by
+$C_{\mathrm{sim}}$, and the second quotient is formable only where a study states its label count
+and its training time beside its inference time, which this Part does chapter by chapter rather
+than here. The form of \eqref{eq:ch31-ledger} also needs one qualification of its own: the
+assumption that labels come from the solver being replaced fails exactly once, for the atmospheric
+case, where the labels are archived analyses rather than IFS integrations and $c_{\mathrm{train}}$
+therefore does not inherit the 2-hour price at all. A headline
+speedup therefore licenses nothing on its own: at $Q = 1$ the surrogate is strictly more expensive
+than the solver, which is why \eqref{eq:ch01-cost-bookkeeping} was qualified in Part~I with the
+instruction to hand a single design check to a classical
+solver\index{break-even query count}. The four families of Table~\ref{tab:ch31-workloads} sit on
+opposite sides of \eqref{eq:ch31-ledger}. A posterior sweep issues
+$\mathcal{O}(10^{5}\text{--}10^{7})$ queries against a labeling set of a few thousand solves, so
+its query count exceeds $Q^{\star}$ by two to four orders of magnitude. A fifty-member ensemble
+run twice daily accumulates 36{,}500 solves in a year, which clears a labeling set of the same
+order and no more. The single reconstruction a clinician orders is one query against a training
+cost measured in thousands of solves and never clears $Q^{\star}$ at all, and no accuracy column
+changes that arithmetic.
+
+The second item is what makes \eqref{eq:ch31-ledger} tractable, and it is the result of Part~I
+that Part~III leans on hardest. If the discretization error of the labels decays with
+$N_{\mathrm{lab}}$ at a rate the trained network inherits --- the content of \eqref{eq:ch06-decomp}
+and the continuum-limit statement it belongs to --- then $N_{\mathrm{lab}}$ may be chosen far
+below $N_{\mathrm{prod}}$, and the prohibitive term $Q_{\mathrm{lab}} c_{\mathrm{solve}}(N_{\mathrm{lab}})$
+comes down by the same $N^{1+1/d}$ law that made \eqref{eq:ch31-refine} expensive. Coarse-grid labeling
+is not a convenience but the only affordable route to a surrogate for
+$N \sim 10^{9}$, and is legitimate precisely to the extent Part~I's discretization invariance holds\index{discretization invariance!as a license for coarse-grid labels}. The companion caveat
+is Part~II's \eqref{eq:ch27-budget}: a surrogate's reported error is its error against labels, so what
+a campaign may claim is bounded by the accuracy of the grid it was trained on\index{error budget!surrogate against solver labels}.
+
+The third item is the band in the takeaway, whose endpoints are traceable but not all on the same
+machine or against the same class of baseline. Roughly $4{,}000\times$ for global weather
+\cite{pathak2022fourcastnet} is formed by dividing this Part's own two numbers --- $7{,}200$
+seconds of IFS wall-clock against the $1.8$ seconds the working record gives FourCastNet for a
+week-long forecast on one NVIDIA A100 --- which \chapref{ch:part3-global-weather-forecasting-and-climate-dyn}
+reads as a statement about latency on a device rather than a costing, the study's own comparison
+being node-to-node over a whole ensemble. $26{,}000\times$ for car-surface aerodynamics is not a
+latency ratio on that device at all, but the cost--accuracy quotient \cite{li2023geometry} forms
+against a GPU volume solver, read at a $3\%$ relative error in $C_d$; and $60{,}000\times$ for
+30-year $\mathrm{CO}_{2}$ plume migration is an A100 inference ratio against the finite-difference
+simulator that generated the labels of \cite{wen2022ufno}, halved to nearer $3\times10^{4}$ in
+\chapref{ch:part3-subsurface-multiphase-flow-and-carbon-stor} because saturation and pressure are
+returned by two networks. All three land inside $10^{3}\times$ to $10^{5}\times$, which is all the
+band claims. One Part~III case falls outside it: tomographic reconstruction. Its baseline is FBP,
+the filtering-and-backprojection pipeline that
+\chapref{ch:part3-medical-imaging-and-tomographic-reconstruc} derives as its analytic comparator ---
+a direct transform returning a slice in milliseconds, so the comparison is not one of arithmetic but
+of image quality at lower dose, and a learned reconstruction has no orders of magnitude of runtime
+to claim against it. The $\approx 100\times$ printed beside that row in this Part's
+ledger is precisely
+the kind of quotient \chapref{ch:part3-synthesis-matrix-and-real-world-deployment} now refuses to
+carry forward, entering the cell as unestablished, because nothing behind it supplies a pair of
+timings and the tomographic chapter of this Part prices its reconstructions on consistency and
+dose rather than on wall clock. The band describes solvers whose cost is dominated
+by \eqref{eq:ch31-discrete-system}; where the classical method is already a direct transform,
+operator learning must justify itself on accuracy, safety, or dose instead of on speed.
+
+% -----------------------------------------------------------------------------
+\section{Fidelity Is Scored in the Functional, Not the Field}
+\label{sec:ch31-fidelity}
+% -----------------------------------------------------------------------------
+
+Every application chapter closes with a fidelity number chosen by what the domain decides rather
+than by what the training loss optimized. What a campaign consumes is a functional of the
+solution --- an integral, a correlation, a front position, a topological property --- and the
+relation between what was minimized and what is reported is
+\begin{equation}
+  \label{eq:ch31-functional}
+  \bigl| \mathcal{J}(\mathcal{G}_{\theta}(a)) - \mathcal{J}(\mathcal{G}(a)) \bigr|
+  \;\le\; \bigl\| \mathrm{D}\mathcal{J} \bigr\|_{\mathrm{op}}\,
+            \bigl\| \mathcal{G}_{\theta}(a) - \mathcal{G}(a) \bigr\| ,
+\end{equation}
+where $\mathcal{J}$ is the decision functional and $\|\mathrm{D}\mathcal{J}\|_{\mathrm{op}}$ its
+operator norm in the topology of the field error. Equation \eqref{eq:ch31-functional} points the
+wrong way to trust: it says a small field error cannot hurt a smooth functional much, while
+placing the whole burden on $\|\mathrm{D}\mathcal{J}\|_{\mathrm{op}}$, which is large wherever the
+functional reads a boundary, a front, or a peak, and says nothing where the functional is
+nondifferentiable exactly where the surrogate errs. Part~II's verification protocol insisted on
+the sequence --- relative $L^{2}$ first, then the functional the decision uses
+(Section~\ref{sec:ch27-calibration}) --- and the five metrics below realize that second step
+domain by domain.
+
+Aerodynamics reports a surface integral. The drag coefficient $C_{d}$, obtained by integrating
+pressure and wall shear stress over the body, is the number that sizes an engine, and this Part
+reads a surrogate against it at the $3\%$ relative error where \cite{li2023geometry} forms its
+cost--accuracy comparison; the tighter agreement of $1.2\%$ quoted in this Part's record is
+not a figure that study reports, and \chapref{ch:part3-external-aerodynamics-and-surface-flows}
+uses the $3\%$ value. Either way a surrogate may misplace a separation region and still reproduce
+the scalar a design office consumes\index{drag coefficient}. Atmospheric science reports a
+correlation: the ACC for 500 hPa geopotential height against an analysis, with useful skill taken
+as $\mathrm{ACC} > 0.6$ through day 7 in the figures this Part carries forward. The study's own statements are
+differently shaped --- ACC above $0.6$ for total column water vapor beyond day eight, and
+comparability with the IFS on ACC and root mean squared error only at lead times up to three days
+\cite{pathak2022fourcastnet} --- so the horizon is a threshold one agrees to cross, not a property
+of the model. ACC measures pattern agreement
+relative to a climatology baseline and says nothing about whether a particular storm tracks over
+a particular city\index{anomaly correlation coefficient (ACC)}. Carbon storage reports relative field errors,
+split by variable --- a mean gas-saturation plume error of $1.6\%$, with a standard deviation near
+$1.1$ points, and a mean pressure-buildup error of $0.68\%$ \cite{wen2022ufno}, which are
+distributions rather than bounds --- because saturation and pressure are the fields a reservoir engineer reads,
+whereas the quantity a licensing body would ask for, where the front meets a fault, is not reported.
+Electrophysiology reports the maintenance of reentrant spiral-wave dynamics
+and resolution transfer to a finer evaluation mesh rather than a voltage error, because whether an
+arrhythmia persists is a topological property, for which
+\eqref{eq:ch31-functional} supplies no bound; the surrogate whose behavior is scored that way is the
+PINO construction \cite{li2021physics} of \chapref{ch:part3-cardiac-electrophysiology-and-arrhythmia-d},
+trained on the monodomain equation with Aliev--Panfilov kinetics \cite{aliev1996simple}, and the
+evidence available there is stable reentry on
+flat two-dimensional sheets, with wavebreak flagged as collapsing at the extended
+horizon\index{reentry!spiral wave}. Tomography is the sharpest instance, because its
+three metrics answer three different questions --- peak signal-to-noise ratio (PSNR) in decibels,
+the structural similarity index measure (SSIM), and root mean squared error (RMSE) in Hounsfield
+units (HU)\index{peak signal-to-noise ratio (PSNR)}\index{structural similarity index measure (SSIM)}
+--- and because their meaning is set entirely by the comparator they are read against.
+\chapref{ch:part3-medical-imaging-and-tomographic-reconstruc} therefore treats the tomographic
+triplet this Part carries as illustrative rather than verified, and no PSNR,
+SSIM, or HU figure is reported here as a measurement: an inversion of the raw sparse data with no
+regularization imposed is not the comparator a low-dose protocol faces, and against such a baseline
+the apparent gain is a statement about the baseline.
+RMSE in HU is a field error in the units of the measurement itself, so two reconstructions that
+agree under PSNR and SSIM can still differ in
+usability --- which is what makes the tomographic chapter of this
+Part about ill-posedness rather than about arithmetic.
+
+Three limitations cut across all five and are treated in
+\chapref{ch:part3-boundary-condition-enforcement-neural-oper} and
+\chapref{ch:part3-synthesis-matrix-and-real-world-deployment} rather than argued here, so this
+chapter only registers them. Out of distribution, a surrogate returns a plausible field instead of
+a diagnosis of failure, and Part~I's guarantees are silent on inputs outside the compact support
+of Assumption~\ref{ass:ch09-compact}; a classical solver at least diverges
+visibly\index{out-of-distribution (OOD) failure!a surrogate fails silently}. Conservation is
+guaranteed in the average by a least-squares objective and not pointwise, which is the difference
+between a good benchmark and a certifiable component\index{conservation laws!not enforced by a least-squares objective}.
+And clinical use carries a clearance burden --- prospective, multi-center validation before a
+surrogate enters care --- that no accuracy column can discharge\index{regulatory clearance!medical devices and procedural guidance}.
+
+% -----------------------------------------------------------------------------
+% Bridge to Chapter 3.2
+% -----------------------------------------------------------------------------
+
+The first of Part~III's five domains spends the geometric concession Parts~I and~II reserved. External
+aerodynamics is a multi-query workload of the neighboring kind in
+Table~\ref{tab:ch31-workloads}: a vehicle surface is an irregular triangulated mesh that changes
+with every design perturbation, the governing system is the RANS equations closed by an eddy viscosity that depends on the
+solution being solved for, and the query must be answered over a boundary layer resolved to
+$y^{+} < 1$ at Reynolds numbers $Re$ of $10^{5}$ and above. Cartesian
+spectral methods, which Part~II built on tori, have no native representation for such a surface,
+and that is the gap the Geometry-Informed Neural Operator (GINO) construction of
+\chapref{ch:part2-graph-neural-operators-gno-and-irregular-g} was designed to
+close\index{Geometry-Informed Neural Operator (GINO)!surface-mesh aerodynamics}.
+\chapref{ch:part3-external-aerodynamics-and-surface-flows} runs that machinery of point-to-grid
+and grid-to-point operators on a family of more than five hundred Ahmed-body variants and reports
+surface pressure, wall shear stress, and the drag coefficient built from them --- at a relative
+$L^{2}$ surface-pressure error of $8.31\%$ and the $3\%$ drag agreement at which
+\cite{li2023geometry} forms its cost--accuracy ratio. The $26{,}000\times$ figure is that ratio,
+not a latency quotient on the 64-core machine of this chapter's ledger: \chapref{ch:part3-external-aerodynamics-and-surface-flows}
+keeps the $2 \cdot 10^{7}$-cell, 15--45 minute finite volume method (FVM) solve beside the GPU
+solve the study actually prices against, which is exactly the distinction this chapter has been at
+pains to make --- a speedup is a ratio, not a law. What it adds beyond this ledger is the
+accounting \eqref{eq:ch31-functional} demands: which part of a pressure field a drag coefficient
+reads, and what a surrogate may be permitted to get wrong.
+
+\vspace{1.5em}

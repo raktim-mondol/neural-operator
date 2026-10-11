@@ -1,0 +1,593 @@
+% Chapter 3.5: Cardiac Electrophysiology and Arrhythmia Dynamics
+% Part III of the book.
+% STATUS: rewritten to book standard (Part III draft pass).
+
+\chapter{Cardiac Electrophysiology and Arrhythmia Dynamics}
+\label{ch:part3-cardiac-electrophysiology-and-arrhythmia-d}
+\label{sec:cardiac}
+% -----------------------------------------------------------------------------
+
+Most sudden cardiac deaths are not caused by a heart that stops, but by one that
+quivers. Ventricular fibrillation\index{ventricular fibrillation} is an electrical
+turbulence: instead of a single wavefront recruited by the pacemaker and swept
+through both ventricles in about as long as it takes the chamber to squeeze, the
+tissue is occupied by several reentrant spiral waves of transmembrane voltage
+that break, meander and annihilate one another. Pumping fails because no
+sufficient fraction of the myocardium is in systole at the same moment. The
+disease is electrical, so the interventions that matter are electrical and
+spatial---where to ablate, which tissue parameters explain a recorded
+rhythm---and each begins with the question \emph{what does this tissue do next,
+given this starting state}. That is an operator question.
+
+\index{cardiac electrophysiology}The governing system is a stiff
+reaction--diffusion equation on an anisotropic domain with the shape of a
+ventricle. Its solutions contain two features that a numerical method must pay
+for: a depolarizing front that rises almost discontinuously, and a recovery
+process that takes hundreds of milliseconds behind
+it. Resolving the first fixes the mesh and the time step; simulating long enough
+to see a rotor drift fixes the number of steps. The per-solve cost of
+\chapref{ch:part3-the-multi-query-bottleneck-in-computationa} is therefore not
+incidental: workflows needing many solves at once---parameter inference from
+body-surface potentials, lesion-set search, ensembles under perturbed
+stimulation---inherit it in full.
+
+What Parts~I and~II bring to that cost is a small set of precise instruments:
+the composite Physics-Informed Neural Operator (PINO) objective \eqref{eq:pino_loss}
+of \chapref{ch:part1-physics-informed-operators-and-sobolev-reg},
+the exact zero-shot identity of
+\chapref{ch:part1-discretization-invariance-and-continuum-li} with its
+band-limitedness hypothesis, the recursive-rollout accounting of
+\eqref{eq:ch09-gronwall}, and the pushforward training recipe
+\eqref{eq:ch26-pushforward} of \chapref{ch:part2-training-regimes-optimization-and-failure-}.
+Cardiac tissue is an awkward place to test them. The front is the least
+band-limited object in the field, the monodomain operator is not coercive in any
+useful sense so the a priori estimate \eqref{eq:ch07-apriori} does not apply,
+there is no conservation law to check the answer against, and the labels are
+simulator output rather than measurements. This chapter states the model and its
+unit conventions, formulates the time-$\Delta t$ map a surrogate should learn, and
+writes out what the PINO template \cite{li2021physics} becomes when it is applied
+to that map. The route runs from \eqref{eq:monodomain} to the figure of a
+rotor, and from there to a table of what is documented, what is asserted only by
+this Part's working record, and what is not documented at all --- a column that, for the
+surrogate side of this ledger, is now most of it.
+
+% -----------------------------------------------------------------------------
+\section{The Monodomain Reaction-Diffusion System}
+\label{sec:ch35-monodomain}
+\index{monodomain equation}
+% -----------------------------------------------------------------------------
+
+Electrical propagation across cardiac muscle is modeled by the monodomain
+equation:
+\begin{equation}
+  \label{eq:monodomain}
+  \chi \left( C_m \frac{\partial V_m}{\partial t} + I_{\text{ion}}(V_m, \mathbf{w}) \right) = \nabla \cdot (\mathbf{D}(x) \nabla V_m) + I_{\text{stim}}(x, t),
+\end{equation}
+where $V_m(x, t)$ is transmembrane voltage\index{$V_m$@$V_m$, transmembrane voltage}, $C_m$ is membrane capacitance\index{$C_m$@$C_m$, membrane capacitance}, $\chi$ is surface-to-volume ratio\index{$\chi$@$\chi$, surface-to-volume ratio}, and $\mathbf{D}(x)$ is the diffusion tensor reflecting electrical anisotropy along myocardial fibers:
+\begin{equation}
+  \label{eq:ch35-dtensor}
+  \mathbf{D}(x) = \sigma_t \mathbf{I} + (\sigma_l - \sigma_t) \mathbf{f}_0(x) \otimes \mathbf{f}_0(x),
+\end{equation}
+where $\mathbf{f}_0(x)$ is the local fiber orientation vector\index{fiber orientation field}\index{cardiac anisotropy}. The ion channel current $I_{\text{ion}}$ is parameterized by reaction kinetics such as the two-variable Aliev-Panfilov model\index{Aliev-Panfilov model}~\cite{aliev1996simple}:
+\begin{align}
+  \label{eq:ch35-ion}
+  I_{\text{ion}}(V_m, w) &= k V_m (V_m - a)(V_m - 1) + V_m w, \\
+  \label{eq:ch35-recovery}
+  \frac{\partial w}{\partial t} &= \big( \epsilon_0 + \frac{\mu_1 w}{V_m + \mu_2} \big) \big( -w - k V_m (V_m - b - 1) \big).
+\end{align}
+Boundary conditions require zero electrical flux through the endocardium and epicardium:
+\begin{equation}
+  \label{eq:ch35-no-flux}
+  \hat{\mathbf{n}} \cdot (\mathbf{D} \nabla V_m) = 0 \quad \text{on } \partial\Omega.
+\end{equation}
+
+Each symbol in \eqref{eq:monodomain} carries a modeling decision, and the
+decisions matter more than the notation. The left-hand side is a current balance
+per unit membrane area: $C_m\,\partial_t V_m$ is the capacitive current charging
+that area, and $I_{\text{ion}}$ the ionic current carried through membrane
+channels; $\chi$ converts per-area quantities into per-volume quantities for a
+syncytium of cells, and the surface-to-volume ratio is why a model of myocytes
+and a model of tissue are the same equation with different constants. On the
+right, $\nabla\cdot(\mathbf{D}\nabla V_m)$ is the axial current flowing through
+the gap junctions between cells, and $I_{\text{stim}}$ is the applied stimulus,
+either a pacing electrode or the shock of a defibrillator. The reduction to a
+single voltage field assumes the extracellular space is grounded and that its
+anisotropy ratio matches the intracellular one; where the extracellular
+potential itself is wanted---body-surface electrocardiogram (ECG) synthesis,
+field stimulation---that assumption fails and the two-domain bidomain system
+must be solved instead.\index{bidomain model}\index{electrocardiogram (ECG)}
+The monodomain equation is thus a deliberate narrowing: cheaper, well posed
+enough for wave propagation studies, and silent about the extracellular
+recordings that are the clinician's only window on the organ.
+
+\begin{remark}[Normalization and units]
+\label{rem:ch35-units}
+Equations \eqref{eq:monodomain} and \eqref{eq:ch35-ion} do not share a unit
+system as written, and the discrepancy is instructive rather than cosmetic. The
+cubic factor $V_m(V_m-a)(V_m-1)$ in \eqref{eq:ch35-ion} has zeros at $0$ and
+$1$, which is the standard nondimensionalization in which $V_m$ is scaled to
+the interval between the resting potential and the overshoot of the upstroke; in
+that scaling $V_m$ is dimensionless, $a$ and $b$ are dimensionless shape
+parameters, and $k,\epsilon_0,\mu_1,\mu_2$ are dimensionless kinetic constants.
+A dimensional $I_{\text{ion}}$ in $\mu\text{A}/\text{cm}^2$ added to
+$C_m\,\partial_t V_m$ is a different object. The physiological reading of
+\eqref{eq:monodomain} is
+that $V_m$ is a membrane potential in millivolts, negative at rest and positive
+at the top of the upstroke; the numerical reading, and the one the reaction
+model \eqref{eq:ch35-ion}--\eqref{eq:ch35-recovery} presumes, is a
+dimensionless excitation variable. The bridge has to be declared rather than
+inherited. Taking rest at $-80\ \mathrm{mV}$ and the overshoot at $+20\ \mathrm{mV}$,
+the scaling that places the zeros of the cubic at the two endpoints is
+$V\mapsto(V[\mathrm{mV}]+80)/100$, and time must be divided by a chosen
+characteristic excitation time of the tissue. Those two divisors are precisely
+the voltage and time scales that
+have to be restored before a dimensional $I_{\text{ion}}$ can be added to
+$C_m\,\partial_t V_m$. Any residual penalty built
+from \eqref{eq:monodomain} inherits this ambiguity, and because the weights of
+\eqref{eq:pino_loss} are dimensional---\chapref{ch:part1-physics-informed-operators-and-sobolev-reg}
+says so explicitly---the choice of scaling changes which $\lambda_{\text{pde}}$
+balances the terms. This is the place in Part~III where that observation stops
+being abstract.
+\end{remark}
+
+An Aliev-Panfilov current \eqref{eq:ch35-ion} is not a description of ion
+channels. It is the minimal excitable structure that reproduces the phenomena a
+wave-propagation study needs: a threshold separating a stimulus that dies out
+from one that triggers a full action potential, a refractory tail governed by
+the slow recovery variable $w$ in \eqref{eq:ch35-recovery}, a propagation speed
+set by the ratio of the diffusion coefficient to the excitability, and the
+restitution relation between diastolic interval and action potential duration
+(APD)\index{action potential duration (APD)} that organizes alternans and
+breakup. What it discards is ionic specificity: no separate sodium, calcium and
+potassium currents, therefore no mechanism by which a drug or a mutation
+prolongs the action potential. Fully ionic models of a single human ventricular
+myocyte, carrying scores of state variables, exist for exactly that purpose,
+and a surrogate trained on \eqref{eq:ch35-ion} reaches them only by being
+retrained on them. The number of state variables is the first quantity to read
+off any cardiac operator-learning claim, because it is the number of output
+channels the network must carry and the number of equations the residual term
+must satisfy; for the model \eqref{eq:ch35-ion}--\eqref{eq:ch35-recovery} it is
+two, the voltage and a recovery field.
+
+\index{stiff reaction--diffusion system}Cost is where the structure of \eqref{eq:monodomain} becomes a budget. Write the
+diffusivity as $\mathcal{D}(x)=\mathbf{D}(x)/(\chi C_m)$ and let
+$D_{\max}=\max_x \rho_{\max}(\mathcal{D}(x))$ be the largest eigenvalue of that
+tensor anywhere in the tissue. A forward-Euler treatment of the diffusion
+operator on a uniform grid of spacing $h$ in $d$ spatial dimensions is stable
+only while
+\begin{equation}
+  \label{eq:ch35-cfl}
+  \Delta t \;\le\; \frac{h^{2}}{2\,d\,D_{\max}},
+\end{equation}
+the diffusion restriction of the more familiar Courant--Friedrichs--Lewy
+condition, and the truncation error of any fixed-order difference scheme in
+space and time behaves the same way, shrinking algebraically in $h$ and $\Delta
+t$~\cite{leveque2002finite,quarteroni2008numerical}. Implicit stepping buys
+stability at $h^2$-scale steps, but the reaction term \eqref{eq:ch35-ion} is
+stiff on the upstroke, so the practical step is still set by accuracy through
+the front rather than by the linear solve. Integrating to a simulated horizon
+$T$ therefore costs, in the explicit case,
+\begin{equation}
+  \label{eq:ch35-cost}
+  W(h,T) \;=\; \frac{T}{\Delta t}\,\mathcal{O}(N_h)
+  \;=\; \mathcal{O}\!\left(T\,h^{-(d+2)}\right),
+  \qquad N_h \propto h^{-d},
+\end{equation}
+where $N_h$ is the number of unknowns. Two consequences organize the rest of
+this chapter. Refinement is punitive: halving $h$ in three dimensions multiplies
+the work by roughly $32$, and the exponent in \eqref{eq:ch35-cost} is the reason
+the inherited mesh width and time step, $h\sim 200\ \mu\text{m}$ and
+$\Delta t\sim 10\ \mu\text{s}$, should be read as a coupled pair rather than as
+two independent choices. And the front sets the mesh: nodes must be spaced a
+small fraction of a millimeter wherever a wave is going to travel, which over an
+anatomical ventricle is what puts a monodomain solve in the
+$N\sim10^{7}$--$10^{9}$ regime of
+\chapref{ch:part3-the-multi-query-bottleneck-in-computationa}. Those two figures
+are order-of-magnitude values carried forward into this Part; they are customary
+for monodomain work discretized by the finite element method (FEM), of the kind
+the openCARP simulator performs, but this book cites no primary measurement of
+them, and Table~\ref{tab:ch35cost} says so. The regime that count describes is
+also the one no operator surrogate reaches anywhere in this book's bibliography.
+The distinction is dimensional: on a flat two-dimensional sheet of linear size
+$L$ meshed at $h$ the unknowns scale as $(L/h)^2$ rather than $(L/h)^3$, and with
+$V_m$ and $w$ the state carries two fields rather than the scores of a fully
+ionic model. A sheet of side $10\ \text{cm}$ discretized at the same
+$h\sim200\ \mu\text{m}$ quoted above carries about $2.5\times10^{5}$ nodes, two to four orders
+below the whole-organ count above, and the PINO formulation
+\cite{li2021physics} of Section~\ref{sec:ch35-map} is posed at that smaller size.
+The gap is not an
+objection to the template, which tests an architecture rather than a pipeline; it
+is the reason the accounting in Section~\ref{sec:ch35-claims} has to be done row
+by row.
+\index{finite element method (FEM)!cardiac monodomain discretization}
+\index{Courant--Friedrichs--Lewy condition!diffusion restriction}
+
+% -----------------------------------------------------------------------------
+\section{\texorpdfstring{Learning the Time-$\Delta t$ Map of an Excitable Medium}{Learning the Time-Delta t Map of an Excitable Medium}}
+\label{sec:ch35-map}
+\index{time-$\Delta t$ map!cardiac}
+% -----------------------------------------------------------------------------
+
+The object a surrogate should provide is not the solution of
+\eqref{eq:monodomain} as a function of space and time but one step of its
+dynamics, applied repeatedly:
+\begin{equation}
+  \label{eq:ch35-timemap}
+  \mathcal{G}_{\Delta t}:\;
+  \big(V_m(\cdot,t_k),\,\mathbf{w}(\cdot,t_k);\,\mathbf{f}_0,\,\sigma_l,\,\sigma_t,\,I_{\text{stim}}(\cdot,t_k)\big)
+  \;\longmapsto\;
+  \big(V_m(\cdot,t_k+\Delta t),\,\mathbf{w}(\cdot,t_k+\Delta t)\big).
+\end{equation}
+Equation \eqref{eq:ch35-timemap} is the same recursion as \eqref{eq:ch26-rollout},
+with two domain-specific
+differences worth naming. First, the state is a pair of fields---excitation and
+recovery---so the output channel count is at least two, and a surrogate that
+predicts only $V_m$ cannot be advanced by itself. Second, the fiber orientation
+field $\mathbf{f}_0$ and the conductivities in \eqref{eq:ch35-dtensor} are
+\emph{inputs} of the map, not constants of the architecture: making them channels
+of the input function is what allows one trained network to serve many patients
+and many anisotropy assumptions, which is precisely the operator-learning
+argument of \chapref{ch:part1-partial-differential-equations-as-solution}
+applied to tissue instead of to a torus.
+
+\index{Physics-Informed Neural Operator (PINO)!cardiac electrophysiology}\index{Fourier neural operator (FNO)!cardiac surrogate}The
+architecture that map calls for is a \emph{Fourier Neural
+Operator} (FNO) backbone~\cite{li2021fourier} carrying the step, with the cell
+model \eqref{eq:ch35-ion}--\eqref{eq:ch35-recovery} imposed as a soft
+constraint rather than solved: a PINO in the sense of \cite{li2021physics}. The
+formulation is narrower than \eqref{eq:ch35-timemap} as soon as it is written
+down, and the difference is worth recording precisely. The benchmark problems
+PINO is demonstrated on \cite{li2021physics} have scalar diffusion coefficients
+on fixed grids, so \eqref{eq:ch35-dtensor} collapses in that family and nothing
+in it tests whether a fiber field can be carried as an argument of the operator.
+The patient-varying reading of \eqref{eq:ch35-timemap}, in which $\mathbf{f}_0$
+and the two conductivities are arguments of the operator, is this book's
+formulation, and no study cited here demonstrates
+it.\index{cardiac anisotropy!as an operator input}
+Read against
+\eqref{eq:pino_loss}, the design is exactly the template of
+\chapref{ch:part1-physics-informed-operators-and-sobolev-reg}: a data term over
+reference trajectories, a residual term measuring violation of
+\eqref{eq:monodomain}, and a boundary term for the no-flux condition
+\eqref{eq:ch35-no-flux}. Writing
+the strong monodomain residual as
+\begin{equation}
+  \label{eq:ch35-residual}
+  r_{\mathcal{N}}(V_m,\mathbf{w})
+  \;=\; \chi\Big(C_m\,\partial_t V_m + I_{\text{ion}}(V_m,\mathbf{w})\Big)
+  - \nabla\cdot\!\big(\mathbf{D}\nabla V_m\big) - I_{\text{stim}},
+\end{equation}
+the composite objective has the shape
+\begin{equation}
+  \label{eq:ch35-loss}
+  \mathcal{L}(\theta)
+  = \lambda_{\text{data}}\,\mathcal{L}_{\text{data}}(\theta)
+  + \lambda_{\text{pde}}\,\big\|r_{\mathcal{N}}\big(\mathcal{G}_\theta(a)\big)\big\|_{L^2(\Omega_T)}^2
+  + \lambda_{\text{bc}}\,\big\|\hat{\mathbf{n}}\cdot\mathbf{D}\nabla \mathcal{G}_\theta(a)\big\|_{L^2(\partial\Omega\times(0,T))}^2 .
+\end{equation}
+The first term is \eqref{eq:ch07-data-loss}, optionally in the pushforward form
+\eqref{eq:ch26-pushforward}; the second is the soft physics penalty that
+\eqref{eq:ch35-recovery} and \eqref{eq:ch35-ion} make unusually informative,
+because the reaction kinetics are known exactly even when the tissue parameters
+are not; the third penalizes violation of \eqref{eq:ch35-no-flux}, and it is no
+afterthought. Part of it is forced rather than chosen: the homogeneous Neumann
+condition has to be imposed on the borders of the predicted grid, and the field
+must be padded there so that the periodicity assumed inside the FNO layers is not
+violated --- the same device
+\chapref{ch:part3-subsurface-multiphase-flow-and-carbon-stor} meets at a
+reservoir wall,
+where padding is a workaround for the torus hypothesis of \eqref{eq:fno_layer}
+and not a discharge of it. What padding costs is what a spectral kernel gives up
+on a body that is not periodic, and it is why
+\chapref{ch:part3-boundary-condition-enforcement-neural-oper}
+returns to this example. What remains free is the relative size of
+$\lambda_{\text{pde}}$ and $\lambda_{\text{bc}}$, and
+\chapref{ch:part1-physics-informed-operators-and-sobolev-reg} has already said
+why that freedom is not cosmetic: the weights are dimensional.
+
+Why penalize a residual at all here, when a solver can generate labels? Because
+the residual supplies constraints at the mesh points where supervision runs out.
+\chapref{ch:part1-physics-informed-operators-and-sobolev-reg} makes the general
+point---an input together with the equation supplies a target---and in this
+domain the specific payoff is the sub-grid field. A prediction evaluated on a
+grid finer than the training grid is unconstrained by data at the added nodes;
+$r_{\mathcal{N}}$ evaluated there is not, since \eqref{eq:ch35-residual} contains
+$\partial_t V_m$ and $\nabla\cdot(\mathbf{D}\nabla V_m)$, both computable at any
+resolution the storage supports. That is a mechanism, not a guarantee, and it
+belongs next to the qualification of Section~\ref{sec:ch35-machinery}.
+
+% -----------------------------------------------------------------------------
+\section{Residual Machinery, Zero-Shot Transfer, and the Rotor Geometry}
+\label{sec:ch35-machinery}
+\index{spectral differentiation!at a moving front}
+% -----------------------------------------------------------------------------
+
+The machinery that evaluates
+\eqref{eq:ch35-residual} cheaply is \eqref{eq:spectral_diff}: derivatives come
+from multiplying Fourier coefficients by $(2\pi i k_j)^m$, at two traversals of
+the transform pipeline per derivative. But the qualification Part~I attaches to
+that identity is the one that bites here. The symbol has magnitude
+$(2\pi|k|)^m$, so content near the Nyquist wavenumber is amplified rather than
+damped---and the depolarizing front is precisely the component of $V_m$ whose
+spectrum reaches that far. A Phase 0 upstroke is a moving internal layer, not a
+band-limited function; the residual built from spectral derivatives of a
+network's own interpolant therefore measures the sharpest thing the network has
+not learned smoothly. Two further difficulties travel with it: the aliasing of
+the nonlinear products $V_m^3$ and $V_m w$ in \eqref{eq:ch35-ion} returns the
+dealiasing requirement discussed in Part~I, and on a ventricle-shaped domain
+with the homogeneous Neumann condition \eqref{eq:ch35-no-flux} there is no
+periodic grid at all, so the derivative operators must be rebuilt from
+boundary-aware differences rather than taken off the shelf. The way out is
+structural rather than empirical. Because the network is trained to return the
+state at $t_k+\Delta t$ from the state at $t_k$, $\partial_t V_m$ in
+\eqref{eq:ch35-residual} can be replaced by a difference of successive predicted
+frames, so that no spectral derivative of a front is ever formed; the spatial
+term $\nabla\cdot(\mathbf{D}\nabla V_m)$ still requires the boundary-aware
+differences just described. The objection above is therefore aimed at the naive
+reading of \eqref{eq:ch35-loss}, in which the residual is taken spectrally
+through the upstroke, and not at the formulation this chapter uses.
+
+\index{zero-shot super-resolution!in a cardiac surrogate}The same observation
+undercuts the cleanest-sounding claim one could make for a surrogate in this
+domain, and it is worth stating the gap exactly. Proposition~\ref{prop:ch06-zeroshot} upgrades
+resolution transfer from an empirical observation to an identity, but its
+hypothesis is that the input is band-limited within the retained modes $Z_{k_{\max}}$,
+and its conclusion is that the \emph{spectral branch} of a truncated FNO
+reproduces the same trigonometric polynomial on a finer point set. Cardiac
+excitation violates the hypothesis at the front and satisfies it in the
+quiescent tissue between waves. So the honest report is a divided one, and this
+book can take it no further than that: the transfer is licensed by
+\eqref{eq:ch06-zeroshot} in the quiescent tissue, and across the front it is an
+assumption for which no measurement is cited here. Two conditions any such
+measurement would have to satisfy belong in the statement in advance, because
+they are the two that a favorable number most easily conceals. The fine grid must
+lie beyond the grid the ground-truth data were produced on, since evaluating on
+the data grid tests interpolation of the labels rather than transfer; and the
+sweep must be scored inside the recursive roll-out an autonomous simulator would
+have to run, not point-to-point with the true input supplied at every step. A
+factor of $M$ in linear resolution on a two-dimensional tissue
+preparation is a factor of $M^2$ in stored nodes, which is a different
+statement from the one \eqref{eq:ch06-zeroshot} licenses and a more useful one
+clinically, since lesion-size estimates are area-type quantities.
+
+Panel~(b) of
+Figure~\ref{fig:vol3_sub}, printed in
+\chapref{ch:part3-subsurface-multiphase-flow-and-carbon-stor}, shows the
+geometry this map is eventually being asked to reproduce: a reentrant spiral on
+a ventricle-shaped body, colored by $V_m$. That plate pairs it with the
+subsurface problem of the previous chapter because the two share one obstruction
+--- a sharp front on a body the spectral basis was not written for. No cardiac
+operator result on an anatomical mesh is cited anywhere in this book; the panel
+therefore depicts the problem this chapter formulates, not a result anyone has
+reported.
+\index{rotor (reentrant wave)}The reader should take two things from panel~(b).
+The first is topological: a spiral is
+not a traveling wave bent into a circle but a solution with a core where $V_m$ is
+undefined in phase, tissue that is depolarizing while its neighbor is still
+refractory, and the rotation period at the core is typically faster than the
+surrounding cycle length. Reentry of this kind self-sustains: nothing needs to
+trigger it, and only an intervention---a second wave colliding with the front, a
+defibrillating shock that recruits most of the tissue simultaneously---ends it.
+The second is about the surrogate. Everything in the picture that makes reentry
+hard to simulate, the thin front, the sharp gradient at the core, the long
+duration, is the same thing that makes \eqref{eq:ch35-residual} hard to evaluate
+and \eqref{eq:ch06-zeroshot} inapplicable. Panel~(b) is thus the visual form of
+the objection in the previous paragraph, which is the reason the two belong
+together in one section.
+\index{reentry!spiral wave}\index{phase singularity}
+
+% -----------------------------------------------------------------------------
+\section{Documented Claims and Runtime Accounting}
+\label{sec:ch35-claims}
+\index{arrhythmia!surrogate verification}
+% -----------------------------------------------------------------------------
+
+Three findings reach this chapter attached to the cardiac PINO --- roll-out
+fidelity over extended horizons, zero-shot resolution transfer, and a reduction
+in simulation time --- and separating what a primary study supports from what the
+inherited framing asserts was the task this section was written for. The separation comes
+out all one way: this book cites no study that reports a physics-informed operator
+surrogate for cardiac tissue, so the three findings stand as assertion carried
+forward rather than as cited results. What survives is the formulation of
+Section~\ref{sec:ch35-map}, the classical cost side, and the arithmetic by which
+any future measurement would be judged. Each finding is worth walking through in
+that light, because each has a precise form the book can state even where it
+cannot state a number.
+
+Take roll-out fidelity first. In its strongest legitimate form the claim is that
+recursive rollouts---predictions fed back as
+inputs---hold their accuracy over a simulated horizon, and that a model shown only
+planar and centrifugal waves reproduces the stable spiral. That is a statement
+about a learned dynamical system rather than about a regression fit. The rollout
+arithmetic of\index{autoregressive rollout!cardiac horizons}
+\eqref{eq:ch09-onesided} prices it: with one-step error $\tau$ at the true
+states and Lipschitz constant $\Lambda_\theta$, pathwise error obeys
+\eqref{eq:ch09-gronwall}, so sustained accuracy over $K$ steps is evidence that
+the trained map's local expansion along the realized trajectory is not large on
+the tested horizon---and nothing more. No term in \eqref{eq:ch35-loss} bounds
+$\Lambda_\theta$; \eqref{eq:ch09-lipschitz} makes it an explicit functional of
+the weights, and \chapref{ch:part1-open-theoretical-problems-and-mathematical}
+argues that requiring $\Lambda_\theta<1$ would be structurally wrong for
+dynamics whose leading Lyapunov exponents are positive. Excitable tissue is a
+case in point: a surrogate that contracted every distance could not sustain a
+rotor. Long-horizon stability is therefore an observed property of specific
+trained models, never a consequence of the objective, and here it is an
+observation this book has no data for.
+
+The taxonomy such an observation would be scored against is worth keeping
+regardless, because it is a taxonomy of the dynamics rather than of any study.
+Four regimes organize monodomain wave simulations: planar fronts, centrifugal
+spread from a focal stimulus, a stable reentrant spiral, and spiral break-up into
+several filaments, the last two initiated by cross-stimulation rather than by
+pacing. The first two are conduction; the third is the sustained arrhythmia read
+clinically as monomorphic tachycardia; the fourth is the polymorphic and
+fibrillatory case this chapter opens with. Break-up is where a soft residual
+penalty is least likely to suffice, for the reason the previous paragraph
+supplies: wavelet collision, core meander and the nucleation of new fronts are
+events at the resolution limit, and \eqref{eq:ch09-gronwall} bounds error growth
+only along a trajectory on which the map is already known to be mildly expanding.
+Roll-out fidelity for a stable spiral and roll-out fidelity through break-up are
+therefore different claims, and an average relative $L^2$ error in $V_m$ is weaker
+evidence for the second than for the first. This book records the distinction as
+a requirement on any future measurement, not as a result.
+
+The second item is resolution transfer, with the conditions it would have to meet
+stated in Section~\ref{sec:ch35-machinery}; no measurement of it in this domain is cited
+here. The third is cost. The inherited figures present a cardiac PINO as a step toward
+efficient and scalable simulation, motivated by planning catheter
+ablation\index{catheter ablation} and
+device implantation; the motivation is legitimate and the workflow it points at is
+not validated anywhere in this book's record. What accompanies that framing is a
+pairing---minutes of finite-element solve to sub-second inference---and a
+multiplier of about $1{,}500\times$ set against it. Neither side of that pairing
+is a measurement this book can attribute. The solve side is the
+order-of-magnitude figure of Section~\ref{sec:ch35-monodomain}, carried without a primary
+reference; the inference side has no reference behind it at all.
+\chapref{ch:part3-synthesis-matrix-and-real-world-deployment}
+reaches the same verdict in its cardiac row, printing no multiplier where no pair
+of timings exists. Table~\ref{tab:ch35cost} lays the accounting out
+row by row.
+\begin{table}[t]
+\centering
+\small
+\caption{Cost and evidence accounting for the monodomain problem and for the
+physics-informed operator formulation \eqref{eq:ch35-loss} of it, built on the
+PINO template \cite{li2021physics}. ``inherited'' marks values carried forward by
+this Part with no primary reference behind them; ``this book'' marks
+derivations made here; ``not documented'' marks quantities this book cannot
+attribute. The conclusion to draw is that the classical column is
+order-of-magnitude bookkeeping, the surrogate column is a formulation with no
+measurements attached to it in this record, and the two rows that would decide
+clinical use---stability through break-up, and any runtime gain---are the empty
+ones.}
+\label{tab:ch35cost}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{2.7cm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{1.75cm}}
+\toprule
+\textbf{Quantity} & \textbf{Classical finite-element solve} & \textbf{PINO surrogate} & \textbf{Basis} \\
+\midrule
+Spatial mesh & $h\sim 200\ \mu\text{m}$, tetrahedral, body-fitted & grid not fixed by the architecture; no evaluation resolution measured in anything cited here & inherited / not documented \\
+Time step & $\Delta t\sim 10\ \mu\text{s}$, small and adaptive, accuracy-limited by the upstroke and \eqref{eq:ch35-cfl} & one application of $\mathcal{G}_{\Delta t}$ per step; frame spacing a design choice, not a measurement & inherited / not documented \\
+Supervision & none required: the model is integrated directly & reference trajectories plus the cell model \eqref{eq:ch35-ion}--\eqref{eq:ch35-recovery} as a soft residual \eqref{eq:ch35-residual}, with a boundary term for \eqref{eq:ch35-no-flux} & this book \\
+Refinement cost & $\mathcal{O}(h^{-(d+2)})$ by \eqref{eq:ch35-cost}: re-mesh, re-solve, re-verify & re-evaluate on a finer point set, no retraining; licensed by \eqref{eq:ch06-zeroshot} only for band-limited inputs & this book \\
+Horizon and stability & stable under \eqref{eq:ch35-cfl} and solver controls & governed by $\Lambda_\theta$ through \eqref{eq:ch09-gronwall}; no bound in \eqref{eq:ch35-loss}, no roll-out measurement cited here, and break-up the least likely case to hold & not documented \\
+Runtime gain & minutes-scale per solve in the framing this Part carries, with no primary reference & no pair of timings on the record; the $\approx1{,}500\times$ factor is secondhand arithmetic, not a measurement & inherited / not documented \\
+Clinical qualification & verified against the discretized model & no prospective, multi-center patient validation & not documented \\
+\bottomrule
+\end{tabularx}
+\end{table}
+Read as a whole, the table's message has changed register from the one the
+findings it tabulates were written to support. The classical column is order-of-magnitude bookkeeping that
+carries no primary reference; the surrogate column is a formulation rather than a set of
+measurements; and the two rows that would decide
+clinical use, stability through break-up and any runtime gain, are the empty ones.
+That is not an argument that a physics-informed operator cannot do this problem.
+It is a statement of what has to be measured before the phrase ``cardiac
+surrogate'' carries content.
+
+% -----------------------------------------------------------------------------
+\section{Three Clinical Constraints on Any Cardiac Answer}
+\label{sec:ch35-clinical}
+% -----------------------------------------------------------------------------
+
+\index{model verification!versus physiological validation}
+\index{out-of-distribution (OOD) failure!clinical surrogate}
+Three domain constraints decide how far any answer to that question travels, and
+none of them is a network-architecture matter. The first is the target of
+verification. A surrogate trained on solver output is accurate to the solver,
+which means it inherits the solver's model: the reaction kinetics
+\eqref{eq:ch35-ion}, the diffusion tensor \eqref{eq:ch35-dtensor} --- which
+collapses to a scalar diffusivity in the two-dimensional setting this chapter can
+write down completely, and which is exactly the setting a verification would be
+carried out in --- the zero-flux boundary
+\eqref{eq:ch35-no-flux}, and the assumption that the monodomain reduction
+suffices. Agreement with a finite-element solver of the openCARP
+type---the class of simulator that would generate such training data---establishes
+that the operator has learned a discretized two-variable model. It
+says nothing about whether that model
+describes the patient, and the parameters that would matter clinically---the
+longitudinal-to-transverse conductivity ratio, the restitution slope, the
+location of interstitial fibrosis---are among the least measurable quantities in
+the organ. Diffusion-tensor magnetic resonance imaging
+(DT-MRI)\index{diffusion-tensor magnetic resonance imaging (DT-MRI)} supplies $\mathbf{f}_0$
+on image voxels coarser than the mesh the equation wants, and
+transmural fiber rotation and laminar sheet structure fall below the resolution
+of the acquisition; the model's anisotropy is therefore an interpolation of an
+interpolation.
+
+The second constraint is the training measure. \chapref{ch:part1-operator-approximation-theory-and-universa}
+bounds approximation error on the compact support of the measure $\mu$ from
+which inputs are drawn, and offers nothing outside it. In a cardiac study $\mu$
+is a family of stimulus patterns on a family of geometries, generated by a
+simulator on a grid of chosen resolution with a chosen parameter range, and in
+this chapter's formulation that range is whatever the designer declares, since no
+cardiac training measure is supplied anywhere in this book. The
+experiment that would settle the question is a held-out one: train on
+conductivities in a narrow band around the baseline and score the surrogate
+outside the band. That is the only direct measurement of what lies off the
+support, and this book cites no such measurement for cardiac tissue, so the
+penalty for leaving the band is unknown rather than small. A
+ventricle with infarct scar, a stimulus delivered during the vulnerable period,
+or a rotation rate outside the training distribution is an input off that
+support, and the field that comes back will look like a wave regardless. This
+is why the warning recorded in
+\chapref{ch:part2-production-deployment-and-high-throughput-}---that an
+out-of-distribution field returns a plausible field rather than an error
+message---is not an optional accessory in this domain: a surrogate that cannot
+refuse is worse than a slow one, and
+\chapref{ch:part3-synthesis-matrix-and-real-world-deployment} is where this book
+takes up the uncertainty machinery that would have to supply the refusal.
+
+The third is the pathway. Anything used to guide an ablation lesion set is
+software as a medical device, and the requirements this book
+collects under regulatory clearance---prospective, multi-center evaluation on
+diverse cohorts; documented verification and validation; traceability of the
+model to the measured inputs---are described in
+\chapref{ch:part3-synthesis-matrix-and-real-world-deployment}. What this chapter
+adds is the specific reason the barrier is higher here than in aerodynamics: the
+quantity of interest is not a field average but the location and lifetime of a
+phase singularity, an event-type output for which relative $L^2$ error in $V_m$
+is a weak proxy. The proxy is weaker still when the error is scored on the voltage
+channel alone and the recovery variable $w$ is left latent, which is the natural
+consequence of an output layer read as a depolarization map rather than as the
+state pair of \eqref{eq:ch35-timemap}; and the training
+labels are simulations of a model whose
+parameters are the very things a clinical study would want to infer.
+
+\takeaway{What the Cardiac Surrogate Is Entitled to Claim}{A physics-informed
+FNO applied to \eqref{eq:monodomain} with Aliev-Panfilov kinetics as a soft
+residual \eqref{eq:ch35-loss} is a well-posed proposal. The reaction term is
+known exactly even where the tissue parameters are not, the residual
+\eqref{eq:ch35-residual} is evaluable at any resolution the storage supports, and
+\eqref{eq:ch09-gronwall} states precisely what a sustained roll-out would and
+would not demonstrate. What the formulation is not entitled to, on this book's
+record, is a single measured claim: not roll-out fidelity through break-up, not
+resolution transfer across a front, not anisotropy or anatomy carried as an
+argument of the operator, not a speedup factor, not a bound on the rollout
+Lipschitz constant, not physiological validation beyond the discretized model it
+would be trained on. In Table~\ref{tab:ch35cost} the classical column is
+textbook bookkeeping and the surrogate column awaits its first measurement; the
+accounting is the contribution, because it is the part that survives whichever
+study fills the rows in.}
+
+% -----------------------------------------------------------------------------
+
+The cardiac case and the tomographic case are usually presented as separate
+application areas, and the accounting just given explains why they belong side by
+side. Both put a neural operator in contact with a continuous forward map that
+the practitioner cannot invert exactly; both depend on resolution-agnostic
+evaluation, since the question a radiologist or a cardiologist asks is about a
+field at a scale the training grid never carried; and both would be trained on
+targets produced by an algorithm rather than measured---a finite-element solve
+there, a reconstruction convention here. The direction of the error differs,
+though, and it is the difference that structures the next chapter. In the
+monodomain problem the operator is well posed and the difficulty is cost; in
+sparse-view \emph{Computed Tomography} (CT) the forward problem itself is the
+obstacle, and the classical \emph{Filtered Backprojection} (FBP) inverse is
+replaced by an ill-posed sampling of the Radon transform whose artifacts---streaks,
+blurred boundaries---are not solver error but missing information.
+\chapref{ch:part3-medical-imaging-and-tomographic-reconstruc} develops that
+failure mode with the numerical detail the operator treatment requires, and by
+then the accounting discipline of Table~\ref{tab:ch35cost} will have a second
+data set to be applied to.
+
+% -----------------------------------------------------------------------------

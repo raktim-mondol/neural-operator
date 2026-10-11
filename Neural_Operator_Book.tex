@@ -1,0 +1,384 @@
+% =====================================================================
+%  THE INFINITE-DIMENSIONAL LEARNER
+%  Neural Operators: From Function Spaces to Scientific Machine Learning
+%
+%  A monograph in three parts: Part I, Chapters 1--9; Part II,
+%  Chapters 10--16; Part III, Chapters 17--24.
+%  Build: latexmk -pdf Neural_Operator_Book.tex
+% =====================================================================
+\documentclass[11pt,a4paper,twoside,openright]{book}
+
+% ---------------------------------------------------------------- fonts
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{mathpazo}
+\usepackage{courier}
+
+% ---------------------------------------------------------------- maths
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{bm}
+
+% ---------------------------------------------------------- page setup
+\usepackage[margin=1in,headheight=22.83496pt,includeheadfoot]{geometry}
+
+% ------------------------------------------------------------ graphics
+\usepackage{graphicx}
+\usepackage{booktabs,tabularx}
+\usepackage{xltabular}  % breakable tabularx: the master notation table spans two pages
+
+% ---------------------------------------------------------------------------
+% longtable chunk-break glue fix. This is a patch to the LaTeX kernel package
+% longtable, not to the notation table. It is document-wide: it keeps the
+% pdfTeX glue notices at zero in every breakable table (Table 1, Appendices B
+% and E). If the kernel is updated past 2025-11-01 and latex3/latex2e#1907 is
+% fixed upstream, delete this block.
+%
+% The pdfTeX notices
+%   ignored error: Infinite glue shrinkage found in box being split
+ % (kept here rather than in one table's file: the defect is document-wide)
+% printed once per page break inside Table~\ref{tab:notation-master} (pp. xxv
+% to xxvii) and once inside Appendix~E's Table~\ref{tab:symbol-map} (p. 248)
+% are an upstream defect of longtable in the LaTeX2e 2025-11-01 kernel
+% (latex3/latex2e issue #1907), not of these rows. \LT@output ships every chunk
+% of a breakable table ending in \vss, i.e. \vskip 0pt plus 1fil minus 1fil,
+% and the measuring \vsplit that \LT@start performs at the head of the next
+% chunk stops on that infinitely shrinkable glue and reports it. Diagnostics,
+% all in isolated compiles: the file as printed gives 2 notices; with both
+% \addlinespace commands deleted, 2; with the two multi-line rows for
+% Z_{k_max} and alpha removed entirely, 2; with \pagebreak[4] row-level hints
+% forcing the split between rows, 3 (one per break, so the hints add breaks and
+% remove nothing); and a stock article + longtable document of sixty one-line
+% rows -- no displays, no parboxes, no \addlinespace, no group headers -- gives
+% exactly one notice per page break. With the definition below, 0.
+%
+% The glue is the last item of a \vbox and shapes nothing, so replacing its
+% infinite shrinkage by 12pt is layout-neutral: the patched and unpatched
+% notation tables typeset identical pages (byte-identical text extraction, same
+% page count, same break positions). Everything else in \LT@output is verbatim
+% from the installed longtable.sty; if the kernel is updated past 2025-11-01,
+% check whether the fix went upstream and delete this block if it did.
+\makeatletter
+\def\LT@output{%
+  \ifnum\outputpenalty <-\@Mi
+    \ifnum\outputpenalty > -\LT@end@pen
+      \LT@err{floats and marginpars not allowed in a longtable}\@ehc
+    \else
+      \setbox\z@\vbox{\unvbox\@cclv}%
+      \ifdim \ht\LT@lastfoot>\ht\LT@foot
+        \dimen@\pagegoal
+        \advance\dimen@\ht\LT@foot
+        \advance\dimen@-\ht\LT@lastfoot
+        \ifdim\dimen@<\ht\z@
+          \setbox\@cclv\vbox{\unvbox\z@\copy\LT@foot\vskip 0pt plus 1fil minus 12pt}%
+          \@makecol
+          \@expl@@@mark@update@singlecol@structures@@
+          \@outputpage
+          \global\vsize\@colroom
+          \setbox\z@\vbox{\box\LT@head}%
+        \fi
+      \fi
+        \unvbox\z@\box\ifvoid\LT@lastfoot\LT@foot\else\LT@lastfoot\fi
+        \UseTaggingSocket{tbl/longtable/foot}
+    \fi
+  \else
+    \setbox\@cclv\vbox{\unvbox\@cclv\copy\LT@foot\vskip 0pt plus 1fil minus 12pt}%
+    \UseTaggingSocket{tbl/longtable/foot}
+    \@makecol
+    \@expl@@@mark@update@singlecol@structures@@
+    \@outputpage
+      \global\vsize\@colroom
+    \copy\LT@head\nobreak
+  \fi}
+\makeatother
+% ---------------------------------------------------------------------------
+\usepackage{caption}
+\usepackage{microtype}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{listings}
+\usepackage{makeidx}
+
+% ------------------------------------------------------------ palette
+\definecolor{primary}{RGB}{18,48,96}
+\definecolor{secondary}{RGB}{125,32,45}
+\definecolor{accent}{RGB}{42,111,151}
+\definecolor{boxbg}{RGB}{242,246,252}
+\definecolor{boxborder}{RGB}{180,200,225}
+\definecolor{codegreen}{RGB}{45,125,65}
+\definecolor{codegray}{RGB}{110,110,110}
+\definecolor{codeblue}{RGB}{18,48,96}
+\definecolor{codebg}{RGB}{248,250,253}
+
+\captionsetup{font=small,labelfont={bf,color=primary}}
+\captionsetup[table]{position=top}
+
+% ------------------------------------------------------ float placement
+% The book's plates and comparison tables are large: the tallest (Table 24.1,
+% Table C.1, Table D.1, Table E.1, Table F.1 and the two-panel Part III
+% figures) measure 60-75% of the text block once their captions are set. With
+% the kernel defaults (\topfraction 0.7, \textfraction 0.2) such a float can
+% never be admitted to the top of a text page, so it sits in the queue until
+% the next \clearpage flushes it onto a page of its own, vertically centered and
+% with no running text at all. That is what produced the figure-only pages.
+% Raising the top fraction and lowering the minimum text fraction lets these
+% floats share a page with the prose that discusses them; the numbers are the
+% usual book settings and change no content.
+\setcounter{topnumber}{2}
+\setcounter{bottomnumber}{1}
+\setcounter{totalnumber}{3}
+\renewcommand{\topfraction}{0.92}
+\renewcommand{\bottomfraction}{0.7}
+\renewcommand{\textfraction}{0.06}
+\renewcommand{\floatpagefraction}{0.85}
+\setlength{\abovecaptionskip}{9pt}
+\setlength{\intextsep}{14pt plus 4pt minus 3pt}
+
+% A page that ends up holding nothing but floats is set with the kernel's
+% float-page glue, which by default stretches equally above and below, so the
+% plate or table hangs in the middle of an otherwise empty page. The last float
+% of an appendix (Table D.1) is flushed by \clearpage and is the one case the
+% book cannot place beside prose, since nothing follows it in the appendix. The
+% glue is moved to the foot of the column so such a page reads as a plate at
+% the head of the text block rather than as a centered isolate.
+\makeatletter
+\setlength{\@fptop}{0pt}
+\setlength{\@fpsep}{12pt}
+\setlength{\@fpbot}{0pt plus 1fil}
+\makeatother
+
+% ------------------------------------------------- vertical dimensions
+\setlength{\parskip}{5.5pt plus 1.5pt minus 1pt}
+\setlength{\parindent}{0pt}
+
+% ------------------------------------------ lists-of-entries page column
+% Front-matter entries in \listoffigures and \listoftables carry roman page
+% numbers, and the master notation table now ends on p. xxiii. The kernel
+% reserves 1.55em for that column, which a five-character roman numeral
+% overflows by ~3.9pt; the column is widened (still inside the 2.55em right
+% margin \@tocrmarg) so the page numbers set clean.
+\makeatletter
+\renewcommand*{\@pnumwidth}{2.3em}
+\makeatother
+
+% --------------------------------------------------- theorem machinery
+% All counters keyed to chapter so numbering restarts per chapter and
+% advances monotonically across the whole book.
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[chapter]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{assumption}[theorem]{Assumption}
+\newtheorem{example}[theorem]{Example}
+
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\newtheorem{implementation}{Implementation Pattern}[chapter]
+\newtheorem{case_study}{Case Study}[chapter]
+
+% ------------------------------------------------------- code listings
+\lstdefinestyle{pystyle}{
+    backgroundcolor=\color{codebg},
+    commentstyle=\color{codegreen}\itshape,
+    keywordstyle=\color{codeblue}\bfseries,
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{secondary},
+    basicstyle=\fontfamily{pcr}\selectfont\footnotesize,
+    columns=flexible,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=6pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=4,
+    frame=single,
+    rulecolor=\color{boxborder},
+    xleftmargin=12pt,
+    framexleftmargin=12pt,
+    language=Python
+}
+\lstset{style=pystyle}
+\renewcommand{\lstlistingname}{Listing}
+
+% -------------------------------------------------------- takeaway box
+\newcommand{\takeaway}[2]{%
+  \vspace{4pt}%
+  \noindent\colorbox{boxbg}{%
+    \parbox{\dimexpr\textwidth-2\fboxsep\relax}{%
+      \vspace{3pt}\textbf{\color{primary}#1:}\hspace{0.5em}#2\vspace{3pt}%
+    }%
+  }%
+  \vspace{4pt}%
+}
+
+% ---------------------------------------------------- cross-referencing
+\newcommand{\chapref}[1]{Chapter~\ref{#1}}
+\newcommand{\partref}[1]{Part~\ref{#1}}
+\newcommand{\ie}{\textit{i.e.}}
+\newcommand{\eg}{\textit{e.g.}}
+\newcommand{\xref}[1]{\ref{#1}}
+
+% ------------------------------------------------------------- headings
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[LE]{\small\color{gray}\leftmark}
+\fancyhead[RO]{\small\color{gray}\rightmark}
+\fancyfoot[C]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\chaptermark}[1]{\markboth{\ #1\ }{}}
+\renewcommand{\sectionmark}[1]{\markright{\thesection\quad #1}}
+\fancypagestyle{plain}{\fancyhf{}\fancyfoot[C]{\small\thepage}\renewcommand{\headrulewidth}{0pt}}
+
+% ------------------------------------------------------------- hypertext
+\usepackage{cite}
+\usepackage[colorlinks=true,linkcolor=primary,citecolor=primary,
+            urlcolor=accent]{hyperref}
+
+\makeindex
+\graphicspath{{figures/}}
+
+% ------------------------------------------------------------ book meta
+\title{\textcolor{primary}{\Huge\bfseries The Infinite-Dimensional Learner}\\[0.6em]
+       \textcolor{secondary}{\LARGE Neural Operators: From Function Spaces\\[0.25em]
+       to Scientific Machine Learning}}
+\author{Raktim Mondol}
+\date{First Edition\\2026}
+\hypersetup{pdftitle={The Infinite-Dimensional Learner: Neural Operators from Function Spaces to Scientific Machine Learning},
+            pdfauthor={Raktim Mondol}}
+
+\begin{document}
+\sloppy
+
+% =====================================================================
+\frontmatter
+% =====================================================================
+\begin{titlepage}
+\centering
+{\color{primary}\hrule height 2pt}\par\vspace{2.2em}
+{\Huge\bfseries\color{primary} The Infinite-Dimensional Learner}\par\vspace{0.9em}
+{\Large\bfseries\color{secondary} Neural Operators: From Function Spaces\\[0.25em]
+to Scientific Machine Learning}\par\vspace{2.6em}
+{\large In Three Parts:\\[0.3em]
+\textit{Mathematical Foundations}\\[0.2em]
+\textit{Architectures and Implementation}\\[0.2em]
+\textit{Applications in Science and Engineering}}\par
+\vfill
+{\large Written by an artificial intelligence,\\[0.25em]
+ prompted, edited and reviewed by Raktim Mondol}\par\vspace{0.6em}
+{\small First Edition \textbullet{} 2026}\par\vspace{1.4em}
+{\color{primary}\hrule height 2pt}
+\end{titlepage}
+
+\begin{center}
+\vspace*{\fill}
+\begin{minipage}{0.86\textwidth}
+\small\raggedright
+\textbf{About this book}. This entire book was written by an artificial
+intelligence, and prompted, edited and reviewed by Raktim Mondol, who is
+responsible for its contents. Every bibliographic entry was resolved against a
+published journal or conference record; see the Bibliography for DOIs and
+identifiers.
+\end{minipage}
+\vspace*{\fill}
+\end{center}
+
+\begin{center}
+\vspace*{0.45\textheight}
+\textit{For the people who taught me to read a proof\\and the ones who taught me to ship code.}
+\end{center}
+\cleardoublepage
+
+\tableofcontents
+\cleardoublepage
+\listoffigures
+\cleardoublepage
+\listoftables
+\cleardoublepage
+\addcontentsline{toc}{chapter}{List of Listings}
+\lstlistoflistings
+\cleardoublepage
+
+\include{frontmatter/preface}
+\include{frontmatter/notation}
+
+% =====================================================================
+\mainmatter
+% =====================================================================
+
+% ------------------------------------------------------------------ PART I
+\part{Mathematical Foundations: Functional Analysis, Operator
+Approximation, and Spectral Theory}
+\label{part:1}
+\input{chapters/abstract_part1}
+\include{chapters/part1/01-introduction-the-paradigm-shift-to-infinit}
+\include{chapters/part1/02-function-spaces-duality-and-sobolev-regula}
+\include{chapters/part1/03-partial-differential-equations-as-solution}
+\include{chapters/part1/04-operator-approximation-theory-and-universa}
+\include{chapters/part1/05-the-fourier-neural-operator-spectral-theor}
+\include{chapters/part1/06-discretization-invariance-and-continuum-li}
+\include{chapters/part1/07-physics-informed-operators-and-sobolev-reg}
+\include{chapters/part1/08-comparative-theoretical-taxonomy-of-archit}
+\include{chapters/part1/09-open-theoretical-problems-and-mathematical}
+
+% ------------------------------------------------------------------ PART II
+\part{Architectures, Algorithms, and Implementation in PyTorch}
+\label{part:2}
+\input{chapters/abstract_part2}
+\include{chapters/part2/01-the-practitioner-s-paradigm-infinite-dimen}
+\include{chapters/part2/02-deeponet-engineering-branch-trunk-networks}
+\include{chapters/part2/03-fourier-neural-operators-fno-from-scratch}
+\include{chapters/part2/04-graph-neural-operators-gno-and-irregular-g}
+\include{chapters/part2/05-canonical-pde-benchmarks-and-reference-wor}
+\include{chapters/part2/06-training-regimes-optimization-and-failure-}
+\include{chapters/part2/07-production-deployment-and-high-throughput-}
+
+% ------------------------------------------------------------------ PART III
+\part{Applications in Physical and Biomedical Sciences}
+\label{part:3}
+\input{chapters/abstract_part3}
+\include{chapters/part3/01-the-multi-query-bottleneck-in-computationa}
+\include{chapters/part3/02-external-aerodynamics-and-surface-flows}
+\include{chapters/part3/03-global-weather-forecasting-and-climate-dyn}
+\include{chapters/part3/04-subsurface-multiphase-flow-and-carbon-stor}
+\include{chapters/part3/05-cardiac-electrophysiology-and-arrhythmia-d}
+\include{chapters/part3/06-medical-imaging-and-tomographic-reconstruc}
+\include{chapters/part3/07-boundary-condition-enforcement-neural-oper}
+\include{chapters/part3/08-synthesis-matrix-and-real-world-deployment}
+
+% =====================================================================
+%  Appendices A--E and the Glossary stay inside the numbered run, so
+%  \appendix must come BEFORE \backmatter: book.cls's \appendix only
+%  redefines \thechapter to \Alph{chapter}, it does not restore
+%  \@mainmattertrue, so a \backmatter placed first would leave every
+%  appendix \chapter unnumbered and break \ref{app:...}.
+% =====================================================================
+\appendix
+% Level -1 (the book class's part level) so the appendix, glossary,
+% bibliography and index chapters nest under "Back Matter", not Part III.
+\pdfbookmark[-1]{Back Matter}{backmatter}
+\input{backmatter/appendices}
+\input{backmatter/glossary}
+
+% =====================================================================
+\backmatter
+% =====================================================================
+\cleardoublepage
+\phantomsection
+\addcontentsline{toc}{chapter}{Bibliography}
+\bibliographystyle{plain}
+\bibliography{references}
+
+\cleardoublepage
+\phantomsection
+\addcontentsline{toc}{chapter}{Index}
+\printindex
+
+\end{document}

@@ -1,0 +1,450 @@
+% Chapter 10: The Practitioner's Paradigm: Infinite-Dimensional Data on GPUs
+% Part II of the book.
+% STATUS: book-standard prose (Part II).
+
+\chapter{The Practitioner's Paradigm: Infinite-Dimensional Data on GPUs}
+\label{ch:part2-the-practitioner-s-paradigm-infinite-dimen}
+\label{sec:practitioner}
+% -----------------------------------------------------------------------------
+
+Part~I is written about functions; a training loop runs on arrays. Nothing in the
+preceding nine chapters closes that distance, and the gap is where implementations fail
+for reasons unrelated to approximation theory.
+\index{graphics processing unit (GPU)|textbf}A \emph{graphics processing unit} (GPU)
+holds no more of a field than any other memory does: $B \times C \times N_1 \times
+\cdots \times N_d$ floating-point numbers, finite along every axis. The
+``infinite-dimensional'' of this chapter's title names the object those numbers
+approximate, not the object they are. What separates an operator-learning program from
+an image-classification program is a discipline rather than a data type. Shape, loss,
+and rescaling are each chosen so that the procedure tracks a map between function spaces
+instead of a map between arrays of one privileged size.
+\chapref{ch:part1-introduction-the-paradigm-shift-to-infinit} ended by promising this
+translation explicitly---from $\mathcal{A}$, $\mathcal{U}$, and $N$ grid points to the
+axes $(B, C, H, W)$---and the first section below supplies it.
+
+The anchor is Definition~\ref{def:ch06-discretization-invariance} of
+\chapref{ch:part1-discretization-invariance-and-continuum-li}, which states what an
+implementation owes the continuum: a parameter space that does not grow with the node
+count, a map defined on function spaces, and a discrete realization whose output
+converges to that map as the mesh is refined, in the sense of \eqref{eq:limit_commute}.
+Four engineering decisions answer it, one per section below: how a sampled field is laid
+out in memory, how the network is told where it
+is, how error is measured, and how fields are rescaled before the network sees them.
+Each is the discrete shadow of a Part~I object---the restriction operator $P_N$, the
+arguments of the kernel in \eqref{eq:fredholm_kernel}, the population risk
+\eqref{eq:ch01-risk}, and the input measure $\mu \in \mathcal{P}(\mathcal{A})$---and each
+has a failure mode: a number that looks reasonable on the training grid and means nothing
+off it.
+
+Prerequisites are practical: a \texttt{torch.nn.Module} written in
+PyTorch~\cite{paszke2019pytorch}, the ability to read a batched tensor contraction, and
+the vocabulary of device computing---\textsc{cuda} (Compute Unified Device Architecture),
+the platform on which kernels are launched onto the GPU, and \textsc{cuDNN} (CUDA Deep
+Neural Network library), the convolution and transform routines built on top of it. One
+numerical-analysis habit matters more than the rest: whenever a program sums over grid
+nodes, ask what integral the sum approximates and with what weights, since that decides
+whether a printed number is a property of the field or a property of the mesh. No result
+here is new; what follows is the dictionary, with the cost and the failure behavior of
+each entry.
+
+% -----------------------------------------------------------------------------
+\section{Tensor Layouts for Function Spaces}
+\label{sec:ch21-layouts}
+
+In computer vision, an image is a discrete grid $X \in \mathbb{R}^{B \times C \times H
+\times W}$, and the array is the whole of the object. In operator learning the same
+tensor stands for a continuous function $a: \Omega \to \mathbb{R}^{C}$ sampled on a
+spatial discretization $\mathcal{M}_N = \{x_j\}_{j=1}^{N}$: it is the output of the
+restriction operator $P_N$ of Definition~\ref{def:ch06-discretization-invariance}, one
+row per node, stacked for $B$ independent draws from the input measure. Two layouts
+dominate production workflows, and both should be held in mind for the rest of
+Part~II. \index{tensor layout|textbf}\index{data layout!grid versus point cloud}
+
+The first is the structured grid layout, or channel-first layout, used when
+$\Omega = [0, 1]^d$ is a uniform Cartesian mesh and the sample is the array
+\begin{equation}
+  \label{eq:ch21-grid-layout}
+  X \in \mathbb{R}^{B \times C \times N_1 \times \dots \times N_d},
+\end{equation}
+where $B$ is the batch size, $C$ is the number of field components---the velocity pair
+$(u, v)$ together with the pressure $p$ gives $C = 3$---and the $N_j$ are the spatial
+grid dimensions. The translation \chapref{ch:part1-introduction-the-paradigm-shift-to-infinit}
+promised is then exact, apart from the batch axis: $C$ is the channel count $d_a$ of
+Part~I, the product $\prod_j N_j$ is the node count $N$, and the slice
+$X[b, \cdot, n_1, \dots, n_d]$ is the sample $a(x_j)$ at the node whose multi-index is
+$(n_1, \dots, n_d)$. Running the realized operator produces
+the same shape with $C = d_u$. That excluded axis is the only one carrying no operator
+semantics at all: the members of a batch are exchangeable draws, so $B$ is chosen at
+inference time by memory and nothing else, which is why \eqref{eq:ch21-grid-layout} can
+describe a thousand permeability fields and one field equally well.
+\index{batch axis}\index{channel axis}
+
+Storage cost is arithmetic, and it is the constraint that shapes every other decision.
+A field held in single precision (float32, four bytes per real number) occupies
+\begin{equation}
+  \label{eq:ch21-memory}
+  \mathrm{bytes}_{\mathrm{real}} = 4\, B\, C \prod_{j=1}^{d} N_j,
+  \qquad
+  \mathrm{bytes}_{\mathrm{spec}} = 8\, B\, C\, N_1 \big(\lfloor N_2/2 \rfloor + 1\big),
+\end{equation}
+the second expression being the complex-valued spectrum a two-dimensional real transform
+returns (complex64, two float32 per entry, conjugate symmetry discarding half the
+frequencies). Numerically, a batch of $B = 8$ at $C = 32$ costs about $4.2$~MB on a
+$64 \times 64$ grid and $67$~MB on a $256 \times 256$ one, with the transform
+intermediate a further $4.3$~MB and $68$~MB respectively. Refining fourfold along each
+axis multiplies the node count, and with it the activation memory, by sixteen, while the
+parameter tensor does not move at all.
+That asymmetry explains why the architectures of this book hold the mode and channel
+budgets fixed across a training run and pay for a finer grid out of the batch axis; it is
+read off \eqref{eq:ch21-memory} and is the reason the mode count of
+\chapref{ch:part1-the-fourier-neural-operator-spectral-theor} is a design parameter
+rather than a consequence of the data.
+\index{memory footprint!of a grid tensor}\index{float32|textbf}
+
+What the grid layout buys is a kernel library, and the purchase is worth itemizing.
+Because the spatial axes are trailing and contiguous, a batched real \emph{fast Fourier
+transform} (FFT) over the last two axes (\texttt{torch.fft.rfft2}, the two-axis
+real-to-complex transform) is one call rather
+than a gather, and channel mixing at each retained frequency is a single Einstein-summation
+contraction (\texttt{torch.einsum}) of the form used in
+\chapref{ch:part2-fourier-neural-operators-fno-from-scratch}~\cite{li2021fourier};
+\textsc{cuDNN} two- and
+three-dimensional convolutions consume the same tensor without transposition.
+\index{fast Fourier transform (FFT)!batched, on-device}\index{rfft2 (real two-dimensional FFT)}\index{einsum (Einstein summation)}
+The second layout is the point-cloud or mesh layout, used for irregular geometries such
+as aerodynamic surfaces and arterial trees, where a function is represented as a set of
+nodes and their coordinates,
+\begin{equation}
+  \label{eq:ch21-node-layout}
+  X_{\text{nodes}} \in \mathbb{R}^{B \times N_{\text{nodes}} \times C}, \qquad
+  X_{\text{coords}} \in \mathbb{R}^{B \times N_{\text{nodes}} \times d}.
+\end{equation}
+\index{point-cloud layout}\index{unstructured mesh!node-array layout}
+The channel axis has moved to the end because the elementary operation there is pointwise
+in the node index: the lift $\mathcal{P}$ in the composition \eqref{eq:no_composition} is
+a shallow multilayer perceptron (MLP) acting on the channel dimensions, so placing $C$
+innermost makes one matrix multiplication serve every node. The node axis is
+also, in general, of different length for different samples, which a rectangular grid
+tensor cannot express.
+
+The two layouts differ along a single axis, and naming it settles the comparison: a
+weight tensor in \eqref{eq:ch21-grid-layout} is indexed by lattice offsets and frequency
+bins, whereas a weight tensor in \eqref{eq:ch21-node-layout} is indexed by the physical
+displacement $x_i - x_j$. That is precisely the distinction drawn in
+\eqref{eq:ch06-cnn}, where the discrete stencil of a convolutional neural network (CNN)
+shrinks in physical space as the mesh refines, and in \eqref{eq:ch06-kernel-discrete},
+where a kernel is rebuilt from a continuous function on each new mesh. The grid layout
+inherits translation equivariance and the $\mathcal{O}(N \log N)$ cost of
+\eqref{eq:ch05-convolution-theorem}; the mesh layout inherits neither, aggregating over
+neighbor lists at a cost set by the number of edges, and it must carry the quadrature
+weights $w_j$---Voronoi dual areas---explicitly, since there is no constant spacing to
+absorb them. Drop those weights and the sum approximates nothing, which is the
+failure \chapref{ch:part1-discretization-invariance-and-continuum-li} warns against in
+the strongest terms; the graph implementations of
+\chapref{ch:part2-graph-neural-operators-gno-and-irregular-g} exist to keep
+them attached~\cite{li2023geometry}.
+\index{quadrature weights!carried explicitly on meshes}
+
+Two further cautions close the comparison. Converting between the layouts is not free:
+grid to nodes is a plain gather when the nodes coincide with grid points and an
+interpolation when they do not, while nodes to grid is an interpolation whose error was
+never seen during training---the objection
+\chapref{ch:part1-introduction-the-paradigm-shift-to-infinit} raises against
+re-interpolation, and which
+\chapref{ch:part1-discretization-invariance-and-continuum-li} prices under the name
+``interpolate, then run''. And a layout error is not
+always detected by a shape check, because a transform will oblige whichever axes it is
+handed, returning a tensor of exactly the expected size whose contents are meaningless.
+The check is semantic, not dimensional: the axes being transformed must be the axes along
+which the operator is nonlocal.
+
+% -----------------------------------------------------------------------------
+\section{Positional Grid Encoding}
+\label{sec:ch21-grid-embedding}
+
+A critical empirical discovery in neural operator engineering is that passing only the
+field values $a(x)$ often leads to translational ambiguity. To break the symmetry and
+supply geometric context, practitioners explicitly append normalized spatial coordinates
+as additional input channels,
+\begin{equation}
+  \label{eq:ch21-augment}
+  a_{\text{augmented}}(x) = \big[ a(x), \, x_1, \, x_2, \, \dots, \, x_d \big] \in \mathbb{R}^{C_{\text{in}} + d}.
+\end{equation}
+\index{positional grid encoding|textbf}\index{coordinate channels!as input augmentation}
+The concatenation runs along the channel axis, so the pointwise lift $\mathcal{P} :
+\mathbb{R}^{d_a} \to \mathbb{R}^{d_v}$ of \eqref{eq:no_composition} must instead be sized
+for $C_{\text{in}} + d$ inputs; the extra $d$ channels
+are not data but the argument of the function, broadcast to the shape of the data.
+
+The mechanism behind the empirical report is architectural rather than statistical, and
+for the periodic case it is exact. A shift of the input by $s$ multiplies each Fourier
+coefficient by a phase $e^{-2\pi i k \cdot s}$, and the multiplier $R_\phi(k)$ of
+\eqref{eq:ch05-multiplier} acts before that phase can be compared with anything, so the
+spectral branch commutes with translation; the local bypass $W_\ell$ and the pointwise
+activation in \eqref{eq:fno_layer} do the same. A network built from those pieces
+cannot express a preference for absolute location, so any target that is not
+translation-invariant---one with a boundary layer, a localized forcing, a Dirichlet
+condition---must be reached through something that knows where it is. The density results
+of \chapref{ch:part1-operator-approximation-theory-and-universa} do not require the
+coordinates, and nothing forbids them either; what they are is the cheapest available way
+of returning a little inhomogeneity to an architecture whose premise, as
+\chapref{ch:part1-the-fourier-neural-operator-spectral-theor} puts it, is a homogeneous
+medium. \index{translation ambiguity!broken by coordinate channels}
+
+The price is a loss of regularity, and Part~I already has its number. A coordinate ramp
+is not periodic: it jumps across the boundary of $[0,1]^d$ when the grid is understood as
+a torus, which is exactly what the discrete transform assumes.
+\chapref{ch:part1-discretization-invariance-and-continuum-li} records the consequence
+for the discretization term---augmented inputs carry regularity $H^{1/2 - \epsilon}$ for
+every $\epsilon > 0$ and no better, and because the exponent in \eqref{eq:ch06-rate} is
+the regularity of the least smooth object in the pipeline, the observed decay under
+refinement never reaches $N^{-1}$. The ramp is thus bought against convergence under
+refinement, not against accuracy at fixed
+resolution; the two are different ledgers and conflating them is a common source of
+puzzlement in ablation studies. \index{coordinate channels!regularity cost}
+
+\begin{lstlisting}[language=Python, caption={Appending the two normalized coordinate planes as extra channels of a grid field: input $(B, C, H, W)$, output $(B, C{+}2, H, W)$.}, label={lst:ch21-grid-embedding}]
+import torch
+
+class GridEmbeddingND(torch.nn.Module):
+    """Appends continuous spatial coordinates as extra channels to input fields."""
+    def __init__(self, dim: int = 2):
+        super().__init__()
+        self.dim = dim
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # Input shape: (B, C, H, W)
+        batch_size, _, height, width = x.shape
+        grid_x = torch.linspace(0, 1, steps=height, device=x.device, dtype=x.dtype)
+        grid_y = torch.linspace(0, 1, steps=width, device=x.device, dtype=x.dtype)
+        grid_x, grid_y = torch.meshgrid(grid_x, grid_y, indexing='ij')
+        
+        # Expand across batch dimension: (B, 2, H, W)
+        grid = torch.stack([grid_x, grid_y], dim=0).unsqueeze(0).repeat(batch_size, 1, 1, 1)
+        return torch.cat([x, grid], dim=1) # Shape: (B, C + 2, H, W)
+\end{lstlisting}
+
+Listing~\ref{lst:ch21-grid-embedding} is the utility that performs \eqref{eq:ch21-augment}
+in production, and three things should be taken from it. First, the shape choreography:
+input $(B, C, H, W)$, two one-dimensional ramps of lengths $H$ and $W$, a meshgrid with
+\texttt{indexing='ij'} giving two $(H, W)$ planes, stacking to $(2, H, W)$, a leading
+singleton and a repeat giving $(B, 2, H, W)$, and concatenation on dimension 1 giving the
+$(B, C + 2, H, W)$ the caption of the listing names. Second, the grid is constructed on
+\texttt{x.device} with \texttt{x.dtype}, so the coordinates never force a host-to-device
+copy and never silently up-cast a half-precision tensor---a point that
+\chapref{ch:part2-training-regimes-optimization-and-failure-} takes up under automatic
+mixed precision (AMP). Third, the module is named for general $d$ but its \texttt{forward}
+implements the two-dimensional case, and its stored \texttt{dim} is not consulted there;
+a three-dimensional user must not trust the name. Note also that the ramps run from $0$
+to $1$ inclusive, so the last node receives $1$ rather than $1 - \Delta x$: the jump
+discussed above is present in the data by construction, and the memory cost of
+\texttt{repeat} is $2BHW$ elements even though every batch element receives the same
+planes. \index{grid embedding!shape choreography}
+
+On the point-cloud side of \eqref{eq:ch21-node-layout} no such augmentation is needed:
+the coordinates already exist as a separate tensor, and the kernels of
+\chapref{ch:part2-graph-neural-operators-gno-and-irregular-g} consume them as arguments
+rather than as channels. The axis of difference is worth stating once: grid encoding
+injects geometry into the feature vector, where the lift can mix it with the field,
+whereas mesh layouts keep geometry in the index structure, where it selects which nodes
+interact. Which is preferable is a question about the discretization, not about the
+architecture.
+
+% -----------------------------------------------------------------------------
+\section{Discretization-Invariant Loss Functions}
+\label{sec:ch21-loss}
+
+Standard mean squared error (\texttt{torch.nn.MSELoss}) sums squared differences across
+array elements, $\text{MSE} = \frac{1}{N} \sum_i (u_i - \hat{u}_i)^2$. Under mesh
+refinement ($N \to 4N$) the magnitude of that quantity fluctuates with the array
+convention: reduced by summation it grows with the node count, and reduced by a mean it
+settles toward a Riemann sum of the squared error but still carries the field's own
+scale, so a batch containing one large-magnitude solution dominates the objective.
+Operator learning therefore uses the \textbf{relative $L^2$ norm} as an approximation of
+the continuous functional metric,
+\begin{equation}
+  \label{eq:rel_l2_loss}
+  \mathcal{L}_{\text{rel-}L^2}(u, \hat{u}) = \frac{\| u - \hat{u} \|_{L^2(\Omega)}}{\| u \|_{L^2(\Omega)}} \approx \frac{\left( \sum_{i=1}^N |u_i - \hat{u}_i|^2 w_i \right)^{1/2}}{\left( \sum_{i=1}^N |u_i|^2 w_i \right)^{1/2}}.
+\end{equation}
+For equispaced grids, the quadrature weights $w_i = \Delta x$ cancel out between numerator
+and denominator, rendering \eqref{eq:rel_l2_loss} strictly invariant to the grid density
+$N$. \index{relative $L^2$ error (metric)|textbf}
+
+Read \eqref{eq:rel_l2_loss} against the population risk \eqref{eq:ch01-risk} of
+\chapref{ch:part1-introduction-the-paradigm-shift-to-infinit} and its place in the
+argument is clear: the display is the inner quotient of that expectation, evaluated as a
+quadrature on one sample, and the training loss adds the outer average over the batch.
+Two conventions differ and both appear in the literature. The risk squares the ratio;
+the implementation below takes the root and then averages, which preserves the ranking of
+samples by error but not their weighting during optimization, since
+the derivative of a square root is largest where the error is smallest. The percentages
+reported for the benchmark problems of
+\chapref{ch:part2-canonical-pde-benchmarks-and-reference-wor} and measured in
+Appendix~\ref{app:b} are of this root-then-average form. What the invariance does
+\emph{not} supply is a mesh-independent error value: the cancellation makes the
+\emph{metric} scale-free, while the number computed still changes with $N$ because $u$
+and $\hat{u}$ are different functions sampled on different grids, by the amount the
+discretization term \eqref{eq:ch06-rate} describes. \index{loss function!discretization-invariant}
+
+\begin{lstlisting}[language=Python, caption={Per-sample relative $\ell^p$ error reduced over every axis but the batch: with \texttt{p=2} this evaluates the quotient of the relative $L^2$ metric, and it accepts differentiated tensors for the $H^1$ variant.}, label={lst:ch21-lploss}]
+class LpLoss(torch.nn.Module):
+    """Computes relative L^p loss across arbitrary spatial resolutions."""
+    def __init__(self, p: int = 2, reduction: str = 'mean', eps: float = 1e-7):
+        super().__init__()
+        self.p = p
+        self.reduction = reduction
+        self.eps = eps
+
+    def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        # Shapes: (B, C, ...)
+        diff = pred - target
+        # Flatten spatial and channel dimensions
+        diff_norm = torch.norm(diff.reshape(diff.shape[0], -1), p=self.p, dim=1)
+        target_norm = torch.norm(target.reshape(target.shape[0], -1), p=self.p, dim=1)
+        
+        rel_error = diff_norm / (target_norm + self.eps)
+        if self.reduction == 'mean':
+            return torch.mean(rel_error)
+        elif self.reduction == 'sum':
+            return torch.sum(rel_error)
+        return rel_error
+\end{lstlisting}
+
+Listing~\ref{lst:ch21-lploss} is what a training loop actually calls, and the reader
+should learn from it exactly which parts of \eqref{eq:rel_l2_loss} the code keeps. Both
+norms are taken after flattening every axis but the batch, so the discrete $\ell^p$ norm
+is computed over the concatenation of channels and nodes---the vector-valued
+$L^2(\Omega; \mathbb{R}^{C})$ norm of the notation table, with one number per sample---and
+the ratio is formed per sample before reduction. Weights $w_i$ do not appear anywhere,
+which is correct precisely because constant weights cancel in the quotient, and is wrong
+the moment the nodes are not equispaced: applied to a point-cloud tensor from
+\eqref{eq:ch21-node-layout}, the same call returns an unweighted sum that is not the
+$L^2$ metric of anything. The guard \texttt{eps} sits in the denominator only, which
+prevents division by zero but does nothing for conditioning when $\|u\|$ is genuinely
+small---a nearly constant or nearly zero label---a case that recurs in the
+derivative-normalized terms of \eqref{eq:ch07-sobolev-loss} and that a robust workflow
+handles by normalizing over a batch instead of per sample.
+\index{loss function!relative $L^2$ versus mean squared error}
+\index{quadrature weights!cancellation in relative losses}
+
+The caption of the listing names the $H^1$ Sobolev loss as well, and the relation is
+worth spelling out because the code contains no derivatives. With \texttt{p=2} the call
+returns \eqref{eq:rel_l2_loss}; each derivative-normalized term of
+\eqref{eq:ch07-sobolev-loss} is that same quotient taken on differentiated fields, and a
+single inhomogeneous $H^1$ quotient
+$\|u - \hat{u}\|_{H^1}/\|u\|_{H^1}$ is obtained by stacking $[u, \partial_1 u, \dots,
+\partial_d u]$ as extra channels of the same call, or by weighting modal errors by
+$(1 + |k|^2)^{1/2}$ inside the transform. Either route
+costs one extra derivative of prediction \emph{and} label---spectral differentiation on a
+grid, a difference operator on a mesh---and buys control over the quantity most
+applications actually read, the flux, the vorticity, the wall shear stress. \index{$H^1$ loss!derivative terms supplied by the caller}
+Finally, the reduction argument: \texttt{'none'} is exposed because a single averaged
+scalar hides the sample-wise distribution that distinguishes a surrogate with a few
+catastrophic failures from one with uniformly mediocre error, and because the
+per-sample values are what the resolution studies of
+\chapref{ch:part2-canonical-pde-benchmarks-and-reference-wor} report. The precision of
+these reductions, and of the long summations a relative denominator entails, is taken up
+with the rest of the training budget in
+\chapref{ch:part2-training-regimes-optimization-and-failure-}.
+
+% -----------------------------------------------------------------------------
+\section{Infinite-Dimensional Data Normalization}
+\label{sec:ch21-normalization}
+
+Standard batch normalization or scalar min-max scaling disrupts the spatial correlation
+structure of continuous fields, because each averages over the wrong set. Batch
+normalization keeps a parameter per channel but estimates its statistics by pooling the
+batch and, in its spatial form, the positions as well, so what it produces is not the
+spread of the field at a location but the spread over locations; the numbers it reports
+also depend on which samples happened to share a step, and since its parameters carry no
+spatial axis, refining the grid changes what they pool over without giving them a location
+to depend on. Scalar min-max folds every position
+and every channel into one pair of numbers, discarding the fact that variability in a
+solution field is strongly position-dependent---large near an inlet or an interface,
+small where the boundary condition pins the value. Practitioners therefore use
+\textbf{pointwise unit-Gaussian normalizers} computed across the training ensemble,
+\begin{equation}
+  \label{eq:ch21-normalize}
+  \mu(x) = \frac{1}{M} \sum_{j=1}^M u^{(j)}(x), \qquad \sigma(x) = \sqrt{\frac{1}{M} \sum_{j=1}^M \big(u^{(j)}(x) - \mu(x)\big)^2 + \epsilon}.
+\end{equation}
+\index{data normalization!pointwise (per-location)}
+\index{batch normalization!versus pointwise normalization}
+
+The axis along which the three schemes differ is thus the set being averaged over:
+positions, the whole array, or the ensemble. Only the last produces objects that are
+functions of $x$. In the grid layout of \eqref{eq:ch21-grid-layout}, $\mu$ and $\sigma$
+carry a channel index as well and have shape $(C, N_1, \dots, N_d)$---one field pair, not
+$B$ of them---so they are computed once offline and reused for the lifetime of the
+model. Their relation to Part~I is direct: the ensemble $\{u^{(j)}\}_{j=1}^{M}$ is a
+sample from the input measure $\mu \in \mathcal{P}(\mathcal{A})$ under which
+\eqref{eq:ch01-risk} takes its expectation, and \eqref{eq:ch21-normalize} is a Monte
+Carlo estimate of that measure's pointwise mean and standard deviation. The two letters
+collide and should be disambiguated at once: $\mu(x)$ in \eqref{eq:ch21-normalize} is a
+function on $\Omega$, whereas the $\mu$ of \eqref{eq:ch01-risk} is a measure on function
+space, the object the former estimates. Two consequences
+follow from reading the display that way. The divisor $\epsilon$ sits inside the square
+root, so where the sample variance is negligible the normalizer saturates at
+$\sqrt{\epsilon}$ rather than amplifying round-off---the locations where an
+ensemble-estimated standard deviation is least reliable are exactly those where it is
+smallest. And the estimator inherits the support and the size of the ensemble: like the
+surrogate itself it licenses no claim outside the training distribution, and the
+denominator $1/M$ rather than $1/(M-1)$ is the population convention, a difference
+immaterial at large $M$ and visible when the ensemble is deliberately small.
+\index{input measure!empirical mean and standard deviation}
+\index{standardization!ensemble statistics}
+
+During inference on a refined grid $N' > N$, the mean $\mu$ and standard deviation
+$\sigma$ fields are interpolated to the new coordinates, preserving continuous
+normalization. This is the sentence that most deserves its qualification, because it is
+where the resolution-transfer property is weakest and where it is easiest to overclaim.
+The repair works if $\mu$ and $\sigma$ are smooth enough for the interpolation to be
+accurate, and that smoothness is an assumption about the measure, not a gift of
+averaging: an ensemble mean of rough fields is still rough. Where the input measure
+concentrates on low-regularity data, interpolating the normalizer injects an
+interpolation error that the training loop never observed, in the same way that
+re-interpolating a surrogate's output does---the objection
+\chapref{ch:part1-introduction-the-paradigm-shift-to-infinit} raises against
+re-interpolation. The honest statement of the situation is that
+\eqref{eq:ch21-normalize} defines a pair of continuum fields, and that the code stores
+discretizations of them, so the mesh-free claim belongs to the object and not to the
+array. \index{normalizer!interpolation under refinement}
+
+One interaction with Section~\ref{sec:ch21-loss} decides what a reported percentage
+means. Normalization is not invisible to a relative metric: dividing by a
+position-dependent $\sigma(x)$ is not a scalar rescaling, so the relative $L^2$ error of
+the normalized pair and the relative $L^2$ error of the physical pair are different
+numbers, and neither is bounded by the other without a bound on $\sigma$ above and below.
+Workflows therefore differ by whether the loss is evaluated before or after the
+denormalization step, and the benchmark results quoted in
+\chapref{ch:part2-canonical-pde-benchmarks-and-reference-wor} and measured in
+Appendix~\ref{app:b} are in physical units, which is the convention this book adopts when
+accuracy is to be compared against a solver.
+\index{denormalization!effect on reported error}
+
+\takeaway{From Arrays Back to Operators}{Each decision of this chapter is the discrete
+realization of one Part~I object: the layout of \eqref{eq:ch21-grid-layout} and
+\eqref{eq:ch21-node-layout} is the restriction $P_N$; the encoding
+\eqref{eq:ch21-augment} restores the location dependence the stationary kernel discards;
+the metric \eqref{eq:rel_l2_loss} is the quotient inside the risk \eqref{eq:ch01-risk};
+and the normalizer \eqref{eq:ch21-normalize} estimates the input measure. None of them
+makes a tensor infinite-dimensional. Each keeps the array honest about the function it
+stands for.}
+
+\medskip
+The four decisions above share one premise: input and output are discretized on the same
+mesh, so a sampled field and its solution can be compared node by node.
+\chapref{ch:part1-operator-approximation-theory-and-universa} treats that premise as an
+artifact. Its integral layer \eqref{eq:fredholm_kernel} reads the input as a function and
+returns values at arbitrary points, and the architecture built on the corresponding
+idea---DeepONet, a Deep Operator Network---splits the two sides of
+\eqref{eq:ch21-grid-layout} into two different tensors and two different
+networks~\cite{lu2021learning}: a branch that consumes evaluations at $m$ fixed sensors
+and a trunk that consumes continuous query coordinates $y$. Everything assembled here
+must then be re-decided. Which layout carries the sensor vector, whether positional
+encoding helps a network that already receives coordinates as its second input, how the
+relative metric of \eqref{eq:rel_l2_loss} is formed when the label is an unordered set of
+point values rather than a grid function, and which normalization applies to a tensor
+with no spatial axes at all: these are the questions of
+\chapref{ch:part2-deeponet-engineering-branch-trunk-networks}, where the branch-trunk
+model is built in PyTorch and the sensor choices that Part~I's sampling-error bounds
+make consequential are put into code.

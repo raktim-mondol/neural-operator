@@ -1,0 +1,25 @@
+% Part II opener: the scope of Chapters 10--16, architecture and implementation.
+\noindent Part~II is the applied, code-first half of the book: an engineering
+treatise on implementing neural operators for scientific machine learning and
+physical simulation. It occupies the ground where the functional analysis of
+Part~I meets graphics processing unit (GPU) computing, and its test is concrete
+--- whether each discretization decision can be defended against the continuum
+statement it is meant to realize. End-to-end implementation patterns are
+established in PyTorch and against the official \texttt{neuraloperator}
+library, and the architectures are built from source before any of them is
+imported: DeepONet, a Deep Operator Network whose branch and trunk networks are
+sized, paired, and contracted by hand; the Fourier Neural Operator (FNO), whose
+one-, two-, and three-dimensional spectral convolutions are constructed from
+real-to-complex fast Fourier transforms (FFTs) and batched tensor contractions;
+and the graph neural operator (GNO) together with its geometry-informed (GINO)
+composition, for irregular geometries. Each implementation is complete and
+annotated, with the commentary naming the tensor shape at every stage, what the
+stage costs in arithmetic and memory, and how it fails when the shape is
+wrong. Part~II then turns to the decisions that surround a trained model rather
+than its layers: discretization-invariant loss functions, infinite-dimensional
+data normalization, the stabilization of autoregressive rollout, the numerical
+caveats that automatic mixed precision (AMP) introduces, and production
+deployment for high-throughput inference through TorchScript and TensorRT. The
+chapter sequence follows a training run --- layout, architecture, benchmark,
+schedule, serving --- and what it produces is a surrogate whose continuum
+claims Part~III puts against physical and biomedical data.

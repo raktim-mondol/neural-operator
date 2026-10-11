@@ -1,0 +1,405 @@
+% Chapter 3.7: Boundary Condition Enforcement: Neural Operators vs. Classical Solvers
+% Part III of the book.
+% STATUS: rewritten to book standard (Part III draft pass).
+
+\chapter{Boundary Condition Enforcement: Neural Operators vs. Classical Solvers}
+\label{ch:part3-boundary-condition-enforcement-neural-oper}
+\label{sec:boundary_conditions}
+% -----------------------------------------------------------------------------
+
+A boundary condition is half of the physical statement, not a comment on it. In every application
+of this part the trace of the solution on some surface carries either the physics or the
+deliverable.
+\index{boundary condition!enforcement regimes}
+External aerodynamics is the plainest case: no-slip
+\index{no-slip condition}
+on the body is a Dirichlet condition on the velocity, and the reported quantities of
+interest---drag and lift coefficients, surface pressure, wall shear stress (WSS)---are integrals
+over the same surface (\chapref{ch:part3-external-aerodynamics-and-surface-flows}). In cardiac
+electrophysiology the zero-flux condition through the endocardium and epicardium helps determine
+whether a reentrant spiral wave persists, drifts, or annihilates
+(\chapref{ch:part3-cardiac-electrophysiology-and-arrhythmia-d}). In a faulted aquifer the
+load-bearing constraint sits inside the domain, on the impermeable caprock across which carbon
+dioxide has no normal flux (\chapref{ch:part3-subsurface-multiphase-flow-and-carbon-stor}).
+Global weather prediction supplies the exception that defines the rule: the horizontal domain is
+the sphere, which has no boundary, while the vertical has a ground and a model lid, and what the
+poles require is regularity rather than boundary data
+(\chapref{ch:part3-global-weather-forecasting-and-climate-dyn}). Tomography has no boundary
+condition at all but has the analogous object, the support of the attenuation field together with
+the detector's sampling domain (\chapref{ch:part3-medical-imaging-and-tomographic-reconstruc}).
+
+This chapter treats that structure in general, and it belongs between the application chapters
+because the comparison the book has been building is sharpest at the boundary. A conforming
+discretization cannot return a field that violates its boundary conditions, because the condition
+is a property of the space being searched; no spectral, graph, or branch-and-trunk layer has that
+property by construction. A trained operator reproduces boundary values when its labels carry them
+and fails when they do not, and the resulting error is nearly invisible in an average norm while
+decisive in a certified design loop. \chapref{ch:part3-the-multi-query-bottleneck-in-computationa}
+established why the surrogate is worth building. Added here is an accounting of what is given up,
+and of the three ways to buy it back: build the condition into the parameterization, add it to the
+objective, or leave it to the data and measure the consequence.
+
+Section~\ref{sec:ch37-classical} states the classical mechanisms and pins down what ``hard'' means.
+Section~\ref{sec:ch37-operator} gives the two operator-side mechanisms and the
+qualifications each carries, Section~\ref{sec:ch37-structural} collects the structural
+routes---coordinate channels, lifting, parameterizations that satisfy the condition by
+form---and their cost in regularity, geometry work, and guarantees, and Section~\ref{sec:ch37-ledger}
+prices the mechanisms
+against an elliptic stability estimate before separating what is proven from what is observed.
+
+% -----------------------------------------------------------------------------
+\section{Classical Numerical Paradigms (FEM, FVM, Spectral)}
+\label{sec:ch37-classical}
+
+The three workhorses of scientific computing enforce boundary conditions by one device, and the
+device is not a penalty. In a conforming discretization the condition is imposed on the space from
+which the numerical solution is drawn, so every member of that space---the exact discrete solution,
+every Krylov or Newton iterate on the way to it, and every diagnostic read off them---satisfies it
+by construction. Nothing is appended to an objective and no weight is tuned. The three variants
+named in the section title are three realizations of that idea.
+
+Consider the finite element method (FEM)
+\index{finite element method (FEM)!essential boundary conditions}.
+Trial and test spaces are chosen before any basis, quadrature, or solver appears; the Darcy problem
+\eqref{eq:darcy} was put in that form as \eqref{eq:ch03-weakform}, with test space $H^1_0(\Omega)$,
+the closure of $C_c^{\infty}(\Omega)$ in $H^1(\Omega)$ from
+\chapref{ch:part1-function-spaces-duality-and-sobolev-regula}. For the Poisson model the statement
+is
+\begin{equation}
+  \label{eq:ch37-fem-weak}
+  \int_\Omega \nabla u \cdot \nabla v \, dx = \int_\Omega f v \, dx + \int_{\partial\Omega} g v \, ds
+  \qquad \text{for all } v \in H^1(\Omega) \text{ with } v|_{\Gamma_D}=0,
+\end{equation}
+where $\Gamma_D$ is the part of $\partial\Omega$ carrying prescribed values and $g$ the prescribed
+Neumann (traction) data on the complementary part $\Gamma_N$; the boundary integral is written over
+all of $\partial\Omega$ and reduces to $\Gamma_N$, because the test function vanishes on $\Gamma_D$.
+With $\Gamma_D=\partial\Omega$ the display collapses to the pure-Dirichlet form,
+\eqref{eq:ch03-weakform} with $a\equiv1$; with $\Gamma_D=\varnothing$ it is the pure-Neumann
+problem, which is
+solvable only when $f$ and $g$ satisfy a compatibility condition and then only up to a constant.
+Two facts about
+\eqref{eq:ch37-fem-weak} are habitually collapsed into one. The Dirichlet condition carried by the
+trial space is \emph{essential}: it is imposed, and it holds as an identity of the linear system,
+which is why Poincar\'e's inequality \eqref{eq:ch02-poincare}, in its variant for functions
+vanishing on a part of the boundary, makes the energy gradient a
+norm \index{boundary condition!essential and natural}. The Neumann condition is \emph{natural}: it
+enters as data in the right-hand functional and is satisfied only in the integrated sense against
+test functions, so the prescribed flux is recovered from the discrete solution rather than built
+into it~\cite{evans2010partial,quarteroni2008numerical}. The distinction matters because it
+identifies which half of a boundary condition a change of representation preserves for free, and it
+bounds the word ``exact'': a curved $\partial\Omega$ is replaced by straight or isoparametric
+faces, the condition is imposed on that approximation, and the discrepancy is the standard geometric
+error of the method \index{finite element method (FEM)!geometric approximation error}, removable
+only by refinement and only where the boundary is smooth enough for the interpolation to converge.
+
+The finite volume method (FVM) enforces a different property, local conservation, with the same
+absence of a penalty. For a control volume $V_i$ with faces $f$, numerical flux $\mathbf{F}_f$, and
+outward unit normal $\hat{\mathbf{n}}_f$,
+\begin{equation}
+  \label{eq:ch37-fvm-cons}
+  \frac{\partial}{\partial t} \int_{V_i} u \, dx + \sum_{f \in \partial V_i} \mathbf{F}_f \cdot \hat{\mathbf{n}}_f = 0 .
+\end{equation}
+Boundary conditions enter by fixing the exterior, or ghost-cell, states from which the boundary-face
+flux is computed \index{ghost cell}\index{finite volume method (FVM)!conservative update}. The scope of the guarantee deserves precision, since it is easy
+to oversell. Summing \eqref{eq:ch37-fvm-cons} over all cells makes every interior face appear twice
+with opposite normals, so the total mass in $\Omega$ changes only through the fluxes the boundary
+model itself admits: there is no numerical leakage in the sense of a spurious source, and that holds
+to the arithmetic precision of the update regardless of how accurate the flux formula is
+\cite{leveque2002finite}\index{conservation!discrete versus learned}. An inconsistent boundary state
+yields an exactly conserved wrong answer. The statement again presupposes a mesh with faces on
+$\partial\Omega$.
+
+Spectral methods apply the same idea with global bases
+\index{spectral method!boundary-conforming basis}: Chebyshev or Legendre polynomials, or spherical
+harmonics, whose individual terms can be chosen to satisfy the condition, so that no linear
+combination of them can violate it. The Fourier case is the instructive limit, because there the
+basis \emph{is} the boundary condition: periodicity on $\mathbb{T}^d$ is built into the trigonometric
+system and no trace constraint is left to impose---the assumption behind Part~I's spectral theory
+and behind \eqref{eq:fno_layer}. Operational numerical weather prediction (NWP) dynamical
+cores such as the European Centre for Medium-Range Weather Forecasts (ECMWF) Integrated Forecasting
+System (IFS) truncate a spherical-harmonic expansion horizontally: no lateral boundary, the
+surface and the model top closing the vertical column
+\index{numerical weather prediction (NWP)!spectral-transform dynamical core}. The cost is
+geometry: a global basis conforms to a box, a sphere, or a mapped image of one, and anything else
+takes substructuring or penalty machinery.
+
+The lesson that transfers is narrower than it looks. Hard enforcement is free at run time and
+expensive per geometry---meshing a new vehicle, generating boundary-layer prisms, re-deriving a
+mapping for a new ventricle---and that per-geometry cost, not the linear solve, is what the
+multi-query workflows of this part cannot afford
+\index{mesh generation!as the recurring cost}. Classical schemes bind exactness to conformity;
+operator learning drops the conforming mesh, and with it the source of the exactness.
+
+% -----------------------------------------------------------------------------
+\section{Boundary Enforcement in Neural Operators}
+\label{sec:ch37-operator}
+
+Neither mechanism below is needed because operators are inaccurate; both are needed because
+operators are unconstrained. A generic layer is pointwise lifting and projection around a nonlocal
+integral operator, \eqref{eq:no_composition}, and on a uniform grid the spectral specialization
+\eqref{eq:fno_layer} makes every one of those operations equivariant to translations on
+$\mathbb{T}^d$---the property the multiplier form \eqref{eq:ch05-multiplier} buys---so a network fed
+only field values cannot tell a feature at $x$ from the same feature at $x+h$. Nothing in the
+composition restricts the trace of the output, whose regularity is not assumed to exceed $L^2(\Omega)$,
+where the trace is undefined.
+
+The canonical benchmark makes the exposure concrete. Darcy flow on the unit square,
+\eqref{eq:ch25-darcy}, carries homogeneous Dirichlet data while the Fourier neural operator (FNO)
+lives naturally on $\mathbb{T}^2$: either the domain is treated as periodic and the mismatch with
+$u|_{\partial\Omega}=0$ is absorbed into the learned map, or the field is odd-extended
+\index{Darcy flow!boundary condition convention}\index{Fourier neural operator (FNO)!periodic domain and boundary}.
+The two define different operators, and a specification silent about which was taken leaves the
+dominant error term unnamed. In the DeepONet form \eqref{eq:ch04-deeponet} the same difficulty is one
+line of algebra: the trace of $\sum_k b_k(a)t_k(y)$ vanishes for every input only if the trunk
+functions cancel on $\partial\Omega$ across a whole family of coefficient vectors, cancellations
+gradient descent has no reason to arrange
+\index{DeepONet!trunk basis and boundary conditions}.
+
+Absent such structure a trained network learns the boundary condition as a regularity of its labels.
+Within the training family that works; outside it the claim is statistical, and three features make it
+fragile. The boundary has codimension one: an order-one error confined to a single cell layer of
+thickness $h$ on a unit square contributes only order $\sqrt{h}$ to the domain $L^2$ norm, so a
+surrogate reported at a few percent relative $L^2$ error can be wrong by an order-one amount exactly
+where the objective functional is evaluated
+\index{error metric!codimension one of the boundary}. The most variable region of a solution field is
+typically the one nearest the boundary, which is why the pointwise normalizers \eqref{eq:ch21-normalize}
+find small variance exactly where a condition pins the value. And a change of geometry invalidates the
+learned trace wholesale: a wall absent from the training family has no labels on it.
+
+The two available mechanisms differ along one axis: where the constraint lives, in the
+parameterization or in the objective.
+\index{hard boundary condition!distance envelope}
+The first, hard enforcement through a distance envelope, satisfies a homogeneous Dirichlet condition
+$u|_{\partial\Omega}=0$ on an arbitrary domain by scaling the output with a continuous distance
+function $d(x,\partial\Omega)$ and adding the inhomogeneous part separately,
+\begin{equation}
+  \label{eq:ch37-hard}
+  \mathcal{G}_{\text{hard}}(a)(x) = g(x) + d(x, \partial\Omega) \cdot \mathcal{Q}(v_L(x)),
+\end{equation}
+where $\mathcal{Q}$ is the pointwise projection of \eqref{eq:no_composition}, applied to the final
+latent field $v_L(x)$, so that the envelope multiplies the network's own output, and $g$ is a smooth
+extension of the boundary data into $\Omega$. Since
+$d(x,\partial\Omega)=0$ for all $x\in\partial\Omega$, the condition holds identically for every
+parameter vector $\theta$. That is a one-line proof rather than an experiment, and it is the only
+point in this chapter at which an operator architecture attains the classical guarantee. Its
+preconditions are classical too: $g$ must exist with the regularity the problem asks for, which
+requires the trace to be defined on the output space, i.e.\ $H^{s}(\Omega)$ with $s>1/2$, the
+condition \chapref{ch:part1-physics-informed-operators-and-sobolev-reg} records for hard constraints
+\index{trace operator}\index{lifting!of inhomogeneous boundary data}.
+Three qualifications bound what the exactness is worth.
+
+(i) It is exactness relative to whatever $\partial\Omega$ means in the implementation. The envelope
+is evaluated at nodes, so the surface it vanishes on is the discrete boundary of the computing box,
+not the body modeled; the residual geometric error is the same object that limits
+\eqref{eq:ch37-fem-weak} on a curved boundary, only now it is silent. (ii) The construction
+constrains values and nothing else. Where $d$ is differentiable its gradient has unit length and is
+normal to $\partial\Omega$, so the normal derivative of the product on the boundary is, up to sign,
+$\mathcal{Q}(v_L)$ itself: the flux is left entirely free. That is the correct division of labor for
+a Dirichlet problem and no assistance at all for a Neumann, zero-flux, or no-penetration condition.
+(iii) There is a regularity cost that
+\chapref{ch:part1-discretization-invariance-and-continuum-li} is able to price. A distance function
+is Lipschitz on $\overline{\Omega}$ and as smooth as $\partial\Omega$ near it, but loses
+differentiability on the interior medial axis, the locus of points with more than one nearest
+boundary point \index{signed distance function (SDF)}\index{medial axis!regularity of the distance function}---not an exotic object in the geometries of this part, since the mid-surface of a
+ventricular wall, the centerline of a channel, and the interior of a layered aquifer all have one.
+Multiplying by a Lipschitz envelope caps the Sobolev regularity of the product; feeding the distance
+in as an input channel instead puts a non-periodic function on a periodic grid, jumping across the
+wrap wherever the modeled boundary is not a face of the box, with regularity
+$H^{1/2-\epsilon}$ for every $\epsilon>0$ and no better---the obstruction that chapter records for
+non-periodic coordinate channels, and the reason the discretization rate in \eqref{eq:ch06-rate}
+fails to reach $N^{-1}$.
+
+The second mechanism is soft: a variational penalty on the boundary residual,
+\begin{equation}
+  \label{eq:ch37-soft}
+  \mathcal{L}_{\text{boundary}}(\theta) = \lambda_{\text{bc}} \int_{\partial\Omega} |\mathcal{B}(\mathcal{G}_\theta(a)) - g|^2 \, ds,
+\end{equation}
+where $\mathcal{B}$ is whatever boundary operator the problem states---trace for Dirichlet, normal
+flux for Neumann, both for no-slip---and $\lambda_{\text{bc}}$ is a weight. This is the boundary term
+of the physics-informed objective \eqref{eq:ch07-bc-loss}, used by the Physics-Informed Neural
+Operator (PINO) constructions of \chapref{ch:part1-physics-informed-operators-and-sobolev-reg},
+specialized here to the $L^2$ surface norm, so the properties established there transfer: the weight
+is dimensional, its usable size depends on the nondimensionalization chosen, and the surface integral
+must be realized as a quadrature over a node set on $\partial\Omega$ at every training step
+\index{Physics-Informed Neural Operator (PINO)!boundary term}\index{Neumann condition}.
+The reported benefits of such training belong to the composite objective and are recorded there~\cite{li2021physics,raissi2019physics};
+they are benchmark outcomes, and \eqref{eq:ch37-soft} alone buys no constraint. What the two
+mechanisms do buy is priced in Section~\ref{sec:ch37-ledger}.
+
+% -----------------------------------------------------------------------------
+\section{Structural Routes: Coordinate Channels, Lifting, and Boundary-Condition-Invariant Parameterizations}
+\label{sec:ch37-structural}
+
+Between the two mechanisms sits a family of design choices, differing by which object is modified:
+the input representation, the output representation, or the space of admissible outputs itself.
+
+On the input side the cheapest intervention is an extra channel. The grid embedding of
+\chapref{ch:part2-the-practitioner-s-paradigm-infinite-dimen} appends normalized coordinates to the
+input; a distance-to-boundary channel, a signed distance function, an inside/outside mask, or a
+boundary-curvature field are the same device with a physically meaningful scalar in place of $x_1$.
+What it buys is a location: the network can condition its response on distance to the wall, so a
+boundary layer becomes a function of a physical thickness rather than of a pixel count, and a mask
+keeps the model from predicting into solid or void regions at all
+\index{coordinate channels!distance to boundary}. What it does not buy is enforcement. The lifting
+convolution mixes the channel into the hidden representation, exactly as
+\chapref{ch:part2-fourier-neural-operators-fno-from-scratch} describes for the coordinate pair, and
+the output trace stays unconstrained: the channel makes the right answer easier to fit and nothing
+more.
+
+On the output side, \eqref{eq:ch37-hard} is one instance of a lifting scheme---hand the network the
+deviation from a field that already satisfies the condition, then add the field back. For a
+grid-based model the envelope is applied after the projection; for DeepONet the same idea folds into
+the trunk by replacing $t_k$ with $d\cdot\varphi_k$, so every term of \eqref{eq:ch04-deeponet} has
+vanishing trace and exactness holds at every query coordinate for free. The scheme's exposure is the
+extension $g$, which is a hypothesis about the boundary data: if the data in use are not well
+approximated within the regularity class of the chosen extension, the surrogate inherits an
+irreducible error equal to that mismatch, and the extension's smoothness caps the smoothness of the
+output, hence the rate in \eqref{eq:ch06-rate}. The scheme has an implementation precondition as
+well: it presupposes a distance function that can be evaluated, and on a high-dimensional manifold
+evaluating one is the difficulty. Where it bites, practitioners use the penalty
+\eqref{eq:ch37-soft} instead.
+
+The third family is the one spectral methods already practice: parameterize the unknown so that
+every element of the family satisfies the condition---a stream-function or divergence-free form for
+incompressible velocity, a basis of functions vanishing on the boundary, a discretization of the
+monodomain operator that admits no flux through the organ surface. In operator learning these remain
+largely unbuilt, and their status is the analogue of choosing a conforming Galerkin space: exactness
+by construction, and a construction redone whenever the geometry changes. The Fourier basis on the
+torus is the single case where the construction is free and uniform---and the geometry it is
+indifferent to is fixed at $[0,1]^d$, which is why the periodic benchmark family of
+\chapref{ch:part2-canonical-pde-benchmarks-and-reference-wor} is at once cheap and silent about this
+chapter's question.
+
+Where geometry genuinely varies, graph-based architectures relocate the problem rather than solve it.
+In the geometry-informed neural operator (GINO) the surface mesh \emph{is} the domain of the model:
+points are lifted to a latent grid, the spectral work happens there, and the decode returns pressure
+and WSS at surface vertices, where the quantities of interest live
+\cite{li2023geometry}\index{Geometry-Informed Neural Operator (GINO)!surface as domain}. There is
+then no exterior ghost cell to fill and no trace to impose from the network's standpoint---the model
+is asked nothing about the field inside the body, and nothing about the velocity on the surface,
+whose pressure and traction are all it returns. No-slip survives only as a regularity of the labels
+on surface nodes, and nothing in the graph neural operator (GNO) kernel \eqref{eq:ch24-gno-kernel}
+obliges a predicted wall traction to be consistent with a wall velocity of zero
+\index{no-slip condition!in surface-mesh operators}. The geometry must still be encoded, and
+\chapref{ch:part2-graph-neural-operators-gno-and-irregular-g} records the cost: a signed-distance and
+coordinate-channel pipeline rebuilt for every new computer-aided design tessellation. The same
+substitution appears at internal interfaces. A finite volume scheme puts faces on the caprock, and
+conservation across them follows from the telescoping that made \eqref{eq:ch37-fvm-cons} exact; an
+operator on a fixed grid sees a fault or layer boundary as a jump in a coefficient channel, and
+conservation across it is a learned tendency with no discrete identity behind it
+\index{interface condition!impermeable layer}.
+
+% -----------------------------------------------------------------------------
+\section{The Ledger: Error Accounting, Proven Claims, and Open Ones}
+\label{sec:ch37-ledger}
+
+What the two mechanisms of Section~\ref{sec:ch37-operator} buy can be priced, because the
+needed estimate is standard. Let $a$ range over the uniformly elliptic class
+$\mathcal{A}_{\text{adm}}$ of Assumption~\ref{ass:ellipticity}, let $v\in H^1(\Omega)$ be any trial
+field with trace $\gamma(v)$ and residual $r_v\in H^{-1}(\Omega)$, and let
+$u=\mathcal{G}_{\text{true}}(a)$. Lift the trace defect with a bounded right inverse of $\gamma$,
+apply the coercivity of \eqref{eq:ch03-coercive} to the remainder, and
+\begin{equation}
+  \label{eq:ch37-trace-stab}
+  \big\|v-\mathcal{G}_{\text{true}}(a)\big\|_{H^{1}(\Omega)}
+  \;\le\; C\left(\frac{1}{a_{\min}}\,\|r_v\|_{H^{-1}(\Omega)}
+  + \big\|\gamma(v)-g\big\|_{H^{1/2}(\partial\Omega)}\right),
+\end{equation}
+with $C$ depending on $\Omega$ and on the extension but not on $v$
+\cite{evans2010partial,quarteroni2008numerical}\index{elliptic stability estimate}.
+The a priori estimate \eqref{eq:ch07-apriori} of
+\chapref{ch:part1-physics-informed-operators-and-sobolev-reg} is the case in which the second term
+is absent, because there $v$ already has the correct trace. Equation \eqref{eq:ch37-trace-stab} says
+more
+than that boundary errors add to the total: the boundary enters as a term no amount of residual
+minimization removes, measured in $H^{1/2}(\partial\Omega)$, a norm strictly stronger than the
+$L^2(\partial\Omega)$ norm \eqref{eq:ch37-soft} shrinks---control in the former would take a
+bound on a fractional tangential derivative of the trace defect, which the penalty does not attempt.
+The envelope \eqref{eq:ch37-hard} is exactly the device that zeroes the term by construction,
+leaving only the question of how small the residual is;
+raising $\lambda_{\text{bc}}$ instead trades the boundary term against the data term, with the
+recognizable symptom of a small measured boundary residual alongside a field wrong near the
+wall. The estimate controls an $H^1$ error while the loss reports a relative $L^2$ one, the second
+instance after \eqref{eq:ch31-functional} of a minimized metric and a certified metric that differ.
+
+Table~\ref{tab:ch37-enforcement} arranges the six regimes along the axes that have mattered: what the
+constraint is a property of, whether it holds exactly, what it costs, how it fails. The
+conclusion is the third column read against the fourth. Exactness is relative to a discretized
+object in every row where it appears, the three classical rows no less than the envelope row, and
+each classical row buys it with an object tied to the domain---a conforming mesh, a flux stencil
+on the faces, a basis for the specific geometry. The envelope row is exact by the same one-line
+argument but for values only, on the nodes at which $d$ vanishes; the last two rows are not exact
+at all. What the three operator rows share is nothing spent per query.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Where a boundary condition can live: six enforcement regimes compared.}
+\label{tab:ch37-enforcement}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.14\textwidth}%
+  >{\raggedright\arraybackslash}p{0.16\textwidth}%
+  >{\raggedright\arraybackslash}p{0.13\textwidth}%
+  >{\raggedright\arraybackslash}p{0.16\textwidth}%
+  >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Regime} & \textbf{Condition lives in} & \textbf{Exact?} & \textbf{Marginal cost} & \textbf{Dominant failure mode} \\
+\midrule
+Conforming FEM & trial and test spaces & on the discrete space & mesh per geometry & curved-boundary geometry error \\
+FVM with ghost cells & boundary-face flux & conserved averages & ghost-layer construction & non-conforming interfaces \\
+Spectral & basis functions & for the modeled condition & basis tied to domain & nonsmooth or moving boundaries \\
+Operator plus envelope & output parameterization & on the sampled $\partial\Omega$ & distance evaluation at setup & value-type conditions only \\
+Operator plus penalty & objective function & no & boundary quadrature per step & norm mismatch and weight tuning \\
+Operator plus labels & training distribution & no & nothing at inference & new geometry or new loading \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Sort the remaining claims by status. Proven: the exactness of
+\eqref{eq:ch37-hard} with respect to the set on which $d$ is evaluated; the estimate
+\eqref{eq:ch37-trace-stab} under Assumption~\ref{ass:ellipticity} with boundary regularity on
+$\Omega$; and the disappearance of the question on $\mathbb{T}^d$ and $\mathbb{S}^2$, where
+\eqref{eq:ch07-bc-loss} has no surface to integrate over. Observed: that adding
+\eqref{eq:ch37-soft} lowers the measured boundary residual, that composite physics-informed training
+reduces label requirements and improves behavior above the training resolution~\cite{li2021physics},
+and that geometry channels let one trained surface-mesh operator serve the nearby shapes of
+\chapref{ch:part3-external-aerodynamics-and-surface-flows}. Not established
+anywhere in this book: a theorem that a trained operator satisfies a boundary condition
+to a stated tolerance, on a stated class of domains, in a norm where the trace is defined
+\index{universal approximation!boundary conditions outside the norm}.
+That gap is structural rather than merely unproved. The universality
+bound \eqref{eq:ch04-unif-bound} is an $L^2(\Omega)$ estimate, and the trace operator is not a
+continuous functional of $L^2(\Omega)$, so nothing prevents a sequence Cauchy in that norm from
+violating the condition. Approximation theory and boundary analysis live in different
+topologies, which is why exactness in operator learning must be engineered into the architecture, as
+in \eqref{eq:ch37-hard}, rather than inherited from a density result.
+
+Two consequences follow, both constraints on practice rather than on style. The first is
+diagnostic: a surrogate whose objective lives on the boundary should be scored by the boundary
+defect itself, in a norm that can be named, on held-out geometries and loadings. A relative
+$L^2$ number on the training family is not evidence about the trace, and the near-zero-variance
+locations of \eqref{eq:ch21-normalize} should be checked rather than tolerated, since they mark where
+the condition is imposed. The second is institutional. An auditor of a classical computation
+inspects a constraint space: the boundary condition is an enumerable property of the discretization,
+exactly as the flux stencil of \eqref{eq:ch37-fvm-cons} is auditable. A
+learned trace is a statistical claim about a label distribution, and the labels nearest the boundary
+are the costliest to generate, because boundary-layer resolution sets the size of the whole mesh. The
+region that matters most is where the data are thinnest---the regime the penalty
+\eqref{eq:ch37-soft} was written for, and the one in which it is least verifiable
+\index{certification!auditable constraint spaces}\index{data availability!boundary labels}.
+
+% -----------------------------------------------------------------------------
+
+Boundary conditions are the clearest instance of a pattern this part has met five times under five
+names: a property that a conforming discretization carries by construction becomes, in a learned
+operator, either a term to be traded off in an objective or a regularity of the data to be tested
+for. The pattern is not confined to the trace. Conservation of mass, momentum, and energy fails in
+the same silent way, and so does reliability outside the training distribution, where a classical
+solver diverges, violates a time-step restriction, or refuses to converge while a network returns a
+smooth, plausible, wrong field. \chapref{ch:part3-synthesis-matrix-and-real-world-deployment}
+assembles these into a single cross-domain ledger---the five application chapters with the cost
+ratio each row can form and the two rows that cannot, their fidelity metrics, and the rigorous
+statement Part~I supplies---and then takes up five roadblocks between a published surrogate and a
+deployed one: error estimation without a reference solver, exact conservation, the price of labels,
+distribution shift, and clinical clearance. This chapter supplies the template for that synthesis: for each guarantee, ask
+which object carries it, whether it is exact, what it costs, and what would have to be measured to
+believe it.

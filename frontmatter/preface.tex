@@ -1,0 +1,127 @@
+% PREFACE -- the multi-query surrogate problem, scope, intended reader, part
+% dependencies, two reading maps, notation conventions, deliberate omissions.
+% STATUS: authored; adversarially verified against the .toc and every chapter, section,
+% appendix, definition, assumption and table number named below. Four false claims fixed:
+% prerequisites sit in Ch. 1's opener, not Sec. 1.1; Ch. 16 does develop one calibration;
+% Ch. 22's baseline is FBP; and Ch. 10 assumes CUDA/cuDNN, so no toolchain omission.
+\chapter*{Preface}
+\addcontentsline{toc}{chapter}{Preface}
+\markboth{Preface}{Preface}
+
+Numerical simulation answers one question at a time: data go in, the matching solution field
+comes out, and nothing carries over to the next run. The workloads that organize this book do
+not pose one question. Shape optimization queries the same equations for thousands of
+geometries, ensemble forecasting integrates fifty perturbed initial states twice a day, and
+posterior sampling needs a forward evaluation at every proposal a Markov chain makes.
+Simulation costs $M\,c_{\mathrm{sim}}(N)$, a surrogate $c_{\mathrm{train}} +
+M\,c_{\mathrm{eval}}(N)$: $M$ queries, one classical solve at $N$ unknowns, one training run,
+one evaluation per query, as Section~1.1 sets out in \eqref{eq:ch01-cost-bookkeeping}. I wrote
+this book because the ledger has a catch: the saving is real only if the surrogate can be asked
+the question at all, and a network whose weights are sized for $N$ grid points has no defined
+action on $N'$. What must be learned is therefore not a solution but the map from data to
+solution --- a map on function spaces, stated without reference to a mesh, evaluated on
+whichever discretization a query supplies. Amortization is what changes; the resolution
+dependence remains.
+
+Part~I (Chapters~1--9) builds the framework that makes such a map learnable: the Sobolev scale
+and compact embeddings that make uniform approximation meaningful in infinite dimensions
+(Chapter~2); the proof that the Darcy, Burgers and forced Navier--Stokes solution operators are
+continuous, stable and smoothing (Chapter~3); the density theorems of Chen \& Chen and their
+DeepONet and generic-operator counterparts (Chapter~4); spectral truncation bounds and
+convergence rates for the Fourier neural operator, discretization invariance and the continuum
+limit, and physics-informed and Sobolev-regularized objectives (Chapters~5--7); a taxonomy
+of what each architecture requires of its target and where its theorems are (Chapter~8), and
+the open questions (Chapter~9). Part~II (Chapters~10--16)
+turns those objects into tensor programs: layouts, coordinate encoding, losses and normalization
+(Chapter~10); complete implementations of DeepONet, the FNO, and the graph and geometry-informed
+operators (Chapters~11--13); the canonical benchmarks with their specifications (Chapter~14);
+the regimes and failure modes a long run meets (Chapter~15); and export, cost accounting and
+calibration (Chapter~16). Part~III (Chapters~17--24) leaves the periodic box for triangulated
+surfaces, the sphere, faulted reservoirs, patient-specific ventricles and undersampled
+sinograms, scored against the solvers they displace --- finite element, finite volume, implicit
+finite difference, spectral-transform, and, in Chapter~22, filtered backprojection --- with
+boundary enforcement as the question they make unavoidable (Chapter~23) and a synthesis matrix
+closing the argument (Chapter~24). The appendices hold what the text borrows rather than proves,
+from the functional-analysis reference (Appendix~A) to the glossary (Appendix~F).
+
+The intended reader is a graduate student or researcher in scientific machine learning who wants
+to read a convergence proof and a training log without a translation step. The prerequisites are
+those Chapter~1 states before its first section, and they are concrete. From analysis: the
+measure-based functional analysis Section~1.2 uses without apology --- a Borel probability
+measure on the input space, an expectation of a relative error functional, a worst-case bound
+over a compact set held distinct from a risk under a measure --- plus Chapter~2's machinery:
+Riesz representation, duality pairings, weak derivatives, Sobolev spaces and their embeddings at
+the level of \cite{brezis2011functional, evans2010partial}. From numerical analysis: the
+discrete Fourier transform as a change of basis --- what a mode index means, what Nyquist
+forbids. From practice: enough PyTorch to read a layer definition --- a \texttt{torch.nn.Module}
+and a batched tensor contraction \cite{paszke2019pytorch}, which is also what Chapter~10 assumes.
+Readers who command the analysis may treat Chapter~2 as review, as Chapter~1's close suggests;
+the rest should not skip it: Part~I states every theorem in that language.
+
+The parts are not independent. Part~II takes Part~I's discretization-invariance framing as its
+design criterion: Chapter~10 opens on Definition~6.1 and treats layout, coordinate encoding, loss
+and normalization as what a program owes that definition; Chapter~16 asks whether an exported
+graph still computes its sizes from the tensor handed to it. The dependence runs the
+other way at the end of Part~I, where Chapter~9 turns its unsolved problems into a
+specification: the truncation tail becomes a choice of \texttt{modes}, the unrolled loss a
+training recipe, the Lipschitz product a divergence the practitioner must notice by hand.
+Part~III uses both. Chapter~17 names the concessions of Chapters~1--16 --- torus, unit square,
+one application of the operator --- and withdraws them at mesh sizes two to five orders above
+those Chapter~16 counted. Each application chapter needs Part~II for the artifact and Part~I for
+the hypothesis it cannot escape: the bounds of Chapters~4--6 are stated under a compactness
+hypothesis on the support of the training measure (Assumption~9.1), so out-of-distribution
+behavior is recorded in Part~III as observed, not bounded.
+
+Two routes are worth prefiguring. For a one-semester course, Chapters~1--6 form the spine; add
+Chapters~10 and~12 for the implementation, Appendix~B as the laboratory exercise --- its $0.0141$
+relative $L^{2}$ errors on the $64$- and $256$-point grids, caveat attached --- and Chapter~14
+with Appendix~C for the specifications a run needs. One application chapter, read against
+Chapter~17's ledger, closes the course; Chapter~19 or~20 suits best. Where time is short,
+Chapter~8's theorem ledger is the hour best spent and Chapter~9 the discussion. For a
+practitioner with a model to train, begin at Chapter~10; take Chapter~12 (Section~12.4 for the
+official library), Chapter~11 if a branch-and-trunk fit is intended, Chapter~13 for meshes, then
+Chapter~15 with Appendix~D before the first long run and Chapter~16 before serving. Read two
+theory chapters regardless: Chapter~6 for what a discretization owes the continuum, Chapter~5
+for what the choice of modes costs. Chapter~4's three-term split explains a validation curve
+that flattens while the training loss still falls; Chapter~9, why a rollout that looks stable is
+not bounded.
+
+Notation is fixed once, in \emph{Notation and Conventions} and its Table~\ref{tab:notation-master},
+which gives the symbols in three blocks: Part~I's infinite-dimensional objects, Part~II's tensor
+layouts, Part~III's physical quantities. Its rule is that a letter reused across parts carries
+its ambiguity in its own row rather than silently: $\mu$ is the input measure, Chapter~10's
+pointwise ensemble mean, and, with a phase subscript, a Part~III viscosity; $M$ counts queries in
+Chapter~1, ensemble members in Part~II, detector views in Chapter~22. Where a chapter's gloss and
+the table differ, the table governs. Appendix~E inverts it: Section~E.1 indexes the variants (GNO,
+GINO, AFNO, U-FNO, PINO) by the chapter that builds each, Section~E.2 maps the
+principal symbols to the equation or section at which they begin to do work.
+
+What the book does not cover deserves the same directness. There is no learning theory beyond
+Chapter~9's entropy arithmetic: Chapter~4's density theorems are existence results whose limits
+Section~4.4 inventories, and optimization error, Section~1.3's fourth term, is
+handled empirically in Chapter~15 and Appendix~D alone. Supervision is by paired fields; the one
+route around it is PINO's weak-form residual objective (Chapter~7, Section~14.4), whose reported
+gains are benchmark outcomes, not theorems. Sparse or partially observed labels are not treated:
+DeepONet's sensors (Section~11.2) restrict where an input is read, not whether an output is
+known, and Chapter~22's sparse-view and limited-angle protocols thin the sinogram, not the
+labels. Inverse problems appear as workloads and as pointers (Sections~1.2, 3.1, 17.2 and~20.4;
+Chapter~9's fallback to Bayesian formulations), since this book learns forward maps, not
+posteriors; the one inverse problem it solves, Radon inversion in Chapter~22, is linear.
+Uncertainty quantification is likewise a use case (Chapter~20's Monte Carlo sweeps) and a
+roadblock (Chapter~24's bound on distribution shift), not a methodology: no posterior is
+estimated, no coverage guarantee proved, and the only calibration developed is
+Chapter~16's, of surrogate error against its labeling budget. Classical solvers
+are baselines and label producers; Section~23.1's account of why a conforming
+discretization carries its boundary conditions by construction is the one place their mechanics
+matter; elsewhere they are priced rather than derived: Chapter~17 charges meshing as an
+unreported cost, the turbulence and capillary-pressure closures only as far as the surrogate's
+data depend on them. Software engineering stops where Chapter~16 stops: no cluster scheduling,
+data pipeline or model-versioning practice, and no tuning of a vendor's kernels beyond the CUDA
+and cuDNN vocabulary Chapter~10 assumes. Finally, every surrogate here is deterministic: no
+generative model --- diffusion, flow, or sampler-based --- is treated, and \emph{diffusion} in
+Part~III names a physical coefficient.
+
+Three conventions govern the text, which is why those omissions are named: numbers travel with
+the configuration that produced them, theorems with their hypotheses, and a claim whose
+provenance cannot be recovered is recorded as unestablished rather than smoothed. Where the
+record is silent --- a baseline timing behind a published speedup --- the book says so.

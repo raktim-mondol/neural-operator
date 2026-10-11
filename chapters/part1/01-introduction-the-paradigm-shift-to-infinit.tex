@@ -1,0 +1,341 @@
+% Chapter 1: Introduction: The Paradigm Shift to Infinite-Dimensional Learning
+% Part I of the book.
+% STATUS: book-standard prose (Part I).
+
+\chapter{Introduction: The Paradigm Shift to Infinite-Dimensional Learning}
+\label{ch:part1-introduction-the-paradigm-shift-to-infinit}
+\label{sec:intro}
+% -----------------------------------------------------------------------------
+
+Numerical simulation answers one question at a time: given a permeability field, an
+initial state, or boundary data, a
+\index{finite volume method (FVM)}\emph{finite volume method} (FVM) or a
+\index{finite element method (FEM)}\emph{finite element method} (FEM) returns the matching
+solution field, and changing one coefficient carries nothing over from the previous solve.
+The workloads that motivate this book do not pose single questions. Shape optimization
+queries the same governing equations for thousands of candidate geometries, ensemble weather
+forecasting integrates a perturbed initial condition many times, and reservoir risk
+assessment samples a distribution over subsurface heterogeneity; every setting in Part~III
+asks for many solutions of one operator. We call this the
+\index{multi-query surrogate problem}\index{operator learning}\emph{multi-query surrogate problem}: the quantity of interest is not a solution but the map from data to solution, and
+it must be evaluated at whatever resolution each query requires.
+
+Stretching a conventional network over such a workload does not remove the mismatch, because
+these architectures are maps between fixed-dimensional Euclidean spaces: parameter count,
+weight-tensor shapes, and the physical meaning of each activation are all set by the number
+of grid points present at training time. The alternative developed in this book takes the
+\emph{operator} as the object of learning---a map defined on function spaces, written down
+without reference to a mesh, then evaluated on whichever discretization a query supplies.
+Parts~II and~III inherit that change of target, and it is not a change of vocabulary: it
+raises three questions finite-dimensional learning theory never asks. What spaces does the
+network consume and produce, and how much regularity do their elements carry? What must the
+target map satisfy for approximation to be possible at all? And what does it mean for a
+machine to apply a map not defined on a finite list of numbers?
+
+This chapter states the problem and the shape of its answers; it proves almost
+nothing. The arguments come from the rest of Part~I.
+\chapref{ch:part1-function-spaces-duality-and-sobolev-regula} fixes the spaces, the norms,
+and the compactness machinery;
+\chapref{ch:part1-partial-differential-equations-as-solution} verifies that the solution maps
+of Darcy flow, Burgers' equation, and Navier--Stokes carry the continuity and smoothing
+properties the theory demands;
+\chapref{ch:part1-operator-approximation-theory-and-universa} supplies the density results;
+and \chapref{ch:part1-the-fourier-neural-operator-spectral-theor} with
+\chapref{ch:part1-discretization-invariance-and-continuum-li} deliver an architecture and a
+mesh-independence statement. The reader should bring measure-based probability, a first
+course in functional analysis, Sobolev spaces at the level of
+\cite{brezis2011functional, evans2010partial}, the discrete Fourier transform, and enough
+PyTorch to read a layer definition; results Part~I invokes without proof are collected in
+Appendix~\ref{app:a}.
+
+\section{The Multi-Query Bottleneck in Simulation-Based Science}
+
+Classical deep learning architectures---multilayer perceptrons
+\index{multilayer perceptron (MLP)}(MLPs), convolutional neural networks
+\index{convolutional neural network (CNN)}(CNNs), recurrent neural networks
+\index{recurrent neural network (RNN)}(RNNs)---are formulated as maps between
+finite-dimensional Euclidean spaces,
+\begin{equation}
+  \label{eq:ch01-euclidean-map}
+  f_\theta : \mathbb{R}^{d_{\text{in}}} \longrightarrow \mathbb{R}^{d_{\text{out}}}, \qquad \theta \in \Theta \subset \mathbb{R}^p,
+\end{equation}
+with $p$ trainable parameters and with the input and output dimensions $d_{\text{in}},
+d_{\text{out}}$ fixed by the architecture before any data are seen. Equation
+\eqref{eq:ch01-euclidean-map} is not one design's limitation but the shared contract of the
+class: a tensor of size $d_{\text{in}}$ must arrive with its entries in a prescribed order.
+
+Applied to systems governed by \index{partial differential equation (PDE)}\emph{partial
+differential equations} (PDEs), such a model therefore consumes discrete approximations of
+continuous fields, sampled at fixed spatial or temporal locations $\{x_i\}_{i=1}^{N}
+\subset \Omega$: an input field $a$ enters as the vector $\big(a(x_1), \dots, a(x_N)\big)
+\in \mathbb{R}^{N d_a}$, so that $d_{\text{in}} = N d_a$, with $d_a$ the number of components
+of $a$ and $d_u$ the number of components of the output. The consequence is that the
+learned parameters $\theta$ remain intrinsically coupled to the \index{mesh resolution!coupling of network parameters to}mesh resolution $N$, the grid
+topology, and the sampling geometry used during training. Refine the resolution
+($N \to N'$), deform the mesh, or move the sensors, and the finite-dimensional model becomes
+inapplicable without ad hoc interpolation, retraining, or loss of fidelity. The usual repair,
+re-interpolation, is the least defensible: resampling a surrogate's output onto $N'$ points
+introduces an error training never saw or bounded, so the reported accuracy describes grid
+$N$, not the field.
+
+The economics define what the machinery of this book is for. Let $M$ be the number of queries, let $c_{\mathrm{sim}}(N)$ be the cost of one classical
+solve at $N$ unknowns, let $c_{\mathrm{train}}$ be the one-time cost of building a surrogate,
+and let $c_{\mathrm{eval}}(N)$ be the cost of one surrogate evaluation:
+\begin{equation}
+  \label{eq:ch01-cost-bookkeeping}
+  C_{\mathrm{sim}}(M, N) = M\, c_{\mathrm{sim}}(N),
+  \qquad
+  C_{\mathrm{sur}}(M, N) = c_{\mathrm{train}} + M\, c_{\mathrm{eval}}(N).
+\end{equation}
+Equation \eqref{eq:ch01-cost-bookkeeping} is arithmetic, not a theorem, and it invites three
+qualifications. First, the surrogate wins only when $c_{\mathrm{eval}}(N) <
+c_{\mathrm{sim}}(N)$, with crossover at $M^{\star} = c_{\mathrm{train}} /
+\big(c_{\mathrm{sim}}(N) - c_{\mathrm{eval}}(N)\big)$; a single design check should still be
+handed to a classical solver \cite{leveque2002finite, quarteroni2008numerical}. Second,
+$c_{\mathrm{train}}$ is not free of the solver it replaces, because supervised training
+produces its paired samples by running that solver repeatedly; amortization presupposes data
+generation as a sunk cost shared across many downstream queries.
+Third, and most important for what follows, $c_{\mathrm{eval}}(N)$ still grows with $N$. A
+spectral forward pass costs $\mathcal{O}(N \log N)$ operations on a uniform periodic grid,
+whereas a branch-and-trunk network costs an amount set by its widths and by the number of
+sensor and query points rather than by the evaluation grid
+\cite{li2021fourier, lu2021learning}. The gain of operator learning is amortization of a
+family of solves, not removal of the resolution dependence.
+
+What the fixed-mesh formulation actually forfeits is not speed but scope. Three distinct
+failures are entangled in \eqref{eq:ch01-euclidean-map} once the mesh changes: resolution
+coupling, since weights sized for $N$ nodes have no defined action on $N'$ nodes; geometry
+coupling, since convolutional weights are indexed by lattice offsets, so a refinement shrinks
+their physical footprint---the argument made quantitatively in
+\chapref{ch:part1-discretization-invariance-and-continuum-li}; and a semantic failure often missed in
+benchmarks, namely that a network trained on one sampling of one field learns \emph{a}
+solution rather than the rule that generates solutions from data.
+The first two can be patched by re-interpolation at some cost in accuracy; the third cannot,
+because the network represents an object the application does not need. Diagnosing
+it requires a target defined independently of any discretization, which is the next
+section's subject.
+
+\section{Solution Operators as Targets of Learning}
+
+Scientific and physical laws operate on continuous fields. Velocity fields satisfy
+$\mathbf{u}(\cdot, t) \in (L^{2}(\Omega))^{d}$, temperature distributions satisfy
+$T(\cdot) \in H^{1}(\Omega)$, and permeability tensors satisfy
+$\mathbf{K}(\cdot) \in L^{\infty}(\Omega; \mathbb{R}_{\text{sym}}^{d \times d})$, where
+$\Omega \subseteq \mathbb{R}^{d}$ is the spatial domain, $L^{p}(\Omega)$ denotes functions
+whose $p$-th power is integrable, and $H^{s}(\Omega)$ denotes the \index{Sobolev space}Sobolev space of elements
+with $s$ derivatives in $L^{2}(\Omega)$; \chapref{ch:part1-function-spaces-duality-and-sobolev-regula}
+develops both. Each of these is an element of an infinite-dimensional vector space, and the
+map that carries an initial state, a boundary forcing, or a coefficient field to the system
+state at time $t$ is a \textbf{solution operator}
+\index{solution operator}
+\begin{equation}
+  \label{eq:ch01-solution-operator}
+  \mathcal{G} : \mathcal{A} \longrightarrow \mathcal{U},
+\end{equation}
+where the \index{A@$\mathcal{A}$ (input function space)}input space $\mathcal{A}$ and the
+\index{U@$\mathcal{U}$ (output function space)}output space $\mathcal{U}$ are infinite-dimensional Banach or Hilbert function
+spaces over $\Omega$
+\cite{kovachki2023neural, stuart2010inverse}. Equation \eqref{eq:ch01-solution-operator} is
+deliberately terse, and the two spaces are usually different: for the Darcy problem treated
+in \chapref{ch:part1-partial-differential-equations-as-solution}, the coefficient enters from
+$L^{\infty}(\Omega)$ while the solution lands in $H^{1}_{0}(\Omega)$. The same notation covers
+the time-$t$ map $u_{0} \mapsto u(\cdot, t)$, the one-step map
+$u(t) \mapsto u(t + \Delta t)$ used for autoregressive rollouts, and parameter-to-state maps,
+in which finitely many physical parameters enter as functions on $\Omega$---which is why the
+target is stated as \eqref{eq:ch01-solution-operator} rather than as a
+particular PDE.
+
+Contrast this with the \index{Physics-Informed Neural Network (PINN)}physics-informed neural
+network (PINN), in which a network approximates
+\emph{one} solution by minimizing a residual at collocation points
+\cite{raissi2019physics}. A PINN's unknown is a field; the operator learner's unknown is a
+map, so a new input case is a forward pass rather than a new optimization. Because the
+application's queries come from a distribution rather than an enumeration, training minimizes
+an expected loss under an \index{input measure}input measure
+$\mu \in \mathcal{P}(\mathcal{A})$, where $\mathcal{P}(\mathcal{A})$ is the set of Borel
+probability measures on $\mathcal{A}$,
+\begin{equation}
+  \label{eq:ch01-risk}
+  \mathcal{R}(\theta)
+  = \mathbb{E}_{a \sim \mu}
+    \left[ \frac{\big\|\mathcal{G}_{\theta}(a) - \mathcal{G}(a)\big\|_{\mathcal{U}}^{2}}
+                {\big\|\mathcal{G}(a)\big\|_{\mathcal{U}}^{2}} \right],
+    \qquad a \in \mathcal{A},
+\end{equation}
+and the normalization in \eqref{eq:ch01-risk} makes errors comparable across resolutions and
+across magnitudes---the relative-$L^{2}$ metric used throughout Parts~II and~III. Approximation
+theory, however, states its guarantees in a different language, as a worst-case bound $\sup_{a \in K} \|\mathcal{G}_{\theta}(a) -
+\mathcal{G}(a)\|_{\mathcal{U}} < \varepsilon$ over a compact set $K \subset \mathcal{A}$. The
+two are related but not interchangeable: the supremum controls the risk only when $\mu$ gives
+$K$ full measure and $\|\mathcal{G}(a)\|_{\mathcal{U}}$ stays bounded away from zero, whereas
+the risk controls the supremum nowhere. The gap between them is the statistical
+error that \chapref{ch:part1-operator-approximation-theory-and-universa} and
+\chapref{ch:part1-open-theoretical-problems-and-mathematical} return to, and a surrogate that
+satisfies one and not the other is a familiar engineering failure.
+
+Turning \eqref{eq:ch01-solution-operator} into something trainable means proposing a
+parametric family $\mathcal{G}_{\theta}$, $\theta \in \Theta \subset \mathbb{R}^{p}$, with
+three requirements: the parameter space $\Theta$ is defined independently of any
+discretization; each $\theta$ determines an operator on the continuum spaces
+$\mathcal{A}$ and $\mathcal{U}$; and the resulting map is continuous in the norm of
+$\mathcal{U}$. Continuity is not a formality. Networks assemble bounded linear maps and
+Lipschitz activations, so every architecture considered here produces continuous
+$\mathcal{G}_{\theta}$, while a discontinuous target cannot be approximated uniformly on any
+set containing the jump---which is why the density theorems of
+\cite{chen1995universal, kovachki2021universal} all place continuity of $\mathcal{G}$ among
+their hypotheses. The requirement pushes the burden of proof upstream: before asking whether
+the architecture class is rich enough, we must ask whether the solution map is continuous and
+on which subsets of $\mathcal{A}$ it is---the content of
+\chapref{ch:part1-partial-differential-equations-as-solution}, resting on the regularity
+theory of the chapter before it.
+
+\takeaway{The Fundamental Objective of Operator Learning}{Rather than approximating a specific solution vector on a fixed discretization, neural operator theory seeks to parameterize a family of mappings $\mathcal{G}_\theta: \mathcal{A} \to \mathcal{U}$ such that $\mathcal{G}_\theta$ is continuous, mesh-independent, and capable of being queried on arbitrary discretizations without retraining.}
+
+Several realizations of that program recur throughout the book, each trading one kind of
+coupling for another. \index{DeepONet}DeepONet (Deep Operator Network) reads the input at $m$ fixed
+sensors through a branch network and synthesizes the output at arbitrary query coordinates
+through a trunk network, so the output side is mesh-free while the input side stays
+sensor-bound \cite{lu2021learning}. The
+\index{neural operator!generic, integral-kernel architecture}generic neural operator replaces
+sensor vectors with learnable integral kernels acting on whole functions
+\cite{kovachki2023neural}, and the \index{Fourier neural operator (FNO)}\emph{Fourier neural
+operator} (FNO) restricts those kernels to translation-invariant convolution on periodic
+domains, which is what makes the continuum operator cheap to evaluate on a grid
+\cite{li2021fourier}. The \index{Graph Neural Operator (GNO)}graph neural operator (GNO) and the
+\index{Geometry-Informed Neural Operator (GINO)}geometry-informed neural operator (GINO) move the same machinery onto
+unstructured point clouds and surface meshes; the
+\index{Physics-Informed Neural Operator (PINO)}physics-informed neural operator (PINO) trains
+against weak-form residuals rather than paired data alone \cite{li2023geometry, li2021physics}.
+Figure~\ref{fig:architectures} in
+\chapref{ch:part1-operator-approximation-theory-and-universa} makes the comparison concrete:
+panel~(a) is a CNN or MLP whose parameters are bound to one discretization, panel~(b) a
+branch-and-trunk network that queries continuous output coordinates through fixed input
+sensors, panel~(c) a spectral network that keeps operator semantics under mesh change; and
+Table~\ref{tab:comparison} of
+\chapref{ch:part1-comparative-theoretical-taxonomy-of-archit} records the same differences
+property by property. Part~II holds the implementations, in PyTorch \cite{paszke2019pytorch},
+and further descendants---the U-FNO (U-Net-enhanced Fourier neural operator), which interleaves
+multi-scale residual blocks with spectral convolution for multiphase flow, and the
+\index{adaptive Fourier neural operator (AFNO)}adaptive Fourier neural operator (AFNO) for
+global weather---are analyzed
+in \chapref{ch:part1-comparative-theoretical-taxonomy-of-archit}, indexed in
+Appendix~\ref{app:e}, and applied in Part~III
+\cite{wen2022ufno, pathak2022fourcastnet}.
+
+\section{What Changes When the Dimension Is Not Fixed}
+
+Once $\mathcal{A}$ and $\mathcal{U}$ are infinite-dimensional, three intuitions that carry a
+finite-dimensional learning theory stop working, and the rest of Part~I exists largely to
+replace them. The first is compactness. In $\mathbb{R}^{d}$ a closed and bounded set is
+compact, so ``approximate uniformly on the data range'' is an ordinary instruction. In
+infinite dimensions the closed unit ball is never compact: bounded sequences need not admit
+convergent subsequences at all. Uniform approximation statements must therefore be restricted
+to compact subsets $K \subset \mathcal{A}$, and compactness in function space has to be
+purchased with regularity rather than assumed. The mechanism is the \index{Rellich--Kondrachov compact embedding}Rellich--Kondrachov
+compact embedding, which makes bounded sets in $H^{s}(\Omega)$ precompact in
+$H^{t}(\Omega)$ for $s > t \ge 0$; it is proved and put to work in
+\chapref{ch:part1-function-spaces-duality-and-sobolev-regula} and is the reason the \index{universal approximation!of operators}density
+theorems in \chapref{ch:part1-operator-approximation-theory-and-universa} are stated on
+compacta. \index{compactness!failure in infinite dimensions}
+
+The second replacement concerns smoothing, which turns out to be the property that makes an
+operator learnable at all. Viscous parabolic problems improve their inputs: for viscous
+Burgers' equation with $\nu > 0$, initial data $u_{0} \in L^{2}(\mathbb{T})$ evolve to
+$u(\cdot, t) \in H^{s}(\mathbb{T})$ for every $s > 0$. Elliptic problems gain regularity by a
+fixed amount: for smooth Darcy coefficients, classical estimates turn $L^{2}$ forcing into an
+$H^{2}$ solution, as
+\chapref{ch:part1-partial-differential-equations-as-solution} makes explicit. Where the
+target behaves as
+$\mathcal{G} : H^{s} \to H^{s+\alpha}$ with $\alpha > 0$, the image of a bounded set is
+precompact and truncating its range to finitely many Fourier modes costs an amount that
+decays like $k_{\max}^{-\alpha}$, which is the content of the spectral convergence result in
+\chapref{ch:part1-the-fourier-neural-operator-spectral-theor} \cite{kovachki2021universal}.
+Where smoothing fails---inviscid hyperbolic limits, shock formation, transport of
+discontinuous data---regularity is destroyed rather than created, and neither the compactness
+nor the rate argument survives without new hypotheses. That asymmetry, not a shortage of
+layers, is where the honest limits of the theory sit;
+\chapref{ch:part1-open-theoretical-problems-and-mathematical} lists it as open.
+
+The third replacement is that a single ``error'' becomes a sum of errors that behave
+differently under refinement. Let $\theta^{\star}$ denote a parameter minimizing
+$\mathcal{R}$ in \eqref{eq:ch01-risk} within the chosen class, let $\widehat{\theta}$ denote
+the parameter produced from finitely many paired samples, and let $\mathcal{G}_{\theta, N}$
+denote the discretely implemented operator, with integrals replaced by quadrature on $N$
+nodes. Adding and subtracting terms gives
+\begin{equation}
+  \label{eq:ch01-error-split}
+  \begin{aligned}
+    \big\|\mathcal{G}(a) - \mathcal{G}_{\widehat{\theta}, N}(a)\big\|_{\mathcal{U}}
+    \;\leq\;&
+    \underbrace{\big\|\mathcal{G}(a) - \mathcal{G}_{\theta^{\star}}(a)\big\|_{\mathcal{U}}}_{\text{approximation}}
+    \\
+    &+ \underbrace{\big\|\mathcal{G}_{\theta^{\star}}(a) - \mathcal{G}_{\theta^{\star}, N}(a)\big\|_{\mathcal{U}}}_{\text{discretization}}
+    + \underbrace{\big\|\mathcal{G}_{\theta^{\star}, N}(a) - \mathcal{G}_{\widehat{\theta}, N}(a)\big\|_{\mathcal{U}}}_{\text{statistical}} .
+  \end{aligned}
+\end{equation}
+The decomposition \eqref{eq:ch01-error-split} is a triangle inequality, not a discovery; its
+value lies in which terms the architecture makes separately controllable, and authors draw
+the cut differently. For DeepONet the natural split is sensor count, trunk basis dimension,
+and network error \cite{lanthaler2022error}; for spectral operators, mode truncation appears
+as its own term alongside discretization and statistical error
+\cite{subedi2024controlling}, the three-term form written as \eqref{eq:ch06-decomp} in
+\chapref{ch:part1-discretization-invariance-and-continuum-li}. A fourth term is missing in
+practice: $\widehat{\theta}$ comes from stochastic gradient descent rather than from an exact
+minimizer, so optimization error sits underneath \eqref{eq:ch01-error-split} and is treated
+empirically in Part~II. What the split does establish is a warning about reporting: a
+``relative error'' measured at the training resolution confounds the approximation term with
+the discretization term, and if the second is not small the reported number describes the
+quadrature rather than the learned operator.
+\index{error decomposition!approximation, discretization, and statistical}
+\index{smoothing property!of parabolic and elliptic problems}
+
+Notation follows the front matter rather than this chapter: Table~\ref{tab:notation-master}
+fixes $\Omega$, $L^{p}(\Omega;\mathbb{R}^{d_v})$,
+$H^{s}(\Omega)=W^{s,2}(\Omega)$, $C^{k}(\overline{\Omega})$, the generic spaces $X, Y$,
+the operator space $\mathcal{L}(X,Y)$, the duality pairing
+$\langle \cdot, \cdot \rangle_{X^{*},X}$, the transform pair
+$\mathcal{F}, \mathcal{F}^{-1}$, the \index{Td@$\mathbb{T}^{d}$ (periodic torus)}torus $\mathbb{T}^{d} \cong [0,1)^{d}$, and weak
+derivatives $D^{\alpha}u$; the glosses above are reminders, and the table governs where
+they differ. Beyond it,
+this book reserves $N$ for the number of grid points, $M$ for the number of queries, and
+$d_a$ and $d_u$ for input and output channel dimensions, while $p$ denotes the number of
+trainable parameters only outside a space name---in $L^{p}$ and $W^{k,p}$ it is always the
+integrability exponent. Thus $\mathcal{A}$ and $\mathcal{U}$ name spaces while
+$\mathcal{G}$ and $\mathcal{G}_{\theta}$ name maps, and Part~II re-encodes the same
+fields as tensors of shape $(B, C, H, W)$, where $B$ indexes the batch and $C$ the channels
+$d_a$ or $d_u$; \chapref{ch:part2-the-practitioner-s-paradigm-infinite-dimen} makes that
+translation explicit.
+\index{notation!master table}
+
+Finally, a word on what operator learning does not buy. A surrogate inherits the support of the
+input measure $\mu$: an error measured on smooth, well-resolved coefficient fields licenses no claim
+about data from outside that support, and the framework's guarantees are stated relative to a
+chosen space and a chosen compact subset of it
+\cite{kovachki2023neural}. Sample-complexity bounds under a general measure on function space
+are not yet sharp, a gap argued in
+\chapref{ch:part1-open-theoretical-problems-and-mathematical}. Conserved quantities and
+boundary conditions are not enforced by \eqref{eq:ch01-risk} unless the architecture or the
+loss imposes them, a matter taken up in Part~III. And a spectral representation of
+shock-dominated data exhibits Gibbs oscillations near the jump
+\index{Gibbs phenomenon}, so smoothness-driven accuracy and discontinuity resolution are in
+tension---one of the open problems closing Part~I. Stating these limits first means the
+theorems that follow read as conditional results, hypotheses attached.
+
+\bigskip
+\noindent What this chapter has asserted and not proved is the schedule for the rest of
+Part~I. We demanded that $\mathcal{A}$ and $\mathcal{U}$ be complete spaces in which norms
+measure more than point values, that the target map be continuous, that the input set be
+compact, and that quadrature on $N$ nodes converge to the continuum integral as $N$ grows; we
+justified none of it. \chapref{ch:part1-function-spaces-duality-and-sobolev-regula} supplies
+the infrastructure: Banach and Hilbert structure and the Riesz representation theorem, which
+identifies the dual of a Hilbert space with the space itself and thereby makes sense of
+pairings such as $\langle f, v \rangle_{H^{-1}, H^{1}_{0}}$ used throughout Part~I; weak
+derivatives and the Sobolev spaces $W^{k,p}$ and $H^{s}$, including the Fourier
+characterization on $\mathbb{T}^{d}$ that the spectral analysis of
+\chapref{ch:part1-the-fourier-neural-operator-spectral-theor} will consume; the
+Rellich--Kondrachov and Sobolev embedding theorems, which convert regularity into the
+compactness on which the approximation term of \eqref{eq:ch01-error-split} rests; and Bochner spaces
+$L^{p}(0,T;X)$, without which an evolution operator has no topology of its own. Readers who command
+these tools may treat the next chapter as a review and move to the PDE examples; those who do
+not should not skip it, because every constant and hypothesis in Part~I is stated in its
+language.
