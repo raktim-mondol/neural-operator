@@ -220,7 +220,7 @@ The standard remedy is to split the query set into chunks over $P$, since
 branch code, once computed, is reused across all chunks.
 
 % -----------------------------------------------------------------------------
-\section{Sensor Placement Best Practices}
+\section{Sensor Placement and the Choice of Node Set}
 \label{sec:ch22-sensors}
 % -----------------------------------------------------------------------------
 
@@ -273,8 +273,8 @@ random points in $d$ dimensions is of order
 $(\log m / m)^{1/d}$ where a grid achieves $m^{-1/d}$---so a random set needs somewhat more
 sensors for the same worst-case gap. That cost is often worth accepting, because the error
 analysis of \cite{lanthaler2022error} prices ensembles whose sensors are drawn at random from
-a measure rather than tuned by hand, so the probabilistic construction sits inside the theorem
-rather than outside it.
+a measure rather than tuned by hand, and the probabilistic construction
+belongs inside the theorem.
 
 \emph{Chebyshev extrema nodes} cluster the density at the boundary, where non-periodic problems
 put their structure:

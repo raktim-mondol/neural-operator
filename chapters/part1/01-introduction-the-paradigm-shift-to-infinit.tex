@@ -150,7 +150,7 @@ network (PINN), in which a network approximates
 \emph{one} solution by minimizing a residual at collocation points
 \cite{raissi2019physics}. A PINN's unknown is a field; the operator learner's unknown is a
 map, so a new input case is a forward pass rather than a new optimization. Because the
-application's queries come from a distribution rather than an enumeration, training minimizes
+application's queries are drawn from a distribution, training minimizes
 an expected loss under an \index{input measure}input measure
 $\mu \in \mathcal{P}(\mathcal{A})$, where $\mathcal{P}(\mathcal{A})$ is the set of Borel
 probability measures on $\mathcal{A}$,

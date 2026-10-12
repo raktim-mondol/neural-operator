@@ -192,9 +192,9 @@ being reconciled against a reference solve rather than merely trained.
 % -----------------------------------------------------------------------------
 
 Figure~\ref{fig:gino} illustrates the \textbf{Geometry-Informed Neural Operator (GINO)}
-\cite{li2023geometry}. GINO combines the geometric flexibility of graph neural networks with
-the computational efficiency of spectral Fourier operators, and the figure is the clearest
-statement of the bargain: pay for geometry only where the data actually touches the mesh, and
+\cite{li2023geometry}. GINO gives the surface mesh to a graph layer and the global
+mixing to a Fourier layer on a latent grid, and the figure is the clearest statement
+of the bargain: pay for geometry only where the data actually touches the mesh, and
 run everything global where a transform is legal. Walking the panels in order, an irregular
 surface mesh $\mathcal{M}_{\text{surf}}$ --- the car body or the duct, nodes and
 triangles --- enters a point-to-grid GNO encoder, which smears the surface features onto a
