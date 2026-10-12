@@ -40,12 +40,13 @@ reference implementation \texttt{FNO Worked Example (PyTorch).py} printed here i
 full and unaltered. It makes three things inspectable at once: the analytic target
 Part I's error figures are measured against, the configuration whose mode budget
 \chapref{ch:part1-the-fourier-neural-operator-spectral-theor}
-reasons about, and the pair of numbers drawn as markers in
-Figure~\ref{fig:super_resolution}.
+reasons about, and the pair of numbers that an earlier revision of
+Figure~\ref{fig:super_resolution} drew as markers, and that
+Section~\ref{sec:appb-result} now quotes without plotting.
 
-Everything below consolidates. The input family, the hyperparameters, the measured
+Everything below consolidates. The input family, the hyperparameters, the reported
 errors, and the qualifications attached to them come from the reference script and from
-the record of the run it documents, not from any new computation; where that record is
+the account of the run it documents, not from any new computation; where that record is
 silent --- timings, hardware beyond
 the statement that a central processing unit (CPU) suffices, repeated-seed
 variability, any resolution other than the two reported --- the text says so rather
@@ -74,7 +75,7 @@ each mode decays alone, and the solution operator is a Fourier multiplier,
 That is why no numerical solver appears anywhere in the script: a forward
 real-to-complex fast Fourier transform (FFT), one multiplication per mode, and an
 inverse transform give the target field exactly, up to numerical precision, on any
-grid resolving the input. The same factor appears in Figure~\ref{fig:spectral_decay},
+grid resolving the input. The same factor appears in Figure~\ref{fig:super_resolution},
 and \chapref{ch:part1-the-fourier-neural-operator-spectral-theor} records that it
 reaches $1.1\times10^{-11}$ by $k=8$ at these values of $\alpha$ and $T$: truncation is
 negligible here, so the observed error is a network-capacity error. The operator to be
@@ -387,7 +388,7 @@ the weights of \eqref{eq:rel_l2_loss} cancel between numerator and denominator.
 uses the other convention, the root of the ratio
 per sample and then the average;
 \chapref{ch:part2-the-practitioner-s-paradigm-infinite-dimen} distinguishes the two
-and notes that the percentages measured here are of the root-then-average form and are
+and notes that the percentages reported here are of the root-then-average form and are
 in physical units, there being no normalizer in these four blocks.
 
 \subsection{Held-out evaluation and zero-shot transfer}
@@ -429,16 +430,18 @@ and resampled at both $64$ and $256$ points. That re-sampling is the whole of th
 super-resolution experiment, and the archive written at the end holds its first sample
 on each grid.
 
-\section{The Measured Result}
+\section{The Reported Result}
 \label{sec:appb-result}
 
-Table~\ref{tab:appb-measured} reports what the run measured: observed numbers from the
-account of one execution of the script above, not expectations derived from the
-architecture, printed to four decimals by the two \texttt{print} calls of
-Listing~\ref{lst:appb-eval}. They are transcribed, not reproduced --- the archive the
+Table~\ref{tab:appb-measured} repeats numbers from an account of one execution of the
+script above --- not expectations derived from the
+architecture, and not measurements made for this book, since no log of that execution
+is in the repository. They are printed to four decimals by the two \texttt{print} calls
+of Listing~\ref{lst:appb-eval}. They are transcribed, not reproduced --- the archive the
 script writes is not among the artifacts held for this book, so no training was re-run
-here. Validation error fell smoothly to roughly $1.6\%$ during
-training; the held-out error was $1.41\%$ at $N=64$, and re-sampling those same
+here, and no line or marker for these values survives in Part~I. Validation error is
+reported to have fallen smoothly to roughly $1.6\%$ during
+training; the held-out error is reported as $1.41\%$ at $N=64$, and re-sampling those same
 functions on a grid four times finer left the reported value unchanged at $1.41\%$. The
 qualification that came with the number travels with it: both errors round to $0.0141$
 at the printed precision, which is a statement about the report, not a claim that the two
@@ -446,8 +449,9 @@ underlying floating-point quantities were equal.
 
 \begin{table}[htbp]
 \centering
-\caption{\textbf{Measured relative $L^2$ error on held-out inputs, as reported for
-the run of the script in Section~\ref{sec:appb-code}.} The metric is
+\caption{\textbf{Relative $L^2$ error on held-out inputs as reported for the run of
+the script in Section~\ref{sec:appb-code}: transcribed values, not measurements made
+for this book, and not plotted in Part~I.} The metric is
 the root-then-average form of \eqref{eq:rel_l2_loss}, evaluated on the physical fields:
 \texttt{rel\_l2} applies no pointwise normalizer, and the grid weights of
 \eqref{eq:rel_l2_loss} cancel between numerator and denominator. The equality of the two
@@ -473,9 +477,9 @@ reported precision. The report adds that the pointwise error is small everywhere
 What the table does not support is comparison: $1.41\%$ is a modest error on an easy
 target, and no competing network, classical solver, or third resolution appears alongside
 the two reported values. The three-panel figure the plotting companion draws from the
-archive is not among the book's supplied images, which is why the two values reach Part I
-as the markers on the horizontal line
-of Figure~\ref{fig:super_resolution}, whose caption repeats number and caveat alike.
+archive is not among the book's supplied images, which is why the two values reach Part I as text
+only: Figure~\ref{fig:super_resolution} plots computed discretization error and carries
+no line and no marker for this run, and its caption says so.
 
 \section{What the Experiment Establishes, and What It Does Not}
 \label{sec:appb-scope}
@@ -489,7 +493,8 @@ was lost between a function and its coarse samples: the $256$-point evaluation
 resamples the \emph{same} already-resolved functions more finely. The experiment
 demonstrates resolution transfer of the learned operator, not recovery of unresolved
 high-frequency detail, and must not be cited as if it did --- the restriction the
-caption of Figure~\ref{fig:super_resolution} places on the same data. What makes the
+caption of Figure~\ref{fig:super_resolution} places on the quoted run, not on the
+curves plotted there. What makes the
 transfer legible is Proposition~\ref{prop:ch06-zeroshot} of
 \chapref{ch:part1-discretization-invariance-and-continuum-li}, whose hypothesis
 $N_{\text{train}} > 2k_{\max}$ holds here since $64 > 2\times 11 = 22$, and whose
@@ -527,7 +532,7 @@ modes a reader changing these settings will meet.
 \index{Fourier neural operator (FNO)!one-dimensional worked example}
 \index{heat equation!runnable periodic example}
 \index{band-limited input!eight-mode worked example}
-\index{zero-shot super-resolution!measured at $N=64$ and $N=256$}
+\index{zero-shot super-resolution!reported at $N=64$ and $N=256$}
 \index{relative $L^2$ error (metric)!root-then-average versus squared-ratio loss}
 \index{discretization invariance!versus resolution-independent accuracy}
 \index{spectral truncation!counting the constant mode in the band}

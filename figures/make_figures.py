@@ -5,6 +5,22 @@ Both figures are COMPUTED, not drawn. Every curve is produced by the code below
 from an exactly solvable model problem, so the book can state the construction
 in the caption instead of asserting a number.
 
+PROVENANCE POLICY FOR THIS FILE (what may reach a PDF):
+
+  1. A curve is plotted only if an array computed here produces it.
+  2. A NUMBER printed on a figure is formatted out of such an array by the
+     helper ``sig()``; no numeric literal is ever typed into a label. Every one
+     of them is additionally re-checked by ``check_caption_numbers()`` at the
+     end of the run and dumped to ``figure_manifest.json`` next to the PDFs, so
+     a caption can be audited without re-reading the plot.
+  3. Nothing from a training run is drawn. Appendix B's worked example is
+     therefore absent from both panels that used to carry it: its archive
+     (fno_results.npz) is not in this repository, torch is not installed here,
+     and the only text in the tree that states its outcome is a chat export
+     headed "Actual observed numbers from the run". A number that cannot be
+     recomputed is not a number this figure may print, and from now on the
+     figures say so instead of drawing a horizontal line for it.
+
 Model problem (identical to Appendix B's worked example):
 1-D periodic heat equation
 
@@ -21,11 +37,13 @@ resolves the input. Input family:
     c_k ~ N(0,1), phi_k ~ U(0,2pi), K = 8
 
 Outputs fig_spectral_decay.pdf and fig_super_resolution.pdf next to this file.
-Run:  python3 make_figures.py
+Run:  python3 make_figures.py            (add --png for raster copies to eyeball)
 """
 from __future__ import annotations
 
+import json
 import os
+import sys
 
 import matplotlib
 
@@ -38,6 +56,10 @@ T_END = 1.0
 K_MODES = 8
 SEED = 20261010
 HERE = os.path.dirname(os.path.abspath(__file__))
+
+# Everything the captions print is collected here from COMPUTED arrays and
+# written to figure_manifest.json, so caption and figure cannot silently drift.
+MANIFEST: dict = {}
 
 plt.rcParams.update({
     "font.family": "serif",
@@ -53,6 +75,22 @@ plt.rcParams.update({
 PRIMARY = "#123060"
 SECONDARY = "#7d202d"
 ACCENT = "#2a6f97"
+
+
+def sig(v: float, n: int = 3) -> str:
+    """Mathtext for a COMPUTED value with n significant digits.
+
+    8.26e-3 with n=2 -> '$8.3 \\times 10^{-3}$'; 1.70 with n=3 -> '$1.70$'.
+    Every number printed inside a figure goes through here, so what the reader
+    sees is an array element and never a literal typed into the source.
+    """
+    if v == 0:
+        return "$0$"
+    e = int(np.floor(np.log10(abs(v))))
+    mant = abs(v) / 10.0 ** e
+    if e < -2 or e >= 3:
+        return rf"${mant:.{n - 1}f} \times 10^{{{e}}}$"
+    return rf"${v:.{max(0, n - 1 - e)}f}$"
 
 
 # ---------------------------------------------------------------- core solver
@@ -79,6 +117,19 @@ def rel_l2(pred: np.ndarray, exact: np.ndarray) -> float:
 
 
 # ------------------------------------------------------- figure 1: spectral
+def truncation_curve(s: int, kmax_range: np.ndarray, k_support: int = 513) -> np.ndarray:
+    """Exact relative L2 truncation error of the band projection |k| <= kmax.
+
+    For the Sobolev model u_hat(k) = |k|^-s xi_k with iid standard normal xi_k,
+    E|u_hat(k)|^2 = k^-2s, so the expected squared tail share is
+    sum_{k>kmax} k^-2s / sum_{k>=1} k^-2s, computed exactly (deterministic).
+    """
+    kk = np.arange(1, k_support)
+    pw = kk.astype(float) ** (-2.0 * s)
+    total = pw.sum()
+    return np.array([np.sqrt(pw[km:].sum() / total) for km in kmax_range])
+
+
 def spectral_decay():
     fig, axes = plt.subplots(1, 2, figsize=(11.4, 4.3))
 
@@ -100,31 +151,57 @@ def spectral_decay():
     axes[0].legend(fontsize=8, frameon=False)
     axes[0].set_ylim(1e-9, 3)
 
-    # (b) exact truncation error of retaining |k| <= kmax, plus a floor
-    axes[1].axhline(1.4e-2, color="0.3", lw=1.1, ls="--")
-    axes[1].text(2, 1.55e-2, r"neural approximation floor $\mathcal{E}_{\mathrm{NN}}$",
-                 fontsize=8, color="0.3")
+    # (b) exact truncation error of retaining |k| <= kmax, and nothing else
     kmax_range = np.arange(2, 65)
+    curves = {}
     for s, col in [(1, ACCENT), (2, PRIMARY), (3, SECONDARY)]:
-        errs = []
-        for km in kmax_range:
-            # deterministic expectation over the isotropic Gaussian model:
-            # ||tail||^2 / ||full||^2 with tail = sum_{k>km} k^{-2s}
-            kk = np.arange(1, 513)
-            pw = kk.astype(float) ** (-2.0 * s)
-            tail = pw[km:].sum()
-            errs.append(np.sqrt(tail / pw.sum()))
+        errs = truncation_curve(s, kmax_range)
+        curves[s] = errs
         axes[1].loglog(kmax_range, errs, lw=1.8, color=col,
                        label=rf"$s={s}$, slope $-(s-1/2)$")
+    axes[1].axvline(16, color="0.55", lw=1.0, ls=":", zorder=1)
+
+    # --- every printed quantity below is read off `curves`, not typed in ------
+    v16 = {s: float(curves[s][list(kmax_range).index(16)]) for s in (1, 2, 3)}
+    axes[1].annotate(
+        f"$s=2$ at $k_{{\\max}}=16$: {sig(v16[2], 2)}",
+        xy=(16, v16[2]), xytext=(20, 1.8e-2), fontsize=8, color=PRIMARY,
+        arrowprops=dict(arrowstyle="-", color=PRIMARY, lw=0.9,
+                        connectionstyle="arc3,rad=-0.15"),
+    )
     axes[1].set_xlabel(r"retained modes $k_{\max}$")
     axes[1].set_ylabel(r"relative $L^2$ truncation error")
     axes[1].set_title("(b) Truncation error vs cutoff, computed exactly", fontsize=10)
     axes[1].legend(fontsize=8, frameon=False, loc="lower left")
-    axes[1].set_ylim(3e-4, 2)
+    axes[1].set_ylim(1e-6, 2)
 
     fig.tight_layout()
-    fig.savefig(os.path.join(HERE, "fig_spectral_decay.pdf"), bbox_inches="tight")
+    out = os.path.join(HERE, "fig_spectral_decay.pdf")
+    fig.savefig(out, bbox_inches="tight")
+    if "--png" in sys.argv:
+        fig.savefig(out.replace(".pdf", ".png"), dpi=200, bbox_inches="tight")
     plt.close(fig)
+
+    # error-reduction factor when the band is doubled, kmax = 32 -> 64
+    factors = {f"s={s}": float(curves[s][list(kmax_range).index(32)]
+                              / curves[s][list(kmax_range).index(64)]) for s in (1, 2, 3)}
+    MANIFEST["fig_spectral_decay"] = {
+        "panel_b_exact_truncation_error": {
+            "s=1 at k_max=16": v16[1], "s=2 at k_max=16": v16[2],
+            "s=3 at k_max=16": v16[3],
+            "s=1 at k_max=64": float(curves[1][-1]),
+            "s=2 at k_max=64": float(curves[2][-1]),
+        },
+        "panel_b_ratio_s1_over_s2_at_k_max_16": v16[1] / v16[2],
+        "panel_b_doubling_factor_k32_to_k64": factors,
+        "asymptotic_doubling_factor_2_pow_(s-1/2)": {
+            "s=1": 2.0 ** 0.5, "s=2": 2.0 ** 1.5, "s=3": 2.0 ** 2.5},
+        "panel_b_theoretical_loglog_slope": {"s=1": -0.5, "s=2": -1.5, "s=3": -2.5},
+        "nothing_from_any_training_run_is_plotted": True,
+        "removed_vs_previous_revision": [
+            "axhline(1.4e-2) labelled 'neural approximation floor'",
+        ],
+    }
 
 
 # --------------------------------------------- figure 2: resolution invariance
@@ -218,28 +295,93 @@ def super_resolution():
                      label="training-grid solution, linearly resampled")
     axes[1].semilogy(Ns, curves["mesh_fixed_phys"], "s:", color="0.3", lw=1.5, ms=4,
                      label="resolution-aware operator: width in physical units")
-    axes[1].axhline(0.0141, color=PRIMARY, lw=1.6)
-    axes[1].plot([64, 256], [0.0141, 0.0141], "D", color=PRIMARY, ms=8,
-                 label=r"FNO, measured (App.~B): $0.0141$ at $N{=}64,256$")
+
+    # --- the only numbers printed in this panel: endpoints of the arrays -----
+    ends = {name: float(curves[name][-1]) for name in curves}
+    callouts = {
+        "mesh_fixed_px": (0.15, "mesh-bound", SECONDARY),
+        "linear_resample": (1.1e-3, "resampled", ACCENT),
+        "mesh_fixed_phys": (4e-14, "resolution-aware", "0.3"),
+    }
+    for name, (ytext, short, col) in callouts.items():
+        axes[1].annotate(
+            f"{short}, $N=512$: {sig(ends[name], 3)}",
+            xy=(512, ends[name]), xytext=(300, ytext), fontsize=7.6, color=col,
+            ha="left", va="center",
+            arrowprops=dict(arrowstyle="-", color=col, lw=0.8,
+                            connectionstyle="arc3,rad=0.15"),
+        )
     axes[1].set_xlabel("evaluation grid points $N$")
-    axes[1].set_ylabel(r"relative $L^2$ error vs.~analytic solution")
+    axes[1].set_ylabel("relative $L^2$ error vs. analytic solution")
     axes[1].set_title("(b) Error vs resolution, calibrated at $N=32$", fontsize=10)
     axes[1].legend(fontsize=7.2, frameon=False, loc="center left")
-    axes[1].set_xticks(Ns)
+    axes[1].set_xticks([32, 64, 128, 256, 512])
     axes[1].tick_params(axis="x", labelrotation=30)
     axes[1].set_ylim(1e-17, 4)
 
     fig.tight_layout()
-    fig.savefig(os.path.join(HERE, "fig_super_resolution.pdf"), bbox_inches="tight")
+    out = os.path.join(HERE, "fig_super_resolution.pdf")
+    fig.savefig(out, bbox_inches="tight")
+    if "--png" in sys.argv:
+        fig.savefig(out.replace(".pdf", ".png"), dpi=200, bbox_inches="tight")
     plt.close(fig)
 
+    MANIFEST["fig_super_resolution"] = {
+        "panel_b_endpoints_at_N512": ends,
+        "panel_b_resolution_aware_max_over_all_grids":
+            float(curves["mesh_fixed_phys"].max()),
+        "panel_b_resolution_aware_span": [float(curves["mesh_fixed_phys"].min()),
+                                         float(curves["mesh_fixed_phys"].max())],
+        "panel_b_linear_resample_plateau_max": float(curves["linear_resample"].max()),
+        "panel_b_mesh_bound_monotone_increasing":
+            bool(np.all(np.diff(curves["mesh_fixed_px"][1:]) > 0)),
+        "nothing_from_any_training_run_is_plotted": True,
+        "removed_vs_previous_revision": [
+            "axhline(0.0141) + two markers labelled 'FNO, measured (App. B)'",
+        ],
+    }
     for k, v in curves.items():
         print(f"{k:18s}", " ".join(f"{x:.2e}" for x in v))
+
+
+def check_caption_numbers():
+    """Fail loudly if a quantity the captions quote stops being what we compute.
+
+    Checked as the STRINGS the figures print, so this is a check on the
+    artefact, not on a private notion of the value.
+    """
+    man = MANIFEST["fig_spectral_decay"]
+    f = man["panel_b_doubling_factor_k32_to_k64"]
+    errs = man["panel_b_exact_truncation_error"]
+    assert abs(f["s=1"] - 1.46) < 5e-3, f
+    assert abs(f["s=2"] - 2.80) < 5e-3, f
+    assert abs(f["s=3"] - 5.55) < 5e-3, f
+    assert sig(errs["s=2 at k_max=16"], 2) == r"$8.3 \times 10^{-3}$", sig(errs["s=2 at k_max=16"], 2)
+    assert abs(errs["s=1 at k_max=16"] - 0.189) < 1e-3, errs
+    # the prose of Chapter 5 writes this as $9.1\times10^{-2}$
+    assert sig(errs["s=1 at k_max=64"], 2) == r"$0.091$", sig(errs["s=1 at k_max=64"], 2)
+    assert round(MANIFEST["fig_spectral_decay"]
+                 ["panel_b_ratio_s1_over_s2_at_k_max_16"]) == 23
+    sup = MANIFEST["fig_super_resolution"]
+    ends = sup["panel_b_endpoints_at_N512"]
+    assert sig(sup["panel_b_linear_resample_plateau_max"], 3) == r"$5.24 \times 10^{-3}$"
+    assert sig(ends["mesh_fixed_phys"], 3) == r"$5.50 \times 10^{-16}$", sig(ends["mesh_fixed_phys"], 3)
+    assert sig(ends["mesh_fixed_px"], 3) == r"$1.70$"
+    assert sig(ends["linear_resample"], 3) == r"$5.24 \times 10^{-3}$"
+    assert sup["panel_b_resolution_aware_max_over_all_grids"] < 1e-15
+    span = sup["panel_b_resolution_aware_span"]
+    assert sig(span[0], 3) == r"$5.48 \times 10^{-16}$", sig(span[0], 3)
+    assert sig(span[1], 3) == r"$7.63 \times 10^{-16}$", sig(span[1], 3)
+    assert sup["panel_b_mesh_bound_monotone_increasing"]
 
 
 if __name__ == "__main__":
     spectral_decay()
     super_resolution()
+    check_caption_numbers()
+    with open(os.path.join(HERE, "figure_manifest.json"), "w") as fh:
+        json.dump(MANIFEST, fh, indent=2)
     for f in ("fig_spectral_decay.pdf", "fig_super_resolution.pdf"):
         p = os.path.join(HERE, f)
         print(f"wrote {f} ({os.path.getsize(p) // 1024} KB)")
+    print("caption-number self-check passed; provenance in figure_manifest.json")

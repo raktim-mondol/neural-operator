@@ -514,8 +514,8 @@ sanity bound on a configuration file. The cost of truncation is the first term o
 \eqref{eq:ch05-error-decomposition}, $C_{1} k_{\max}^{-\alpha}$: algebraic in the cutoff,
 set by the smoothing order of the target and independent of depth, width, and grid.
 Figure~\ref{fig:spectral_decay} computes the decay and the conclusion the book draws from
-it --- once the algebraic curve falls below the measured model-error floor of
-Appendix~\ref{app:b}, adding modes buys nothing, and a target with one derivative is not
+it --- once the algebraic curve falls below whatever the network's own error turns out to be,
+a term this book never computes, adding modes buys nothing, and a target with one derivative is not
 rescued by any affordable budget, because regularity and not resolution is the binding
 constraint. \index{spectral truncation|textbf}
 
@@ -631,7 +631,7 @@ $\mathcal{L}_{\text{rel-}L^{2}}(u, \hat{u}) = \|u - \hat{u}\|_{L^{2}(\Omega)} /
 \|u\|_{L^{2}(\Omega)}$ of \eqref{eq:rel_l2_loss}, evaluated as a quadrature and the
 implementation's root-then-average over the batch; it is the inner quotient of the
 population risk \eqref{eq:ch01-risk} and the metric in which the benchmark percentages of
-Part~\ref{part:2} and the measured error of Appendix~\ref{app:b} are reported, and being a
+Part~\ref{part:2} and the transcribed error of Appendix~\ref{app:b} are reported, and being a
 quotient of two norms it carries no physical units. Two qualifications are part of the
 definition. Constant quadrature weights cancel, so the \emph{metric} is scale-free in $N$;
 the \emph{value} still changes with $N$, because
@@ -656,9 +656,10 @@ the smoothing order is a hypothesis about the target, not about the architecture
 
 \item[\textbf{Resolution transfer}] Evaluation of a trained operator on a grid other than
 its training grid, without retraining or interpolation of the output. The reading the book
-insists on is narrower than the usual headline: the experiment behind
-Figure~\ref{fig:super_resolution} reports relative $L^{2}$ error $0.0141$ at both the $64$-
-and the $256$-point grid, but its inputs carry eight Fourier modes and are already fully
+insists on is narrower than the usual headline: the experiment recorded in
+Appendix~\ref{app:b} reports relative $L^{2}$ error $0.0141$ at both the $64$- and the
+$256$-point grid, a value quoted there and not plotted in
+Figure~\ref{fig:super_resolution}, but its inputs carry eight Fourier modes and are already fully
 resolved on the coarse grid, so the fine-grid evaluation resamples the \emph{same}
 continuous functions. What is demonstrated is transfer of a learned operator, not recovery
 of unresolved high-frequency detail, and not superiority over classical solvers on a linear

@@ -443,7 +443,7 @@ Validation error sits at the same level for mode budgets of eight, sixteen, and 
 while the training error keeps falling. Read the run through
 \eqref{eq:ch05-error-decomposition}: either the truncation term is no longer binding, or the
 schedule stopped the band edge from being fitted at all, and the two look identical on a loss
-curve. The discriminator is the slope Figure~\ref{fig:spectral_decay}(b) measures --- doubling
+curve. The discriminator is the slope Figure~\ref{fig:spectral_decay}(b) computes --- doubling
 the retained band should divide the truncation contribution by roughly $2^{\,s-1/2}$ for a
 target of regularity $s$, that is by about $1.4$, $2.8$, and $5.7$ at $s = 1, 2, 3$ --- so a
 mode-budget sweep must be run with \emph{steps per run held proportional to the band}, as

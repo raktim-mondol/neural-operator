@@ -36,8 +36,9 @@ is transcription---fill the row, then train.
 \chapref{ch:part2-canonical-pde-benchmarks-and-reference-wor}. ``Not recorded'' means the
 protocol of Section~\ref{sec:ch25-protocol} requires the item and the record does not
 supply it. Errors are relative $L^{2}$ in the per-sample-then-batch-averaged form of
-\eqref{eq:rel_l2_loss}; the Darcy floor and the Burgers percentage are stated values, the
-two Darcy baselines read from a logarithmic axis.}
+\eqref{eq:rel_l2_loss}; the Darcy floor and the Burgers row are stated
+values---the latter transcribed from Table 3 of \cite{li2021fourier} at $\nu = 0.1$
+and the single output time $t = 1$---the two Darcy baselines read from a logarithmic axis.}
 \label{tab:appc_specs}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.45cm}%
   >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X
@@ -86,7 +87,9 @@ two Darcy baselines read from a logarithmic axis.}
 & Same convention
 & Same convention, to be reported per step \\
 \textbf{Recorded accuracy}
-& Below $1.5\%$ across all snapshots at $N = 128$ \cite{li2021fourier}
+& $0.0139$ to $0.0160$ (six columns, $s = 256$ to $8192$; two above $1.5\%$);
+$\nu = 0.1$, target
+$u(\cdot, 1)$ \cite{li2021fourier}. This book's $N = 128$, $\nu = 0.01$ grid was never scored
 & Fourier neural operator (FNO-2D) below $1.2\%$, flat near sixty epochs; U-Net $\sim 3\times10^{-2}$; DeepONet ($m = 100$ sensors) $\sim 8\times10^{-2}$
 & None: no accuracy was measured \\
 \textbf{Reference solver, per query}
@@ -126,7 +129,8 @@ waves. The grid row follows from the layer width, not from a taste for resolutio
 profile \eqref{eq:ch03-shockprofile} gives $\ell_{\nu} = 4\nu/(u^{-} - u^{+}) \approx 0.04$
 at $\nu = 0.01$ for an order-unity jump, about five cells at $N = 128$ and two and a half at
 $N = 64$, an alias of a shock rather than a shock, which is why $N = 128$ is the coarsest
-defensible grid and the one on which the quoted error was measured. Navier--Stokes
+defensible grid for this book's own run. The quoted errors belong to $s = 256$ to
+$s = 8192$, not to it. Navier--Stokes
 carries $\nu = 10^{-3}$ to $10^{-5}$, hence $\mathrm{Re} = UL/\nu$ from $10^{3}$ to $10^{5}$
 with the torus as length unit and $U$ of order unity; because the cap
 \eqref{eq:ch25-vorticity-bound} of the enstrophy balance \eqref{eq:ch03-enstrophy} grows
@@ -195,15 +199,17 @@ and no generating solver: Table~\ref{tab:benchmarks_hardware} prices the finite 
 method (FEM) Darcy solve and the pseudo-spectral Navier--Stokes trajectory and has no
 Burgers row, so no tolerance record exists to transcribe. It also leaves the operator class
 ambiguous, since ``across all time snapshots'' fits one model per $t$, one model taking $t$
-as an extra channel, or an iterated one-step map---three operators, and the number does not
-say which. The Darcy sheet omits the truncation band, the periodic-versus-odd-extension
+as an extra channel, or an iterated one-step map---three operators, and this book's record
+does not say which. The cited paper is not ambiguous on the point: its Burgers operator
+ends at $t = 1$ \cite{li2021fourier}. The Darcy sheet omits the truncation band, the periodic-versus-odd-extension
 choice, and the resolution of the reference field behind the sub-$1.2\%$ floor; the
 Navier--Stokes sheet omits all three time numbers and carries no accuracy, because none was
 measured. Common to all three:
 no train/validation/test split ratio is recorded, so no percentage here is a leaderboard
 entry, and normalization by training statistics must be frozen before validation data are
-touched. Only two figures are stated values---the Darcy floor, stated for that run, and the
-Burgers error \cite{li2021fourier}---while the U-Net endpoint near $3 \times 10^{-2}$ and the DeepONet
+touched. Only two items are stated values---the Darcy floor, stated for that run, and the
+six Burgers errors of Table 3 of \cite{li2021fourier}, transcribed at $\nu = 0.1$---while
+the U-Net endpoint near $3 \times 10^{-2}$ and the DeepONet
 endpoint with $m = 100$ sensors \cite{lu2021learning} near $8 \times 10^{-2}$ are read off a
 logarithmic axis and should be quoted to one significant figure;
 Section~\ref{sec:ch25-protocol} names mode-count augmentation as a convention none of them
@@ -239,7 +245,7 @@ coefficient and the $1/\nu$ vorticity cap produce---the two summaries can differ
 of two, and a report that names neither has reported an unidentifiable quantity. The metric
 also forgives: a Gibbs overshoot of fixed height on a set of measure $O(1/M)$ contributes
 $O(M^{-1/2})$, and a displacement $\delta$ of a unit-height front contributes $\sqrt{2\delta}$, so a
-sub-$1.5\%$ Burgers score is fully compatible with a shock in the wrong cell; where the
+$1.4\%$--$1.6\%$ Burgers score is fully compatible with a shock in the wrong cell; where the
 gradient matters more than the energy, the inhomogeneous $H^{1}$ functional
 \eqref{eq:ch07-sobolev-loss} of Listing~\ref{lst:ch21-lploss} is the honest choice. For the
 rollout benchmark the quantities the sheet asks for are the per-step relative $L^{2}$

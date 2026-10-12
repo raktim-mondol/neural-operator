@@ -178,7 +178,8 @@ forward time-evolution operator of the kind introduced in
 the coefficient-to-state map of Section~\ref{sec:ch25-darcy}.
 
 The viscosity is the whole specification. Panel~(a) of Figure~\ref{fig:benchmarks}
-is drawn at $\nu = 0.01$, and its initial trace is consistent with
+is drawn at $\nu = 0.01$, a tenth of the $\nu = 0.1$ of the cited Burgers
+experiment \cite{li2021fourier}; its initial trace is consistent with
 $u_0(x) = \sin(2\pi x)$, amplitude one. Part~I computes the inviscid gradient
 catastrophe for exactly that family: $t_{*} = (2\pi A)^{-1}$, which at $A = 1$ is
 $t_{*} \approx 0.16$, occurring where the initial slope is most negative, at
@@ -208,7 +209,8 @@ spans two and a
 half, which locates the front but no longer resolves the profile, so what the grid
 holds is an alias of a shock rather than a shock. That arithmetic, not
 a preference for large grids, is why $N = 128$ is the coarsest defensible choice for
-this benchmark, and the resolution at which the error quoted below was measured. It
+this benchmark; it is not the grid of the errors quoted below, which are reported
+at $s = 256$ to $s = 8192$ \cite{li2021fourier}. It
 also explains the tension Part~I records between accuracy and discontinuity: the
 spectral branch represents nothing outside $Z_{k_{\max}}$, so a shock's
 $|\hat{u}(k)| = O(|k|^{-1})$ tail is truncated by hypothesis, and the truncation
@@ -233,22 +235,31 @@ one-dimensional benchmark is parameter-cheap and resolution-cheap, which is what
 makes it the natural first experiment after Appendix~\ref{app:b}'s heat equation.
 \index{tensor layout!benchmark batch shapes}
 
-The measured behavior is the source of the number
-\chapref{ch:part1-open-theoretical-problems-and-mathematical} interrogates: FNO
-models trained on $N = 128$ spatial points achieve relative test errors below
-$1.5\%$ across all time snapshots \cite{li2021fourier}. Three qualifications
-belong attached to that figure. First, ``across all time snapshots'' identifies
-the operator only if the reader knows whether one model is trained per $t$, or one
-model consumes $t$ as an extra input channel, or a one-step map is iterated to
-reach $t$; these are three different operators, and the number quoted above does
-not say which was trained. Second, the error is measured at the training
-resolution, so it
+The number
+\chapref{ch:part1-open-theoretical-problems-and-mathematical} interrogates is the
+cited paper's, not a measurement made for this book. The source fixes the
+viscosity at $\nu = 0.1$ (Appendix A.3.1) and learns
+$u_{0} \mapsto u(\cdot, 1)$, the solution at time one---one output time, not a
+family of snapshots (Section 5.1). Its Table 3 lists relative $L^{2}$ errors
+$0.0149$, $0.0158$, $0.0160$, $0.0146$, $0.0142$, $0.0139$ at evaluation
+resolutions $s = 256, 512, 1024, 2048, 4096, 8192$; two of the six exceed
+$1.5\%$, and no $128$-point Burgers grid appears anywhere in that paper: the
+$N = 128$ of the preceding paragraph is this book's own choice, and the two
+configurations are not one. Three qualifications belong to the row, not to a
+snapshot family. First, the ambiguity is this book's, not the source's: the
+cited operator ends at $t = 1$, while this section targets $u(\cdot, t)$ at one
+or more times, so the reader must still ask whether one model is trained per
+$t$, or one model consumes $t$ as an extra input channel, or a one-step map is
+iterated to reach $t$; these are three different operators, and the paper does
+not say which was trained. Second, each entry of the quoted row compares two
+grid functions at the same $s$, the reference subsampled from an $8192$-point
+solve (Appendix A.3.1), so it
 conflates the approximation and discretization terms of
 \eqref{eq:ch01-error-split}. Third, and decisively, the metric is the forgiving
 one: as \chapref{ch:part1-open-theoretical-problems-and-mathematical} shows, a
 Gibbs overshoot of fixed height on a set of measure $O(1/M)$ contributes
 $O(M^{-1/2})$ and a displacement $\delta$ of a unit-height front contributes
-$\sqrt{2\delta}$, so a sub-$1.5\%$ score is fully compatible with a shock placed
+$\sqrt{2\delta}$, so a score of $1.4\%$ to $1.6\%$ is fully compatible with a shock placed
 in the wrong cell. The benchmark remains the right test---it is the only one of
 the three whose target loses regularity---but it should be reported with an
 $H^{1}$ or a front-location error beside the $L^{2}$ number.

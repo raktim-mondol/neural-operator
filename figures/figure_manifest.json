@@ -1,0 +1,49 @@
+{
+  "fig_spectral_decay": {
+    "panel_b_exact_truncation_error": {
+      "s=1 at k_max=16": 0.18891516329221447,
+      "s=2 at k_max=16": 0.008272367422730107,
+      "s=3 at k_max=16": 0.00040001665541433034,
+      "s=1 at k_max=64": 0.09082193163859029,
+      "s=2 at k_max=64": 0.0010701924157428576
+    },
+    "panel_b_ratio_s1_over_s2_at_k_max_16": 22.83689222665926,
+    "panel_b_doubling_factor_k32_to_k64": {
+      "s=1": 1.4581643365586305,
+      "s=2": 2.7977946278799943,
+      "s=3": 5.546333935397583
+    },
+    "asymptotic_doubling_factor_2_pow_(s-1/2)": {
+      "s=1": 1.4142135623730951,
+      "s=2": 2.8284271247461903,
+      "s=3": 5.656854249492381
+    },
+    "panel_b_theoretical_loglog_slope": {
+      "s=1": -0.5,
+      "s=2": -1.5,
+      "s=3": -2.5
+    },
+    "nothing_from_any_training_run_is_plotted": true,
+    "removed_vs_previous_revision": [
+      "axhline(1.4e-2) labelled 'neural approximation floor'"
+    ]
+  },
+  "fig_super_resolution": {
+    "panel_b_endpoints_at_N512": {
+      "mesh_fixed_px": 1.695750312897443,
+      "mesh_fixed_phys": 5.498137229922639e-16,
+      "linear_resample": 0.0052398318499634255
+    },
+    "panel_b_resolution_aware_max_over_all_grids": 7.628359301271084e-16,
+    "panel_b_resolution_aware_span": [
+      5.478149515834163e-16,
+      7.628359301271084e-16
+    ],
+    "panel_b_linear_resample_plateau_max": 0.0052398318499634255,
+    "panel_b_mesh_bound_monotone_increasing": true,
+    "nothing_from_any_training_run_is_plotted": true,
+    "removed_vs_previous_revision": [
+      "axhline(0.0141) + two markers labelled 'FNO, measured (App. B)'"
+    ]
+  }
+}

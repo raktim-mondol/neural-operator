@@ -391,12 +391,12 @@ O\big(k_{\max}^{-(\tau - d/2)}\big)$. The half order lost per dimension is mode
 bookkeeping rather than a property of the field: the factor
 $r^{d-1}\,\mathrm{d}r$ counts the lattice points in the shell being emptied.
 With $\tau = s$ in one dimension this is exactly the slope
-$-(s - \tfrac12)$ measured in Figure~\ref{fig:spectral_decay}(b).
+$-(s - \tfrac12)$ computed in Figure~\ref{fig:spectral_decay}(b).
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.88\textwidth]{fig_spectral_decay.pdf}
-\caption{\textbf{Spectral decay and the cost of truncation, computed rather than drawn schematically.} Both panels use the Sobolev model $\hat{u}(k) = |k|^{-s}\xi_k$ with $\xi_k$ independent standard normal and $s \in \{1,2,3\}$. (a) Mean spectral energy $\mathbb{E}|\hat{u}(k)|^2 = k^{-2s}$, averaged over 40 draws, with the dotted vertical line marking a retained band $|k| \le k_{\max} = 16$. (b) Exactly computed relative $L^2$ error of the band projection $P_{k_{\max}}$ of \eqref{eq:ch05-projection}, namely $\|(I-P_{k_{\max}})u\|_{L^2}/\|u\|_{L^2} = \big(\sum_{k>k_{\max}} k^{-2s} \big/ \sum_{k\ge1} k^{-2s}\big)^{1/2}$ for $k_{\max} = 2,\dots,64$; the log-log slope is $-(s-\tfrac12)$, as marked. The dashed horizontal line marks the capacity floor, drawn at $1.4\times10^{-2}$ in place of the held-out relative $L^2$ error of $0.0141$ measured in Appendix~\ref{app:b} for the one-dimensional periodic heat equation $u_t = \alpha u_{xx}$ with $\alpha = 0.01$ at $T = 1$, trained on inputs $u_0(x) = \sum_{k=1}^{8} c_k k^{-3/2}\cos(2\pi k x + \phi_k)$ with $c_k \sim \mathcal{N}(0,1)$ and $\phi_k$ uniform on $[0,2\pi)$, whose exact solution is $u(x,T) = \mathcal{F}^{-1}\!\big[\hat{u}_0(k)\,e^{-\alpha(2\pi k)^2 T}\big]$. Where a curve falls below that dashed line, network capacity rather than mode truncation limits accuracy.}
+\caption{\textbf{Spectral decay and the cost of truncation, computed rather than drawn schematically.} Both panels use the Sobolev model $\hat{u}(k) = |k|^{-s}\xi_k$ with $\xi_k$ independent standard normal and $s \in \{1,2,3\}$. (a) Mean spectral energy $\mathbb{E}|\hat{u}(k)|^2 = k^{-2s}$, averaged over 40 draws, with the dotted vertical line marking a retained band $|k| \le k_{\max} = 16$. (b) Exactly computed relative $L^2$ error of the band projection $P_{k_{\max}}$ of \eqref{eq:ch05-projection}, namely $\|(I-P_{k_{\max}})u\|_{L^2}/\|u\|_{L^2} = \big(\sum_{k_{\max}<k\le 512} k^{-2s} \big/ \sum_{1\le k\le 512} k^{-2s}\big)^{1/2}$ on a grid resolving $|k| \le 512$, for $k_{\max} = 2,\dots,64$; the log-log slope is $-(s-\tfrac12)$, as marked. Panel (b) isolates truncation: no horizontal line is drawn, because the neural term of \eqref{eq:ch05-error-decomposition} is measured for no architecture in this book. The dotted vertical line marks an illustrative cutoff, $k_{\max}=16$; the worked example of Appendix~\ref{app:b} retains $k_{\max}=11$. That example is the one-dimensional periodic heat equation $u_t = \alpha u_{xx}$ with $\alpha = 0.01$ at $T = 1$, trained on inputs $u_0(x) = \sum_{k=1}^{8} c_k k^{-3/2}\cos(2\pi k x + \phi_k)$ with $c_k \sim \mathcal{N}(0,1)$ and $\phi_k$ uniform on $[0,2\pi)$, whose exact solution is $u(x,T) = \mathcal{F}^{-1}\!\big[\hat{u}_0(k)\,e^{-\alpha(2\pi k)^2 T}\big]$. The callout is the computed value at $k_{\max}=16$ for $s=2$, $8.3\times10^{-3}$, at the same cutoff drawn in panel (a). A curve that has fallen far below it is not thereby accurate --- only no longer limited by truncation.}
 \label{fig:spectral_decay}
 \end{figure}
 
@@ -412,15 +412,16 @@ factor $2^{\,s-1/2}$ --- $1.4$ at $s=1$, $2.8$ at $s=2$, $5.7$ at $s=3$ --- and
 the computed curves come close to it: between the cutoffs $k_{\max} = 32$ and
 $k_{\max} = 64$ the observed factors are $1.46$, $2.80$ and $5.55$. At the band
 $k_{\max} = 16$ drawn in panel (a), the computed error is $8.3\times10^{-3}$ for
-$s=2$, already below the measured floor $0.0141$, whereas at $s=1$ it
-is $1.9\times10^{-1}$ and never reaches that floor anywhere in the plotted range
-of cutoffs. Two conclusions follow. Beyond the point where the algebraic curve
-crosses the floor, adding
-modes buys nothing, because the second term of
-\eqref{eq:ch05-error-decomposition} dominates --- which is why the
+$s=2$, against $1.9\times10^{-1}$ at $s=1$, which has fallen only to
+$9.1\times10^{-2}$ by the largest cutoff plotted. At one band the two curves are a
+factor of $23$ apart, and what separates them is regularity. Two conclusions
+follow. Once the algebraic curve has fallen below the
+network's own term, adding modes buys nothing: the second term of
+\eqref{eq:ch05-error-decomposition} dominates, and where that crossing sits is a
+property of a particular training run. That is why the
 one-dimensional example of Appendix~\ref{app:b} and the two-dimensional
 reference configuration of \chapref{ch:part2-fourier-neural-operators-fno-from-scratch}
-keep of order a dozen to sixteen modes per direction rather than hundreds. And a
+keep of order a dozen to sixteen modes per direction, not hundreds. And a
 target with only one derivative is not rescued by any affordable mode budget:
 regularity, not resolution, is the binding constraint.
 

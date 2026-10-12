@@ -37,7 +37,7 @@ two-term bound of Theorem~\ref{thm:fno_convergence}, which accounts for spectral
 truncation and neural parametrization but not for the grid. This chapter adds the
 term that bound leaves out --- the error the grid itself contributes --- and
 separates what is provable from what is merely
-measured.
+reported.
 
 The route is as follows. We state invariance as a commutative diagram with its
 hypotheses exposed, then test it where it is weakest, at the quadrature level of
@@ -45,7 +45,8 @@ integral kernels, and contrast mesh-independent operator parameters with the
 pixel-indexed stencils of convolutional networks --- the point at which the
 usual motivation for operator architectures becomes a calculation. An exact
 transfer identity for a band-limited single spectral layer follows, together
-with a reading of what a measured ``zero-shot super-resolution'' experiment does
+with a reading of what a reported
+``zero-shot super-resolution'' experiment does
 and does not establish. The chapter ends with the algebraic continuum-limit
 rate \eqref{eq:ch06-rate} for the grid error, whose mechanism is the aliasing
 identity \eqref{eq:ch06-alias}, and with the
@@ -381,20 +382,27 @@ raised in step with the grid.
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.92\textwidth]{fig_super_resolution.pdf}
-\caption{\textbf{Resolution transfer versus mesh-bound degradation.} (a) The same continuous field from the band-limited input family of Appendix~\ref{app:b}, sampled on a coarse ($N=32$) and a fine ($N=128$) grid of $\mathbb{T}=[0,1)$. (b) Relative $L^2$ error against the analytic heat solution at $T=1$, averaged over 80 inputs, as the \emph{evaluation} grid is refined from $N=32$ to $N=512$ with all operators calibrated at $N=32$. The two markers on the horizontal line are the \emph{measured} outcome of the experiment of Appendix~\ref{app:b}: a one-layer FNO trained at $N=64$ attains relative $L^2$ error $0.0141$ on the $64$-point grid and $0.0141$ on the $256$-point grid, with no retraining. The three curves are computed from discretization error alone and are not trained networks: a mesh-bound smoothing operator whose kernel width is frozen in \emph{grid} units gradually stops smoothing as $N$ grows; the same operator with its width stated in \emph{physical} units tracks the analytic solution to floating-point precision at every $N$; and solving on the training grid then resampling linearly plateaus at the interpolation error of the coarse solve. \textbf{Caveat, stated once and not to be forgotten:} the test inputs contain only eight Fourier modes and are therefore already fully resolved on the coarse training grid, so the fine-grid evaluation resamples the \emph{same} continuous functions. The figure demonstrates resolution transfer of a learned operator, not recovery of unresolved high-frequency detail. The governing equation is the linear heat equation, whose solution operator is the explicit multiplier $e^{-\alpha(2\pi k)^2 T}$; the network is a teaching example, not evidence that FNOs outperform classical solvers.}
+\caption{\textbf{Resolution transfer versus mesh-bound degradation.} (a) The same continuous field from the band-limited input family of Appendix~\ref{app:b}, sampled on a coarse ($N=32$) and a fine ($N=128$) grid of $\mathbb{T}=[0,1)$. (b) Relative $L^2$ error against the analytic heat solution at $T=1$, averaged over 80 inputs, as the \emph{evaluation} grid is refined from $N=32$ to $N=512$ with all operators calibrated at $N=32$. \textbf{No curve, line or marker stands for a trained network:} the one-layer FNO of Appendix~\ref{app:b} is quoted in Section~\ref{sec:appb-result}
+and not plotted here, because the archive its run writes is not among the artifacts held
+for this book. The three curves are computed from discretization error alone and are not trained networks: a mesh-bound smoothing operator whose kernel width is frozen in \emph{grid} units gradually stops smoothing as $N$ grows, reaching $1.70$ at $N=512$; the same operator with its width stated in \emph{physical} units tracks the analytic solution to between $5.48\times10^{-16}$ and
+$7.63\times10^{-16}$ on every grid; and solving on the training grid then resampling
+linearly plateaus at the interpolation error of the coarse solve, $5.24\times10^{-3}$. \textbf{Caveat, stated once and not to be forgotten:} the test inputs contain only eight Fourier modes and are therefore already fully resolved on the coarse training grid, so the fine-grid evaluation resamples the \emph{same} continuous functions. What the three curves show is what refinement does to a discretization; resolution
+transfer of a learned operator is the claim of the quoted experiment of
+Appendix~\ref{app:b}, and nothing drawn here establishes it, let alone recovery of
+unresolved high-frequency detail. The governing equation is the linear heat equation, whose solution operator is the explicit multiplier $e^{-\alpha(2\pi k)^2 T}$; the network is a teaching example, not evidence that FNOs outperform classical solvers.}
 \label{fig:super_resolution}
 \end{figure}
 
-Figure~\ref{fig:super_resolution} puts the mechanism and the measurement side by
+Figure~\ref{fig:super_resolution} puts the mechanism and its computed consequences side by
 side. Panel (a) shows one continuous field on two discretizations, which is the
 operation an invariant model must survive. In panel (b) the mesh-bound curve
 degrades exactly as \eqref{eq:ch06-receptive} predicts, the resolution-aware
 curve stays at the level of roundoff on every grid, and resampling a
 training-grid solution flattens out at the interpolation error of the coarse
-solve --- the honest price of the ``interpolate, then run'' workaround. Against
-these computed references, the trained model of Appendix~\ref{app:b} gives
-relative $L^2$ error $0.0141$ at $N=64$ and $0.0141$ at $N=256$, reported to
-four decimal places with no retraining.
+solve --- the honest price of the ``interpolate, then run'' workaround. The trained model of Appendix~\ref{app:b} is not in this panel: its reported errors,
+$0.0141$ at $N=64$ and the same at $N=256$, are transcribed in
+Section~\ref{sec:appb-result} from an account of a run whose archive this book does not
+hold, and are quoted there rather than plotted.
 
 What that pair of numbers establishes must be read carefully, and the reading is
 less flattering than the usual headline. The inputs carry eight Fourier modes
@@ -408,11 +416,12 @@ the twelve retained bins of the real transform cover wavenumbers $0$ through
 $11$, so $k_{\max}=11$ sits above the input bandwidth $8$ and far below
 $N/2=32$, leaving the Nyquist-type hypothesis of the proposition room to spare;
 and the only band-limit-breaking step, the pointwise activation, is not
-followed by any further transform. The two discrete norms that produced the
+followed by any further transform. The two discrete norms behind the
 identical $0.0141$ are Riemann sums of the same real-analytic error field on
 two grids, so their difference is an exponentially small quadrature error, far
-below the four decimals that were printed. Both measurements are
-therefore one measurement: a model error of order $1.4\%$, sampled twice.
+below the four decimals that were printed. Both reported numbers are
+therefore one number: a model error of order $1.4\%$, printed twice, and
+transcribed rather than measured for this book.
 Nothing in the figure shows accuracy at resolutions the data never contained,
 and nothing in it shows an advantage over classical solvers for a linear problem
 that a single Fourier multiplier solves exactly. That a model \emph{can be
@@ -534,8 +543,9 @@ the band-limitedness and Nyquist-type hypothesis $N>2k_{\max}$ of
 Proposition~\ref{prop:ch06-zeroshot}; in general the discrete-to-continuum gap
 decays algebraically, like $N^{-s}$ with $s$ the Sobolev regularity of the input,
 as in
-\eqref{eq:ch06-rate}. The measured equality of errors at the $64$- and
-$256$-point grids shows resolution transfer on inputs the coarse grid already
+\eqref{eq:ch06-rate}. The reported equality of errors at the $64$- and
+$256$-point grids, quoted from Appendix~\ref{app:b} and not plotted in
+Figure~\ref{fig:super_resolution}, shows resolution transfer on inputs the coarse grid already
 resolved --- not recovery of lost detail, and not superiority over classical
 solvers.}
 

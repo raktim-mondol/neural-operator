@@ -161,9 +161,9 @@ the $N$ values of one realization are strongly dependent, and the number of
 effectively independent quantities in $a|_{\mathcal{M}_N}$ is set by
 \eqref{eq:ch09-entropy}, not by $N$. A bound in which the estimation term
 depends on the parameter count and the entropy of $\mu$ but not on $N$ would
-turn the flatness of the error across mesh densities in
-Figure~\ref{fig:super_resolution} --- constant relative error as the evaluation
-grid varies for a model trained at a single resolution, the phenomenon such a
+turn the reported flatness of the error across mesh densities --- the identical
+$0.0141$ at $N=64$ and $N=256$ quoted from Appendix~\ref{app:b} for a model trained
+at a single resolution, the phenomenon such a
 bound is meant to explain\index{discretization invariance!and generalization bounds} --- from an observation into a theorem.
 There is structural reason to expect such a bound: the FNO parameter count
 \begin{equation}
@@ -281,8 +281,9 @@ $L^\infty$ is controlled only through an embedding requiring $s>d/2$,
 the one regularity \eqref{eq:ch09-jump-tail} denies a discontinuous field.
 
 Why, then, do the benchmarks of \chapref{ch:part2-canonical-pde-benchmarks-and-reference-wor}
-report relative $L^2$ errors below $1.5\%$ for Burgers once the shock has
-formed, on $N=128$ grids? Because that metric is forgiving of
+report relative $L^2$ errors of order $1.5\%$ for Burgers---$0.0139$ to $0.0160$, at
+$\nu = 0.1$, on grids of $256$ to $8192$ points, for the solution at $t = 1$ alone
+\cite{li2021fourier}? Because that metric is forgiving of
 exactly the failure \eqref{eq:ch09-gibbs} describes: an overshoot of fixed
 height on a set of measure $O(1/M)$ contributes $O(M^{-1/2})$, vanishing as $M$
 grows, and a unit jump displaced by $\delta$ contributes

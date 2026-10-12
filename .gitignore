@@ -30,3 +30,6 @@ tools/extract_chapters.py
 
 # Internal editorial ledger (build history). Kept local.
 PROGRESS.md
+
+# raster previews from make_figures.py --png (PDFs are the artifacts)
+figures/*.png
