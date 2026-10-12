@@ -35,8 +35,8 @@ costs. In exchange,
 translation invariance diagonalizes the operator. The complex exponentials are
 eigenfunctions of every stationary convolution simultaneously, so the kernel
 collapses from a function of $2d$ real variables to a function of one integer
-index, and applying it on a grid costs $\mathcal{O}(N \log N)$ with the fast
-Fourier transform (FFT) instead of $\mathcal{O}(N^2)$.
+index. A grid application then costs $\mathcal{O}(N \log N)$ with the fast
+Fourier transform (FFT), against $\mathcal{O}(N^2)$ for the dense product.
 \index{fast Fourier transform (FFT)}
 \index{periodic domain (torus)}
 
@@ -354,7 +354,7 @@ retained set \eqref{eq:ch05-modeset} is a box; the two index sets differ, but
 both tails are algebraic in $k_{\max}$ with the same exponent, so the notational
 slippage changes nothing.
 
-The second term deserves a frank reading. $\mathcal{E}_{\text{NN}}(L,d_v)$ is
+The second term, $\mathcal{E}_{\text{NN}}(L,d_v)$, is
 \index{neural parametric error}
 the error of representing the finitely many matrices
 $\{R(k)\}_{k \in Z_{k_{\max}}}$ and the local maps within a network of depth

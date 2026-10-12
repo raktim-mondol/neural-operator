@@ -79,8 +79,8 @@ approximation to the integral rather than drifting with mesh density. The weight
 mesh's contribution to the layer. Everything else --- the kernel, the channel mixing, the
 radius --- is the network's, and no parameter of it is indexed by a node.
 
-The dependence on $a(x_i)$ and $a(x_j)$ deserves emphasis because it is the whole reason this
-layer is an operator and not a mesh-bound convolution. The Fourier neural operator (FNO)
+The dependence on $a(x_i)$ and $a(x_j)$ is the whole reason this layer is an operator; a
+mesh-bound convolution would have to drop it. The Fourier neural operator (FNO)
 reaches its cost by discarding those arguments and imposing stationarity,
 $\kappa_\ell(x,y,a(x),a(y);\phi_\ell) = \kappa_\ell(x-y;\phi_\ell)$, as in
 \eqref{eq:ch8-fno-specialization} \cite{li2021fourier}. A GNO does not: an inhomogeneous or
@@ -148,8 +148,8 @@ shared across all edges, so refining the mesh multiplies the compute without mul
 parameters. Second, the aggregation is a \emph{scatter add} --- \texttt{index\_add\_} over the
 target indices, unnormalized
 \index{scatter-add aggregation}\index{computational complexity!graph convolution per edge}---
-because \eqref{eq:ch24-gno-kernel} integrates rather than averages. Note honestly what the
-listing does not do: it evaluates the kernel on the displacement alone, the stationary
+because \eqref{eq:ch24-gno-kernel} integrates rather than averages. The listing stops short
+twice: it evaluates the kernel on the displacement alone, the stationary
 reduction of \eqref{eq:ch24-gno-kernel}, and it carries no $w_j$. Both gaps are interface
 obligations rather than bugs. Recovering the input-dependent kernel means concatenating
 $a(x_i)$ and $a(x_j)$ into the MLP input, widening it from $\texttt{coord\_dim}$ to
@@ -323,8 +323,8 @@ to put nodes; and it retains the input-dependent kernel that inhomogeneous probl
 The aerodynamic application, with its reported accuracy and its inference budget against a
 volume solver, is taken up with the other large-scale 3D workloads in
 \chapref{ch:part3-external-aerodynamics-and-surface-flows}. What it costs is edge-linear
-computation with a quadratic channel factor, a memory footprint that scales with mesh size
-rather than with parameters, an SDF and coordinate-channel pipeline that must be rebuilt for
+computation with a quadratic channel factor, a memory footprint that scales with mesh size while
+the parameters stay fixed, an SDF and coordinate-channel pipeline that must be rebuilt for
 every new computer-aided design tessellation, ragged batching at the two
 interfaces, and the loss of every guarantee the spectral case enjoys.
 

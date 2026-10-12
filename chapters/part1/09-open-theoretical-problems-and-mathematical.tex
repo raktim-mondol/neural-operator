@@ -321,9 +321,9 @@ where adapting the representation is the lever. Adapting the mesh alone, as
 graph-based operators do \cite{li2023geometry}, or reorganizing the
 channel structure of a spectral layer by factorizing its multiplier array, buys
 geometric or parameter-count flexibility but no additional regularity, and leaves
-\eqref{eq:limit_commute} --- which asserts consistency, not accuracy ---
-untouched. Third, a training signal that selects the entropy solution rather
-than any weak solution: the physics-informed residual loss \eqref{eq:pino_loss}
+\eqref{eq:limit_commute} --- which asserts consistency and stays silent on
+accuracy --- untouched. Third, a training signal that separates the entropy
+solution from every other weak solution: the physics-informed residual loss \eqref{eq:pino_loss}
 of \chapref{ch:part1-physics-informed-operators-and-sobolev-reg} penalizes
 $\mathcal{N}(\mathcal{G}_\theta(a);a)$ in a negative or $L^2$-type norm, and
 every weak solution satisfies that residual condition, so an entropy inequality

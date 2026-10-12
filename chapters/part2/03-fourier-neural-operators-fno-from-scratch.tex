@@ -98,9 +98,9 @@ transforms the whole tensor rather than looping over fields. Two consequences
 follow from the name. Because the input is real, conjugate symmetry holds:
 $\hat{x}(-k_x, -k_y) = \overline{\hat{x}(k_x, k_y)}$, and the half-complex
 representation in dimension $W$ fully determines the field --- the routine
-returns $\lfloor W/2 \rfloor + 1$ coefficients along the last axis instead of
-$W$, and the inverse \texttt{irfft2} reconstructs the omitted half from the
-symmetry rather than from stored data. The second consequence is a budget
+returns $\lfloor W/2 \rfloor + 1$ coefficients along the last axis, and the
+inverse \texttt{irfft2} reconstructs the omitted half from the symmetry rather
+than from stored data. The second consequence is a budget
 statement: a half-spectrum costs $2(\lfloor W/2 \rfloor + 1) \approx W$ real
 values per row, which is what the real input already occupied, where a full
 complex spectrum would cost twice that. Choosing \texttt{rfft2} over
@@ -489,9 +489,9 @@ compresses the parameter store without changing the arithmetic of
 \index{tensor factorization!of spectral multiplier arrays}
 \index{CANDECOMP/PARAFAC (CP) decomposition}
 
-The mechanism of that compression is worth stating, because it is the one place
-where the library departs from the parameterization \eqref{eq:ch23-Rtensors} in
-a way that earns its keep. \eqref{eq:ch23-Rtensors} stores the mode-indexed channel
+That compression is the one place where the library departs from the
+parameterization \eqref{eq:ch23-Rtensors}, and the difference is one of
+parameter count. \eqref{eq:ch23-Rtensors} stores the mode-indexed channel
 rotations as a four-way array and spends \eqref{eq:ch23-paramcount} parameters
 on it; a Tucker decomposition replaces the array by a small core tensor
 contracted with one factor matrix along each axis, and a
@@ -506,8 +506,8 @@ size times the mode rank, plus terms linear in each channel width, where
 \eqref{eq:ch23-paramcount} pays the band size times \emph{both} channel widths
 at once; widening the band --- which is what buys accuracy when the target's
 regularity is low, per \eqref{eq:ch05-error-decomposition} --- therefore costs
-one extra rank's worth of parameters per mode instead of
-$C_{\text{in}}C_{\text{out}}$ worth. How much any particular configuration saves
+one extra rank's worth of parameters per mode. How much any particular
+configuration saves
 is thus fixed by the rank chosen against the band and the channel widths entered
 in \eqref{eq:ch23-paramcount}, not by the factorization as such: the two counts
 can be subtracted by hand on any configuration, and the \texttt{rank=0.42} of

@@ -245,8 +245,9 @@ $0.0149$, $0.0158$, $0.0160$, $0.0146$, $0.0142$, $0.0139$ at evaluation
 resolutions $s = 256, 512, 1024, 2048, 4096, 8192$; two of the six exceed
 $1.5\%$, and no $128$-point Burgers grid appears anywhere in that paper: the
 $N = 128$ of the preceding paragraph is this book's own choice, and the two
-configurations are not one. Three qualifications belong to the row, not to a
-snapshot family. First, the ambiguity is this book's, not the source's: the
+configurations are distinct. Three qualifications belong to that row, and a
+snapshot family would need its own. First, the ambiguity is this book's, not the
+source's: the
 cited operator ends at $t = 1$, while this section targets $u(\cdot, t)$ at one
 or more times, so the reader must still ask whether one model is trained per
 $t$, or one model consumes $t$ as an extra input channel, or a one-step map is
@@ -344,9 +345,8 @@ trace decays smoothly and monotonically but ends near $3 \times 10^{-2}$; the
 DeepONet trace with $m = 100$ sensors \cite{lu2021learning} ends near $8 \times
 10^{-2}$ and oscillates visibly from epoch to epoch. The two baseline endpoints are
 read off the panel's logarithmic axis and should be quoted to one significant
-figure; the FNO floor, by contrast, is a value stated for that run rather than one
-read from the panel. The ordering is
-explained by the architectures rather than by the tuning. A U-Net aggregates over
+figure; the FNO floor, by contrast, is a value stated for that run. The ordering
+is explained by the architectures rather than by the tuning. A U-Net aggregates over
 a receptive field that grows only with depth, and the pressure at a point in
 \eqref{eq:ch25-darcy} responds to the coefficient everywhere---the long-range
 coupling Part~I attributes to the Green kernel---so its accuracy is limited by

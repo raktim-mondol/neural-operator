@@ -335,9 +335,8 @@ split \eqref{eq:ch04-error-split}, the spectral split
 discretization form \eqref{eq:ch06-decomp}, made explicit with matching upper and
 lower bounds for a discrete-Fourier-transform least-squares estimator of the linear
 layer by \cite{subedi2024controlling}. The book records one term the first of these
-displays omits: optimization error, since the reported parameter comes from stochastic
-gradient descent rather than from an exact minimizer, and it is treated empirically in
-Part~\ref{part:2}, while the DeepONet split carries the same gap explicitly as its
+displays omits: optimization error, the gap between the parameter stochastic gradient
+descent returns and an exact minimizer. Part~\ref{part:2} treats it empirically, while the DeepONet split carries the same gap explicitly as its
 network term $\mathcal{E}_{\text{DNN}}(\theta)$. Table~\ref{tab:appg-error} collects
 the vocabulary. The book's own conclusion is a warning about reporting:
 authors draw the cut differently, and a relative error measured at the training
