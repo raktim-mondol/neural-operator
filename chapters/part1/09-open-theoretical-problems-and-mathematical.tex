@@ -134,8 +134,7 @@ For measures carrying only an $L^2$ moment ($s=0$) the right-hand side of
 is available, and one must fall back on non-uniform or Bayesian formulations, as
 in \cite{stuart2010inverse}.
 
-What exactly is missing is worth naming separately, because the three pieces
-have different characters. \emph{First, upper bounds of the right shape.}
+What exactly is missing comes in three pieces of different characters. \emph{First, upper bounds of the right shape.}
 Approximation bounds expressed through the compactness of the input set exist for
 both principal architectures \cite{kovachki2021universal,lanthaler2022error}, and
 \cite{lanthaler2022error} also attaches a statistical term explicit in the
@@ -301,9 +300,9 @@ no smoothing in $L^2$. What it does supply is a different pair of spaces: for
 scalar conservation laws the entropy solution semigroup is a contraction in
 $L^1$, and uniform bounds on total variation give precompactness in $L^1$ by
 Helly's selection theorem; the finite-volume literature develops both facts
-\cite{leveque2002finite}. Stating the open problem
+\cite{leveque2002finite}. The open problem is to
 \index{bounded variation}
-sharply: \emph{rebuild \eqref{eq:ch09-entropy}, and then
+\emph{rebuild \eqref{eq:ch09-entropy}, and then
 Theorem~\ref{thm:no_universality}, over the pair $(BV, L^1)$ instead of $(H^s,
 L^2)$}, with three requirements attached, where $BV$ denotes the space of
 functions of bounded variation. First, a compactness hypothesis that
@@ -318,8 +317,8 @@ whereas in a localized multiscale basis only the $O(1)$ basis functions whose
 support meets the interface are affected at each scale, so of the $O(k_{\max})$
 functions of a dictionary matched to the same finest resolution only
 $O(\log k_{\max})$ are contaminated by the discontinuity. This is the regime
-where adapting the representation, not the mesh, is the lever. Adapting the mesh
-alone, as graph-based operators do \cite{li2023geometry}, or reorganizing the
+where adapting the representation is the lever. Adapting the mesh alone, as
+graph-based operators do \cite{li2023geometry}, or reorganizing the
 channel structure of a spectral layer by factorizing its multiplier array, buys
 geometric or parameter-count flexibility but no additional regularity, and leaves
 \eqref{eq:limit_commute} --- which asserts consistency, not accuracy ---

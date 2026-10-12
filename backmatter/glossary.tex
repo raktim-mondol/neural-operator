@@ -287,8 +287,8 @@ $v \in X$; the notation keeps the two spaces visibly distinct, unlike an inner p
 which is what lets a source term that is a distribution rather than a function still be
 tested against smooth functions. The pairing is defined through the operator norm
 \eqref{eq:ch02-dualnorm}, a supremum over the unit ball, so it measures worst-case
-amplification rather than average size. The book's use of it is a choice of norm, not a
-notational preference: replacing $L^{2}$ by $H^{-1}$ makes the residual of a differential
+amplification. The book's use of it is a choice of norm, and the choice changes what
+counts as small: replacing $L^{2}$ by $H^{-1}$ makes the residual of a differential
 equation far easier to make small, \eqref{eq:ch02-hsneg} extends Parseval's identity to
 that weaker scale, and the pairing extends the inner product of the pivot space
 \emph{downward} in regularity through the triple $V \hookrightarrow H \cong H^{*}
@@ -339,8 +339,8 @@ displays omits: optimization error, since the reported parameter comes from stoc
 gradient descent rather than from an exact minimizer, and it is treated empirically in
 Part~\ref{part:2}, while the DeepONet split carries the same gap explicitly as its
 network term $\mathcal{E}_{\text{DNN}}(\theta)$. Table~\ref{tab:appg-error} collects
-the vocabulary, and the book's own conclusion is a warning about reporting rather than a
-theorem: authors draw the cut differently, and a relative error measured at the training
+the vocabulary. The book's own conclusion is a warning about reporting:
+authors draw the cut differently, and a relative error measured at the training
 resolution confounds the approximation term with the discretization term, so that if the
 second is not small the printed number describes the quadrature, not the learned
 operator. \index{error decomposition}

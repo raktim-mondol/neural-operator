@@ -89,8 +89,8 @@ field through side channels. Message-passing neural PDE solvers \cite{brandstett
 share the edge-based template but attach a learned update rule to each edge rather than a
 kernel multiplying a quadrature weight \index{message passing}--- the distinction between a
 learned stencil and a discretized integral, and it is what makes the graph layer a
-specialization of \eqref{eq:no_layer} rather than a new architecture family: the kernel row of
-Table~\ref{tab:comparison} books it against the generic operator's own
+specialization of \eqref{eq:no_layer}. The kernel row of
+Table~\ref{tab:comparison} already books it against the generic operator's own
 $\kappa_\theta(x,y)$, the geometric pair collapsed to a displacement, the input values at both
 endpoints retained, and the domain of integration shrunk to a ball.
 
@@ -143,8 +143,7 @@ into a full $\texttt{in\_channels} \times \texttt{out\_channels}$ matrix, so
 \emph{different} matrix to every edge, which is the arithmetic content of the sum in
 \eqref{eq:ch24-gno-kernel}: $\Theta(|E|\,C_{\text{in}} C_{\text{out}})$ multiply-adds per
 layer, the edge-linear count recorded in \eqref{eq:ch8-costs} as $\Theta(|E|\,d_v^{2})$. Two
-features of the listing carry the operator semantics and are worth learning from it rather
-than skimming. First, no weight is indexed by node identity or by a lattice offset; the MLP is
+features of the listing carry the operator semantics. First, no weight is indexed by node identity or by a lattice offset; the MLP is
 shared across all edges, so refining the mesh multiplies the compute without multiplying the
 parameters. Second, the aggregation is a \emph{scatter add} --- \texttt{index\_add\_} over the
 target indices, unnormalized

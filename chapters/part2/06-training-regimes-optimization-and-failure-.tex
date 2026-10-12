@@ -371,8 +371,8 @@ samples dominate the gradient (Section~\ref{sec:ch26-failures}).
 \index{teacher forcing}\index{exposure bias}
 \index{pushforward regularization!weights $\lambda_k$ and horizon $K$}
 
-Why it works is worth stating carefully, because the claim is empirical and the mechanism is
-a change of sampling distribution rather than a new regularizer. The quantity $\tau$ in
+That pushforward works is an empirical claim, and the mechanism is a change of sampling distribution rather than a new
+regularizer. The quantity $\tau$ in
 \eqref{eq:ch09-onesided} is a supremum over the true trajectory;
 \eqref{eq:ch09-gronwall} then propagates it. Pushforward terms do not bound
 $\Lambda_\theta$ --- no term in \eqref{eq:ch26-pushforward} contains a derivative of
@@ -412,14 +412,15 @@ is effectively uncorrelated with anything reachable from $u_0$, and minimizing a
 pathwise error against an unpredictable target returns the conditional mean, which for a
 turbulent vorticity field is a damped, near-laminar state. The rollout then stays bounded,
 smooths, and is wrong in the respect a statistical benchmark is built to detect, so the
-honest accounting is the weak one of
+accounting is the weak one of
 \eqref{eq:ch09-weak}: the bias of the learned invariant measure, not $e_K$. So $\lambda_k$
 must decay in $k$, or $K$ must be capped near the horizon the physics allows --- and the
-choice of where is a claim about the dynamics, not about the optimizer. Second, with weights
+choice of where is a claim about the dynamics; no tuning of the optimizer settles it. Second, with weights
 concentrated on large $k$ the objective is dominated by terms whose gradients pass through
 many applications of the network, which is where \eqref{eq:ch09-lipschitz} predicts the
-worst conditioning; uniform $\lambda_k$ is therefore the aggressive setting, not the neutral
-one. Third, pushforward trains on the union of a finite set of model trajectories, so the
+worst conditioning; uniform $\lambda_k$ is therefore the aggressive setting, and a decaying
+$\lambda_k$ the conservative one. Third, pushforward trains on the union of a finite
+set of model trajectories, so the
 input distribution it optimizes is narrower than the one it is drawn from, and the
 generalization the ensemble normalization of
 \chapref{ch:part2-the-practitioner-s-paradigm-infinite-dimen} was supposed to provide is

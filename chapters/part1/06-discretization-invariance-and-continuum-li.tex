@@ -166,9 +166,9 @@ natural language of finite volume discretization\index{cell average@cell-average
 and the more general sensor-functional viewpoint of DeepONet in
 \chapref{ch:part1-operator-approximation-theory-and-universa}. Second,
 \eqref{eq:limit_commute} is a limit statement with $\theta$ fixed. It asserts the
-existence of a continuum operator, not a rate, not uniformity over a class of
-inputs, and nothing whatsoever about the parameters a training procedure
-returns when it is run on a coarse grid. Those omissions are the subject of the
+existence of a continuum operator, not a rate. Uniformity over a class of
+inputs is a further demand, and the parameters a training procedure returns
+when it is run on a coarse grid are a separate question entirely. Those omissions are the subject of the
 last section of this chapter.
 
 \section{Quadrature Consistency and Integral Kernel Discretization}
@@ -420,8 +420,8 @@ followed by any further transform. The two discrete norms behind the
 identical $0.0141$ are Riemann sums of the same real-analytic error field on
 two grids, so their difference is an exponentially small quadrature error, far
 below the four decimals that were printed. Both reported numbers are
-therefore one number: a model error of order $1.4\%$, printed twice, and
-transcribed rather than measured for this book.
+therefore one number: a model error of order $1.4\%$, printed twice. The
+measurement belongs to the original run; this book only transcribes it.
 Nothing in the figure shows accuracy at resolutions the data never contained,
 and nothing in it shows an advantage over classical solvers for a linear problem
 that a single Fourier multiplier solves exactly. That a model \emph{can be

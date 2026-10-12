@@ -159,12 +159,12 @@ grid-independence of \eqref{eq:ch09-paramcount} takes in code.
 Listing~\ref{lst:ch23-spectral-conv2d} is the complete layer. Its constructor
 draws both arrays from a uniform distribution on $[0,1)$ scaled by
 $1/(C_{\text{in}}C_{\text{out}})$ --- a small initialization, and an unusual one
-in that its mean is positive rather than zero. Every entry of every retained
+in that its mean is positive. Every entry of every retained
 mode therefore starts with the same sign, and the expected sum over input
 channels at one output channel is
 $C_{\text{in}}/(2C_{\text{in}}C_{\text{out}}) = 1/(2C_{\text{out}})$: on a
-constant channel vector the spectral branch begins as a contraction rather than
-an amplification, and must learn its gain. In the forward pass, the line that
+constant channel vector the spectral branch begins as a contraction, and must
+learn its gain. In the forward pass, the line that
 allocates
 \texttt{out\_ft} as zeros is load-bearing twice over: it places the output
 tensor on the input's device with the correct dtype, and it makes every mode
@@ -511,8 +511,8 @@ $C_{\text{in}}C_{\text{out}}$ worth. How much any particular configuration saves
 is thus fixed by the rank chosen against the band and the channel widths entered
 in \eqref{eq:ch23-paramcount}, not by the factorization as such: the two counts
 can be subtracted by hand on any configuration, and the \texttt{rank=0.42} of
-Listing~\ref{lst:ch23-neuraloperator-workflow} is one illustration of the trade
-rather than a recommendation; the percentage annotated on that line describes
+Listing~\ref{lst:ch23-neuraloperator-workflow} is one illustration of the
+trade; the percentage annotated on that line describes
 that example alone and is not a compression factor this book reports. Compression is not free, however, and Part~I is explicit about
 the price: the ranks must genuinely be small for the count to fall, and whether
 the multiplier arrays a solution operator induces are low-rank is an empirical
@@ -550,19 +550,19 @@ coefficient-to-pressure map of \eqref{eq:darcy}, scalar input, scalar output,
 same grid in and out. What the library adds is the machinery a from-scratch file
 leaves implicit: the factorization keyword, device placement made explicit by a
 \texttt{.cuda()} call on the whole module, and a loss and an optimizer that
-arrive as separate objects. Two of those differences are substantive rather than
-cosmetic. The library's \texttt{LpLoss} takes an
+arrive as separate objects. Two of those differences bear on the computation.
+The library's \texttt{LpLoss} takes an
 explicit spatial-dimension argument \texttt{d=2}, because it forms a
 quadrature-weighted norm of the kind in \eqref{eq:rel_l2_loss} rather than a
 plain vector norm over flattened data; on an equispaced grid the weights cancel
 in the ratio and the two coincide, which is exactly why the from-scratch version
-of \chapref{ch:part2-the-practitioner-s-paradigm-infinite-dimen} is safe there,
-while a weighted implementation keeps its meaning when the quadrature is
-nonuniform or when the norm mixes terms of different differential order. And
-\texttt{AdamW} --- Adam with decoupled weight decay --- is imported from the
-library's own training module rather than from \texttt{torch.optim}, so that a
-question the from-scratch file never has to answer is settled by the library
-once rather than reopened by every user:
+of \chapref{ch:part2-the-practitioner-s-paradigm-infinite-dimen} is safe there.
+A weighted implementation keeps its meaning when the quadrature is nonuniform
+or when the norm mixes terms of different differential order. And
+\texttt{AdamW} --- Adam with decoupled weight decay --- is imported from the library's own training module, though \texttt{torch.optim}
+provides its own implementation, so that a question the from-scratch file never has
+to answer is settled
+once, for every user:
 what decay applied to the complex arrays of \eqref{eq:ch23-Rtensors} acts on,
 their magnitudes or their real and imaginary parts separately.
 \index{AdamW optimizer}

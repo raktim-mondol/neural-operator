@@ -272,8 +272,8 @@ nodes. Adding and subtracting terms gives
     + \underbrace{\big\|\mathcal{G}_{\theta^{\star}, N}(a) - \mathcal{G}_{\widehat{\theta}, N}(a)\big\|_{\mathcal{U}}}_{\text{statistical}} .
   \end{aligned}
 \end{equation}
-The decomposition \eqref{eq:ch01-error-split} is a triangle inequality, not a discovery; its
-value lies in which terms the architecture makes separately controllable, and authors draw
+The decomposition \eqref{eq:ch01-error-split} follows from the triangle inequality alone, so
+its value lies in which terms the architecture makes separately controllable; authors draw
 the cut differently. For DeepONet the natural split is sensor count, trunk basis dimension,
 and network error \cite{lanthaler2022error}; for spectral operators, mode truncation appears
 as its own term alongside discretization and statistical error

@@ -129,8 +129,9 @@ one-dimensional half-spectrum supplies only the single band this script stores, 
 \eqref{eq:ch23-paramcount} has no reading here.
 
 The differences from Part II's reference implementation are conventional, not
-substantive: the channel axis last rather than the channel-first layout
-\eqref{eq:ch21-grid-layout}; \texttt{einsum} rather than $1\times1$ convolutions;
+substantive: the channel axis last (the grid layout \eqref{eq:ch21-grid-layout} is
+channel-first); \texttt{einsum} for the pointwise maps, which Part II builds from
+$1\times1$ convolutions;
 $\tanh$ where Listing~\ref{lst:ch23-fno2d} uses the Gaussian error linear unit (GELU);
 one projection matrix rather than a two-layer network; no appended coordinate
 channels; and the complex product expanded by hand into real and imaginary parts and

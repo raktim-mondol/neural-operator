@@ -23,10 +23,10 @@ The \textbf{Fourier Neural Operator} (FNO)~\cite{li2021fourier} escapes the
 bottleneck by accepting a restriction rather than by inventing a faster dense
 product. It requires the kernel to be \emph{stationary},
 $\kappa(x,y)=\kappa(x-y)$, and the domain to be the periodic torus
-$\mathbb{T}^d$. Both are modeling assumptions, not free computational tricks:
-they declare the medium homogeneous and the boundary periodic, and they remove
+$\\mathbb{T}^d$. Both are modeling assumptions. They declare the medium
+homogeneous and the boundary periodic, and they remove
 the explicit input dependence that the generic kernel carries. The premise binds
-the kernel of each layer rather than the network as a whole --- the lifted
+the kernel of each layer; the network as a whole is freer --- the lifted
 channels and the local bypass can partially disguise a mild inhomogeneity, as
 the taxonomy of
 \chapref{ch:part1-comparative-theoretical-taxonomy-of-archit} argues --- but it
@@ -220,7 +220,7 @@ layer is
   \label{eq:fno_layer}
   v_{\ell+1}(x) = \sigma\left( W_\ell v_\ell(x) + \mathcal{F}^{-1}\Big( R_{\phi, \ell}(k) \cdot (\mathcal{F} v_\ell)(k) \Big)(x) + b_\ell(x) \right),
 \end{equation}
-and it is worth naming the four ingredients rather than listing them. Here
+and the four ingredients differ in how they act. Here
 $\mathcal{F}$ and $\mathcal{F}^{-1}$ are the continuous Fourier transform and
 its inverse on $\mathbb{T}^d$; $R_{\phi,\ell} : Z_{k_{\max}} \to
 \mathbb{C}^{d_v \times d_v}$ is the learned complex tensor acting on the

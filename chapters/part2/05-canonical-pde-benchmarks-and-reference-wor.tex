@@ -237,10 +237,10 @@ makes it the natural first experiment after Appendix~\ref{app:b}'s heat equation
 
 The number
 \chapref{ch:part1-open-theoretical-problems-and-mathematical} interrogates is the
-cited paper's, not a measurement made for this book. The source fixes the
+cited paper's own; the book never measured it. The source fixes the
 viscosity at $\nu = 0.1$ (Appendix A.3.1) and learns
-$u_{0} \mapsto u(\cdot, 1)$, the solution at time one---one output time, not a
-family of snapshots (Section 5.1). Its Table 3 lists relative $L^{2}$ errors
+$u_{0} \mapsto u(\cdot, 1)$, the solution at time one---one output time only
+(Section 5.1). Its Table 3 lists relative $L^{2}$ errors
 $0.0149$, $0.0158$, $0.0160$, $0.0146$, $0.0142$, $0.0139$ at evaluation
 resolutions $s = 256, 512, 1024, 2048, 4096, 8192$; two of the six exceed
 $1.5\%$, and no $128$-point Burgers grid appears anywhere in that paper: the
@@ -354,8 +354,7 @@ distance, not by capacity. DeepONet conditions on $100$ sensor values and a
 fixed-rank trunk basis, so its floor is set by the sensor and basis error of
 \eqref{eq:ch04-error-split} before any optimization question arises; the
 oscillation is consistent with that bottleneck, since once the representational
-floor is reached, stochastic updates move the validation error around it rather
-than down it. The FNO's global spectral branch removes the distance limitation,
+floor is reached, stochastic updates only move the validation error around it. The FNO's global spectral branch removes the distance limitation,
 and its plateau is the signature of a capacity or statistical limit rather than a
 divergence: the curve stops falling while remaining smooth, which is the behavior
 a training recipe should be judged against, not the behavior a training recipe

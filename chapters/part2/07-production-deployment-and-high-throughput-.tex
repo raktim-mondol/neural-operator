@@ -118,12 +118,12 @@ the archive as a constant fixed by the example input\index{shape specialization}
 The batch size is baked
 the same way, which is why an example traced at $B=1$ cannot serve the batched
 sweep that Section~\ref{sec:ch27-cost} argues for. Three remedies exist and they
-differ in what they cost: derive the sizes inside the graph so that shape
-computations become recorded operations rather than Python values; trace one
+differ in what they cost: derive the sizes inside the graph, so that the shape
+computations are themselves recorded operations; trace one
 archive per served resolution, which is cheap because the weights are shared and
 only the graph differs; or export through a graph description format such as ONNX
 (Open Neural Network Exchange), in which the served dimensions are declared
-dynamic on the way out rather than inferred on the way in. In each case the check in the
+dynamic on the way out and their values resolved by the input that arrives. In each case the check in the
 listing is what distinguishes a claim from a measurement.
 
 Two further caveats belong next to the shape check. First, a correct printed
@@ -272,14 +272,14 @@ teraflops per second, so the $1.2$ milliseconds reported for the Darcy row
 corresponds to a realized throughput of order $10^{11}$ operations per second
 against a per-field count of order $10^{8}$ --- well under one percent of peak.
 That is the signature of a call bounded by kernel launches, host-side argument
-handling, and memory traffic rather than by arithmetic: a forward pass of that
+handling, and memory traffic: a forward pass of that
 network issues a few tens of kernels, each with a launch and bookkeeping cost that
 does not care how large the batch is. Two of the four groups of \eqref{eq:ch27-cost} reach
 the device by different routes --- the pointwise convolutions through cuDNN (the
 CUDA Deep Neural Network library), with kernels chosen by the framework's dispatch,
 and the transforms through the platform's own FFT routine --- so a single $\eta$ in
-\eqref{eq:ch27-latency} should be read as an effective value for the whole call
-rather than as a property of any one operator\index{cuDNN (CUDA Deep Neural Network library)}.
+\eqref{eq:ch27-latency} is an effective value for the whole call, a property of
+the dispatched kernels as a set\index{cuDNN (CUDA Deep Neural Network library)}.
 The consequence is the batching rule\index{batching}. Since
 $T_{\mathrm{fixed}}$ is divided across $B$ fields in \eqref{eq:ch27-latency}, the
 per-field time falls almost proportionally until the arithmetic term overtakes it,
