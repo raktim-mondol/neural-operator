@@ -170,8 +170,8 @@ dimension-robust\index{Bayesian inverse problem}\index{Markov chain Monte Carlo 
 Two features of the chained case matter downstream. Consecutive queries are neighbors in
 parameter space, which lets a classical solver warm-start from the previous iterate; a stateless
 surrogate discards that advantage. And the deliverable is a measure, not a field: error in $\Phi$
-biases the posterior rather than degrading a picture, so accuracy is priced in the likelihood
-potential, not in the $L^{2}$ norm.
+biases the posterior, where the $L^{2}$ norm need not register it, so accuracy is priced in the
+likelihood potential.
 
 Shape optimization is the neighboring case, where the query count and the derivative count
 multiply. Iterative gradient-based design sweeps explore thousands of geometric perturbations to

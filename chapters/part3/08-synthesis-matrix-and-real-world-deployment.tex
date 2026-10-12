@@ -15,7 +15,7 @@ against a volume discretization of computational fluid dynamics (CFD) on a graph
 unit (GPU); the reservoir multiplier against an implicit finite difference simulator on a
 central processing unit (CPU); the atmospheric multiplier against the spectral-transform
 dynamics of the European Centre for Medium-Range Weather Forecasts (ECMWF) Integrated
-Forecasting System (IFS); and in the tomographic row the honest comparison is not a timing but
+Forecasting System (IFS); and in the tomographic row the comparison is not a timing but
 a reconstruction quality at fixed radiation dose.\index{speedup factor!provenance of} A
 synthesis records provenance before it records figures.
 Table~\ref{tab:synthesis_matrix} does that, and adds the column the inherited accounting
@@ -275,7 +275,7 @@ and the equation alone, with no label required, but its cost and its fidelity de
 able to differentiate the surrogate's output field---exactly on the uniform periodic grids
 of \chapref{ch:part2-fourier-neural-operators-fno-from-scratch}, approximately and at added
 expense on the surface stages of \chapref{ch:part3-external-aerodynamics-and-surface-flows}. Where the estimate is
-unavailable, the honest substitute is a schedule rather than a theorem: run the reference
+unavailable, the substitute is a schedule rather than a theorem: run the reference
 solver on a randomly selected fraction of queries. That returns the audit to
 \eqref{eq:ch38-crossover} as a term $Q_{\mathrm{audit}}\,c_{\mathrm{sim}}(N)$ and preserves
 the surrogate's advantage exactly while $Q_{\mathrm{audit}}\ll Q$. Certification by sampling
@@ -366,7 +366,7 @@ $B$ is finite, and finiteness for a relative metric requires $\|\mathcal{G}(a)\|
 to stay bounded away from zero---the qualification already attached to \eqref{eq:ch01-risk},
 which a field near rest, near zero saturation, or near isoelectric potential violates. The
 right-hand side belongs to the two measures and not to the network, so no further epochs on
-$\mu$ shrink it; widening $\mu$ does, which is the honest description of what an augmented
+$\mu$ shrink it; widening $\mu$ does, and that is all an augmented
 training ensemble buys. And $|\nu-\mu|(\mathcal{A})$ cannot be estimated from the training
 data, because that data came from $\mu$. Two responses are standard and neither is a fix in
 the sense a reviewer wants. A posterior over parameters---the Bayesian reading of a surrogate,

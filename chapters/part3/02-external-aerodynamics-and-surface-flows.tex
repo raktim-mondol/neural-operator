@@ -19,7 +19,7 @@ dynamics (CFD), and this chapter treats it as a competing implementation rather 
 man. \index{computational fluid dynamics (CFD)}
 That asymmetry --- an enormous machinery of approximation in service of a
 handful of scalars --- is what makes this the natural first application for the surrogate
-construction of Parts~I and~II, and it is also what makes the honest accounting awkward.
+construction of Parts~I and~II, and it is also what makes the accounting awkward.
 This chapter supplies both halves of the accounting.
 
 The reader should bring the incompressible Navier--Stokes equations read as a solution
@@ -353,7 +353,7 @@ break-even query count is
   \qquad
   \frac{C_{\text{train}}}{N_q} + C_{\text{eval}} \;\le\; C_{\text{solve}} \iff N_q \;\ge\; N_q^{*}.
 \end{equation}
-Equation \eqref{eq:ch32-break-even} is the honest form of the speedup claim: the
+Equation \eqref{eq:ch32-break-even} is the form the speedup claim has to take: the
 $2.6\times10^{4}$ factor is $C_{\text{solve}}/C_{\text{eval}}$, not the amortized ratio, and a
 benchmark on a handful of held-out shapes never reaches $N_q^{*}$; a shape optimization loop over
 thousands of variants
@@ -399,7 +399,7 @@ is precisely where a scalar eddy viscosity is most suspect --- the labels carry 
 \eqref{eq:ch27-budget} makes it irreducible by retraining on the same
 grid\index{turbulence model error!label ceiling}. A surrogate can be
 made cheap; it cannot be made more faithful to the physics than the model that generated its
-data, and the honest comparison is therefore against wind-tunnel measurement, which is what
+data, and the comparison is therefore against wind-tunnel measurement, which is what
 industry does and which no operator-learning result in this book addresses. The third is
 conservation: \eqref{eq:ch32-surrogate-map} never forms a flux balance, so the cell-by-cell
 identity that \cite{leveque2002finite} makes structural in the finite volume update has no
