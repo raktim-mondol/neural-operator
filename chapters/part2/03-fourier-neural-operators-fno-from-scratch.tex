@@ -79,8 +79,8 @@ and the learned array performs neither.
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.95\textwidth]{fig_fno_spectral_layer.jpg}
-\caption{\textbf{Architecture of the 2D Spectral Convolution Layer.} Input field $x$ splits into a local linear bypass $W x$ and a global spectral convolution $\mathcal{K} x$. The spectral branch computes the 2D real fast Fourier transform (FFT), slices the lowest $m_x \times m_y$ frequency modes, performs complex matrix multiplication via the learned parameter tensor $R_\phi$, zero-pads to the original grid shape, and reconstructs the physical representation via the inverse real FFT. Shapes at each stage are those of Listings~\ref{lst:ch23-spectral-conv2d} and~\ref{lst:ch23-fno2d}; the figure's legend denotes the retained mode counts by $k_x, k_y$, this book's text writes them $m_x, m_y$, and the code writes them \texttt{modes1}, \texttt{modes2}. The figure lists $R_\phi$ with the channel axes in the order $C_{\text{out}} \times C_{\text{in}}$; \eqref{eq:ch23-Rtensors} and the \texttt{einsum} subscript of Listing~\ref{lst:ch23-spectral-conv2d} fix the opposite order, and agree with each other.}
+\includegraphics[width=0.95\textwidth]{fig_fno_spectral_layer.png}
+\caption{\textbf{The 2D spectral convolution layer, as a block diagram.} The input $v$ with shape $(B, C_{\text{in}}, H, W)$ splits into a pointwise local bypass $Wv + b$ and a global spectral branch: the real-to-complex transform \texttt{rfft2}, retention of the modes $|k| \le k_{\max}$, multiplication by the learned complex tensor $R_\phi$ of \eqref{eq:ch23-Rtensors}, and the inverse \texttt{irfft2} back to the grid shape. The branches sum and pass through $\sigma$. Shapes at each stage are those of Listings~\ref{lst:ch23-spectral-conv2d} and~\ref{lst:ch23-fno2d}. Schematic; no quantity on the plate is measured.}
 \label{fig:fno_spectral}
 \end{figure}
 

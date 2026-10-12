@@ -1,0 +1,9 @@
+{
+  "name": "fig_ct_geometry",
+  "model": "gemini-3-pro-image",
+  "host": "chapters/part3/06-medical-imaging-and-tomographic-reconstruc.tex",
+  "content_class": "structural schematic; carries no measured value",
+  "prompt_sha256": "d47ccfcf2947576664af295f923c049516b03e087e68503db19388c662bcea39",
+  "bytes": 162262,
+  "generated_utc": "2026-10-12T23:38:22+00:00"
+}

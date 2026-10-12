@@ -1,0 +1,7 @@
+Minimal academic block diagram for a graduate monograph. Black strokes on white, thin rules, serif type matching Computer Modern, no shading, no gradients, no 3D extrusion, no icons, no decorative imagery, no drop shadows. Generous white margin. Spelling must be exact and every symbol must be typeset as mathematics. Render no text other than what is listed below.
+
+Three panels stacked vertically, each a small block diagram followed by one trailing line of text. Panel letters (a), (b), (c) at the left of each row.
+PANEL (a): boxes 'Fixed grid $\mathcal{M}_N$' then 'MLP or CNN' then 'output vector'. Trailing line: 'parameters attach to grid indices'.
+PANEL (b): two boxes side by side, 'Branch: $m$ sensors' above 'Trunk: $y \in \Omega$', both feeding a circle containing a dot labelled 'inner product', which points to 'output'. Trailing line: 'branch attaches to sensor slots, trunk to the query coordinate'.
+PANEL (c): boxes 'lift' then 'band-limited multiplier $R_{\phi}$' then 'project'. Trailing line: 'parameters attach to wavenumbers'.
+No numbers, no colorbar, no curves, no artwork.

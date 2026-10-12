@@ -207,8 +207,8 @@ the mesh is an input to two thin interfaces, never a constraint on the $\Theta(N
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.92\textwidth]{fig_gino_pipeline.jpg}
-\caption{\textbf{The Geometry-Informed Neural Operator (GINO) workflow.} An irregular surface mesh $\mathcal{M}_{\text{surf}}$ is projected onto a regular 3D latent bounding grid via a Point-to-Grid GNO layer. A fast 3D FNO processes latent features with $\mathcal{O}(N_{\text{lat}} \log N_{\text{lat}})$ spectral efficiency. Finally, a Grid-to-Point GNO decoder projects the processed latent state back to arbitrary surface evaluation coordinates.}
+\includegraphics[width=0.92\textwidth]{fig_gino_pipeline.png}
+\caption{\textbf{The Geometry-Informed Neural Operator (GINO) workflow, as a block diagram.} An irregular surface mesh $\mathcal{M}_{\text{surf}}$ is projected onto a regular latent bounding grid $\Omega_{\text{latent}}$ by the point-to-grid GNO encoder, processed there by a stack of 3D Fourier layers, and read back at arbitrary surface evaluation coordinates by the grid-to-point GNO decoder, returning the surface field $v_{\text{surf}}(x_j)$. The plate asserts structure only: the stages are the ones this section defines, and no cost, resolution, error or field value is drawn on it.}
 \label{fig:gino}
 \end{figure}
 

@@ -120,46 +120,19 @@ direction of integration leaves the structure along it unconstrained, and the
 ramp filter turns that unconstrained content into lines of discontinuity
 radiating from high-contrast objects. The result is the artifact the classical
 recipe is known for: intense streaks, high noise, and blurred organ boundaries.
-Figure~\ref{fig:vol3_ct} sets the three objects side by side on one illustrated
-abdominal case, and the conclusion it supports is narrow: the missing samples
-drawn in the left panel stand for the degrees of freedom that appear as streaks
-in the center and are suppressed in the right. Nothing in the three panels
-themselves bears on accuracy, which is the question of
-Section~\ref{sec:ch36-metrics}; the quantitative annotation printed under the
-right panel travels with the panel, and the caption disclaims it. Nor does the
-figure's own caption help: it describes a
-peak-signal-to-noise and structural-similarity sweep over $9$ to $144$
-projection views, a sweep the supplied panel does not contain.
+Figure~\ref{fig:vol3_ct} draws the geometry that produces this: sources and
+detectors at a set of angles around the object, and the gaps between them are the angles never
+measured. The conclusion it supports is structural and narrow. Each unmeasured direction is a
+degree of freedom the data never constrains, and the ramp filter is what turns that
+unconstrained content into the streaks the classical recipe is known for. Nothing on the plate
+bears on accuracy --- that is the question of Section~\ref{sec:ch36-metrics} --- and no
+reconstruction, phantom, Hounsfield value or error figure is drawn here or should be read off
+it.
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.92\textwidth]{fig_vol3_medical_ct.jpg}
-\caption{Sparse-view CT reconstruction of one axial abdominal slice at kidney
-level, drawn as a three-stage pipeline: acquisition, classical inversion, learned
-inversion. \emph{Left:} a sinogram $p(\theta,s)$
-with projection angle vertical and detector position --- labeled $r$ in the
-panel --- horizontal; the dark bands are unmeasured data. As drawn those bands
-run across the whole angular range at
-fixed detector position, the signature of gaps in the \emph{detector} direction
-rather than the removed angular rows a sparse-view protocol produces, so this
-panel is a schematic of the pipeline and not a measured acquisition.
-\emph{Center:} classical FBP \eqref{eq:ch36-fbp} of the same data --- radial
-streaks emanate from the contrast-filled aorta and the vertebral body, and the
-renal lesion magnified in box~A is replaced by streak texture. \emph{Right:} an
-operator-learning reconstruction of the identical sinogram --- the arrangement of
-Section~\ref{sec:ch36-operators}, not one named model --- with the same region
-magnified in box~B, where the lesion outline and its internal contrast reappear
-and the streaks are absent. The chapter's subject is this third panel, the
-learned inversion; the first two supply its data and its classical baseline,
-the objects \eqref{eq:ch36-radon} and \eqref{eq:ch36-fbp} formalize. The
-heading printed above that panel and the quality annotation printed below it are
-carried over from the supplied panel and are not adopted here: the heading names two
-specific reconstructors this book does not discuss, and the annotation reports
-two image-quality numbers for them. Neither is evidence this figure supplies,
-since the panel plots no curve and carries no error bar, so the figure is
-evidence about the \emph{character} of the artifact removed, not about accuracy,
-and the metrics such an annotation is written in are examined in
-Section~\ref{sec:ch36-metrics}.}
+\includegraphics[width=0.92\textwidth]{fig_ct_geometry.png}
+\caption{\textbf{Sparse-view acquisition geometry, as a schematic.} Sources and detectors sample a set of angles around the object, and the gaps between them are the angles never measured; a single ray is drawn from a source position through the object to the detector opposite it. The plate shows no phantom, no reconstruction, no Hounsfield value and no error figure. Quantitative claims about reconstruction belong to the text and its citations, not to this figure.}
 \label{fig:vol3_ct}
 \end{figure}
 

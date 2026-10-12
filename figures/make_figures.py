@@ -385,3 +385,82 @@ if __name__ == "__main__":
         p = os.path.join(HERE, f)
         print(f"wrote {f} ({os.path.getsize(p) // 1024} KB)")
     print("caption-number self-check passed; provenance in figure_manifest.json")
+
+
+def burgers_exact() -> None:
+    """Viscous Burgers traces from the Cole-Hopf transformation: COMPUTED exactly.
+
+    Solves u_t + u u_x = nu u_xx on [0,1) periodic with u0 = sin(2 pi x), nu = 0.01.
+    With phi_t = nu phi_xx and phi(x,0) = exp(cos(2 pi x) / (4 pi nu)), the
+    substitution u = -2 nu d/dx log phi gives u(x,0) = sin(2 pi x) exactly, which the
+    function asserts before drawing anything. No curve here is stylised.
+    """
+    nu, ts = 0.01, (0.0, 0.5, 1.0)
+
+    def solve(n: int, t: float) -> np.ndarray:
+        x = np.arange(n) / n
+        k = np.fft.rfftfreq(n, d=1.0 / n)  # integer mode numbers on [0,1)
+        phi0 = np.exp(np.cos(2 * np.pi * x) / (4 * np.pi * nu))
+        phi = np.fft.irfft(np.fft.rfft(phi0) * np.exp(-nu * (2 * np.pi * k) ** 2 * t), n)
+        ux = np.fft.irfft(1j * 2 * np.pi * k * np.fft.rfft(phi), n)
+        return -2.0 * nu * ux / phi
+
+    u0 = solve(4096, 0.0)
+    ic_err = float(np.max(np.abs(u0 - np.sin(2 * np.pi * np.arange(4096) / 4096))))
+    assert ic_err < 1e-5, f"Cole-Hopf initial condition wrong: {ic_err:.2e}"
+
+    # Independent validation: the drawn field must satisfy the PDE itself.
+    def derivs(n: int, t: float):
+        x = np.arange(n) / n
+        kk = np.fft.rfftfreq(n, d=1.0 / n)
+        phi0 = np.exp(np.cos(2 * np.pi * x) / (4 * np.pi * nu))
+        ph = np.fft.irfft(np.fft.rfft(phi0) * np.exp(-nu * (2 * np.pi * kk) ** 2 * t), n)
+        phx = np.fft.irfft(1j * 2 * np.pi * kk * np.fft.rfft(ph), n)
+        u = -2.0 * nu * phx / ph
+        ux = np.fft.irfft(1j * 2 * np.pi * kk * np.fft.rfft(u), n)
+        uxx = np.fft.irfft(-(2 * np.pi * kk) ** 2 * np.fft.rfft(u), n)
+        return u, ux, uxx
+
+    h = 1e-4
+    up, ux1, uxx1 = derivs(4096, 0.5 + h)
+    um, _, _ = derivs(4096, 0.5 - h)
+    u0c, ux0, uxx0 = derivs(4096, 0.5)
+    ut = (up - um) / (2 * h)
+    res = float(np.max(np.abs(ut + u0c * ux0 - nu * uxx0)))
+    scale = float(np.max(np.abs(nu * uxx0)))
+    # Tolerance reflects aliasing of the quadratic term on a resolved grid, not the
+    # construction: Cole-Hopf itself is exact. Value is recorded in the manifest.
+    assert res / scale < 1e-4, f"PDE residual too large: {res / scale:.2e}"
+    MANIFEST["burgers_pde_residual"] = res / scale
+
+    fig, ax = plt.subplots(figsize=(5.6, 3.4))
+    x = np.arange(2048) / 2048
+    for t, col in zip(ts, (PRIMARY, ACCENT, SECONDARY)):
+        u = solve(2048, t)
+        ax.plot(x, u, lw=1.6, color=col, label=f"$t = {t:g}$")
+
+    # grid independence: the two finest grids must agree to printed precision
+    d = float(np.max(np.abs(solve(4096, 1.0)[::2] - solve(2048, 1.0))))
+    assert d < 1e-10, f"not grid independent: {d:.2e}"
+    m05 = float(np.max(solve(4096, 0.5)))
+    m10 = float(np.max(solve(4096, 1.0)))
+    MANIFEST["burgers_max_t05"] = m05
+    MANIFEST["burgers_max_t10"] = m10
+    MANIFEST["burgers_grid_delta"] = d
+    ax.axhline(1.0, color="0.6", lw=0.8, ls=":")
+    ax.text(0.02, 1.03, r"maximum principle $\|u_0\|_\infty = 1$", fontsize=7, color="0.4")
+    ax.set_xlabel(r"$x$")
+    ax.set_ylabel("$u(x,t)$")
+    ax.set_title("Viscous Burgers decay, computed by Cole-Hopf", fontsize=9)
+    ax.legend(fontsize=7, frameon=False)
+    ax.set_xlim(0, 1)
+    fig.tight_layout()
+    fig.savefig(os.path.join(HERE, "fig_burgers_exact.pdf"), bbox_inches="tight")
+    if "--png" in sys.argv:
+        fig.savefig(os.path.join(HERE, "fig_burgers_exact.png"), dpi=200, bbox_inches="tight")
+    plt.close(fig)
+    print(f"burgers: ic_err {ic_err:.2e}, PDE residual {res / scale:.2e}, grid delta {d:.2e}, max t=0.5 {m05:.4f}, max t=1.0 {m10:.4f}")
+
+
+if __name__ == "__main__" and "--burgers" in sys.argv:
+    burgers_exact()

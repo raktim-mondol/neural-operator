@@ -106,8 +106,8 @@ Figure~\ref{fig:architectures} collects the three designs discussed here togethe
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.82\textwidth]{fig_architectures.jpg}
-\caption{\textbf{Three architectural families in deep learning and operator approximation.} (a) Classical convolutional and multilayer perceptron architectures map finite-dimensional vectors on a fixed discretization $\mathcal{M}_N$, coupling parameters to grid size. (b) DeepONet evaluates input functions at $m$ discrete sensors via a branch network and queries arbitrary continuous coordinates $y \in \Omega$ via a trunk network, fusing them via an inner product. (c) The Fourier Neural Operator lifts continuous inputs to hidden representations, processes them through alternating local transformations and global spectral integral kernel convolutions in frequency space, and projects back to physical coordinates with genuine discretization invariance.}
+\includegraphics[width=0.82\textwidth]{fig_architectures.png}
+\caption{\textbf{Three architectural families, as block diagrams.} (a) A multilayer perceptron or convolutional network consumes a vector of samples on a fixed mesh $\mathcal{M}_{N}$, so its parameters attach to grid indices. (b) DeepONet separates the two roles that \eqref{eq:chen_chen_form} couples: a branch bound to $m$ input sensors, a trunk accepting any continuous $y\in\Omega$, fused by the inner product of \eqref{eq:ch04-deeponet}. (c) The Fourier neural operator \cite{li2021fourier} keeps the lift-and-project sandwich of \eqref{eq:no_composition} but replaces the dense kernel of \eqref{eq:fredholm_kernel} with a spectral convolution, so its parameters attach to wavenumbers. Read in that order the panels isolate one axis of difference: what the parameters are functions of. The plate is a schematic rendering of the constructions defined in this chapter and carries no measured value.}
 \label{fig:architectures}
 \end{figure}
 

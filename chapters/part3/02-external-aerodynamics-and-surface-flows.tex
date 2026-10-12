@@ -222,32 +222,29 @@ $7.12\%$ against $9.42\%$ for a plain three-dimensional FNO, with the latent gri
 $64^{3}$ for the grid-based models. The errors are in the metric of \eqref{eq:rel_l2_loss}.
 \end{case_study}
 
-Figure~\ref{fig:vol3_aero} shows the kind of object \eqref{eq:ch32-surrogate-map} returns.
-Panel~(a) --- this chapter's subject --- renders a car body as its triangulated surface colored
-by predicted static pressure, with external streamlines threading over the hood and roof and a
-tangled bundle of them detaching behind the base. Panel~(b) is the atmosphere on the sphere, and
+Figure~\ref{fig:vol3_aero} states the problem whose output \eqref{eq:ch32-surrogate-map}
+returns, and the fixed-grid counterpart it is contrasted with. Panel~(a) --- this chapter's
+subject --- is the exterior domain with its inflow and outlet boundaries, the body surface, and
+the base behind which the flow detaches. Panel~(b) is the atmosphere on the sphere, and
 belongs to \chapref{ch:part3-global-weather-forecasting-and-climate-dyn}. The two are printed as
 one figure because they mark the two ends of the design space this part occupies: the same
 spectral machinery, needing a graph interface at each end on the lattice-free surface of
-panel~(a) and none on the fixed sphere of panel~(b). The reading
-panel~(a) should leave is qualitative but load-bearing. High pressure (red,
-near the upper end of the $0$--$1000\ \mathrm{Pa}$ bar) sits at the front stagnation region on
-the bumper and hood; the lowest pressures (violet, near the windshield base and the rear side
-window) sit where the flow accelerates over curved surfaces, consistent with the pressure term
-of \eqref{eq:ch32-force-coeff} being dominated by the front-to-base difference; and the
-detached, coiled streamlines behind the car mark the wake, the region whose mean pressure sets
-the drag and whose RANS prediction is least reliable. Two cautions belong with the figure. The
-two color bars under panel~(a) are not mutually consistent --- a pressure span of order $10^{3}\ \mathrm{Pa}$ is
-what a freestream near $40\ \mathrm{m\,s^{-1}}$ would generate through the dynamic pressure
-$\tfrac{1}{2}\rho U_\infty^{2}$ in air at standard density, whereas the velocity bar saturates at
-$2\ \mathrm{m\,s^{-1}}$ --- and panel~(a) is a rendering
-of the output type, not a quantitative solver comparison. Nothing in the argument below rests
+panel~(a) and none on the fixed sphere of panel~(b). What the setup makes
+visible is the physics the benchmark scores. The pressure term of \eqref{eq:ch32-force-coeff}
+is dominated by the front-to-base difference, because the high pressure at the windward face is
+not recovered in the separated region behind the base; the wake therefore sets the drag and is
+also where a RANS prediction is least reliable. A span of order $10^{3}\ \mathrm{Pa}$ is what a
+freestream near $40\ \mathrm{m\,s^{-1}}$ generates through the dynamic pressure
+$\tfrac{1}{2}\rho U_\infty^{2}$ in air at standard density, and that is the scale on which a
+surface-pressure field on this body should be read. The plate itself carries no field: it is a
+schematic of the geometry and the boundary regions, and the quantitative content of this chapter
+is the reported errors in the case study above, not anything drawn here. Nothing in the argument below rests
 on it.
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.95\textwidth]{fig_vol3_aerodynamics.jpg}
-\caption{\textbf{Two-panel figure: surface pressure on a vehicle body (panel (a)) and global atmospheric structure (panel (b)).} Panel~(a), the subject of this chapter, renders the car body as its triangulated surface and colors it by predicted static pressure in pascals (color bar, $0$--$1000\ \mathrm{Pa}$); the external streamlines are colored by flow speed in meters per second (color bar, $0$--$2\ \mathrm{m\,s^{-1}}$), with the body axes at lower left. High pressure concentrates over the front bumper and hood, low pressure over the windshield and rear side window, and the flow detaches into a wake behind the base --- the front-to-base pressure difference that carries most of the drag on a bluff body. Panel~(b), the subject of \chapref{ch:part3-global-weather-forecasting-and-climate-dyn}, is a near-side view of the Earth with wind speed as shading and vorticity as contours, the fixed-sphere counterpart of the irregular geometry in panel~(a); it is cited from \chapref{ch:part3-global-weather-forecasting-and-climate-dyn} for that reading. Panel~(a) is an illustrative rendering of the output of a geometry-informed surface surrogate (GINO) of the type built in \chapref{ch:part2-graph-neural-operators-gno-and-irregular-g} and evaluated in Case Study~\ref{case:ch32-ahmed}; the two color bars beneath it are not mutually consistent and it is not a solver result.}
+\includegraphics[width=0.95\textwidth]{fig_aero_setup.png}
+\caption{\textbf{The exterior problem, and the fixed-grid counterpart it is contrasted with.} Panel~(a): the domain with its inflow and outlet boundaries, the body surface, and the base region behind which the flow separates, with the surrogate map $a \mapsto (p, \tau_w)$ stated on the body --- shape and operating condition in, pressure and wall shear out. Panel~(b): the sphere of fixed radius that \chapref{ch:part3-global-weather-forecasting-and-climate-dyn} holds in place of an irregular body. Neither panel shows a computed field: there is no color scale, no pressure or velocity value, no streamline and no axis tick. The construction that would produce such a field is GINO's, built in \chapref{ch:part2-graph-neural-operators-gno-and-irregular-g} and evaluated in Case Study~\ref{case:ch32-ahmed}, whose reported errors are in that case study and not on this plate.}
 \label{fig:vol3_aero}
 \end{figure}
 

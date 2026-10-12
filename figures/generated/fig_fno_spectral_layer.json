@@ -1,0 +1,9 @@
+{
+  "name": "fig_fno_spectral_layer",
+  "model": "gemini-3-pro-image",
+  "host": "chapters/part2/03-fourier-neural-operators-fno-from-scratch.tex",
+  "content_class": "structural schematic; carries no measured value",
+  "prompt_sha256": "4105172a46165bc251bfa7181c775c21d81be35ed28db9f3a471c9487307c158",
+  "bytes": 100739,
+  "generated_utc": "2026-10-12T23:41:21+00:00"
+}

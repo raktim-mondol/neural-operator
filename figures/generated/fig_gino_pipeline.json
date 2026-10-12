@@ -1,0 +1,9 @@
+{
+  "name": "fig_gino_pipeline",
+  "model": "gemini-3-pro-image",
+  "host": "chapters/part2/04-graph-neural-operators-gno-and-irregular-g.tex",
+  "content_class": "structural schematic; carries no measured value",
+  "prompt_sha256": "7a50af5ae416162158d5aecc7bf7fabd83efe7b922c983ef07e4c385273121c3",
+  "bytes": 165093,
+  "generated_utc": "2026-10-12T23:37:07+00:00"
+}

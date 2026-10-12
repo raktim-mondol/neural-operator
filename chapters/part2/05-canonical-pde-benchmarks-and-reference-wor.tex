@@ -44,17 +44,17 @@ which the three benchmarks differ; the remaining three give each problem its
 specification, its tensor shapes, its failure behavior, and its measured accuracy
 where accuracy has been measured. The material is assembled with
 Appendix~\ref{app:c} in view, whose benchmark sheets are meant to be transcribed
-from here. Figure~\ref{fig:benchmarks} carries the only empirical content in the
-chapter: panel~(a) the Burgers target family the first benchmark must reproduce,
-panel~(b) the measured Darcy validation curves; everything else here is arithmetic,
-and is to be read as such.
+from here. Figure~\ref{fig:benchmarks} carries the chapter's one computed plot: the
+Burgers target family the first benchmark must reproduce, obtained from the exact
+Cole-Hopf solution rather than from a run. Everything else here is arithmetic or a
+citation, and is to be read as such. No Darcy accuracy curve is presented, because
+no such curve was measured for this book; the Darcy figures that appear below are
+stated values, and Appendix~\ref{app:c} records them as such.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.80\textwidth]{fig_benchmarks_workflow.jpg}
-\caption{\textbf{Canonical benchmark PDEs and training dynamics.} (a) Solution profile of the 1D viscous Burgers' equation at initial ($t=0$), intermediate ($t=0.5$), and shock formation ($t=1.0$) stages, at viscosity $\nu = 0.01$ on the periodic interval $[0,1)$; the $t=0$ trace is consistent with $u_0(x) = \sin(2\pi x)$, and the panel depicts the target family the operator must reproduce, not a predicted field. (b) Validation convergence on 2D Darcy flow: relative $L^2$ error on a logarithmic vertical axis against training epoch, for DeepONet with $m=100$ sensors, a standard U-Net, and the Fourier neural
-operator (FNO-2D) of
-\chapref{ch:part2-fourier-neural-operators-fno-from-scratch}. The FNO-2D trace reaches the lowest floor and flattens; the U-Net trace falls smoothly but ends higher; the DeepONet trace ends highest and is markedly noisier.}
+\includegraphics[width=0.80\textwidth]{fig_burgers_exact.pdf}
+\caption{\textbf{The Burgers target family, computed exactly.} Viscous Burgers' equation $u_t + u u_x = \nu u_{xx}$ on $[0,1)$ periodic with $\nu = 0.01$ and $u_0(x) = \sin(2\pi x)$, solved by the Cole-Hopf substitution $u = -2\nu\,\partial_x \log \phi$ with $\phi_t = \nu \phi_{xx}$ and $\phi(x,0) = \exp[\cos(2\pi x)/(4\pi\nu)]$. Every trace is computed from the exact solution: the peak falls from $1$ at $t = 0$ to $0.6207$ at $t = 0.5$ and $0.3312$ at $t = 1$, and the profile stays under the maximum-principle bound $\|u_0\|_{\infty} = 1$, drawn as the dotted line. The steepening front near $x \approx 0.5$ is the feature the benchmark scores. Produced by \texttt{figures/make\_figures.py}, which asserts the initial condition, a relative PDE residual and grid independence before writing the file.}
 \label{fig:benchmarks}
 \end{figure}
 

@@ -1,0 +1,9 @@
+Minimal academic block diagram for a graduate monograph. Black strokes on white, thin rules, serif type matching Computer Modern, no shading, no gradients, no 3D extrusion, no icons, no decorative imagery, no drop shadows. Generous white margin. Spelling must be exact and every symbol must be typeset as mathematics. Render no text other than what is listed below.
+
+Five boxes in a row joined by rightward arrows, with a label above each box and one line of mathematics beneath it.
+  1. label 'Irregular surface mesh'   math $\mathcal{M}_{\mathrm{surf}}$
+  2. label 'Point-to-grid GNO encoder'  math 'surface to latent grid'
+  3. label 'Latent 3D Fourier layers'   math $\Omega_{\mathrm{latent}}$
+  4. label 'Grid-to-point GNO decoder'  math 'latent grid to surface'
+  5. label 'Surface field at query points'  math $v_{\mathrm{surf}}(x_j)$
+Box 3 is drawn slightly taller than the others. No numbers, no colorbar, no car, no mesh artwork, no field rendering, no curves.

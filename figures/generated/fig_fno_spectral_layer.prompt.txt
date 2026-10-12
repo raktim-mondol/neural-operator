@@ -1,0 +1,9 @@
+Minimal academic block diagram for a graduate monograph. Black strokes on white, thin rules, serif type matching Computer Modern, no shading, no gradients, no 3D extrusion, no icons, no decorative imagery, no drop shadows. Generous white margin. Spelling must be exact and every symbol must be typeset as mathematics. Render no text other than what is listed below.
+
+A single-row pipeline with a bypass wire. The leftmost element is the text $v$ with shape $(B, C_{\mathrm{in}}, H, W)$ written beneath it, and a single horizontal arrow leaves $v$ to the right. Draw no other arrow touching $v$ and nothing above it. The input splits: one branch goes down and around the whole row as a bypass wire labelled $W v + b$ (pointwise), rejoining at the final summing node; the other branch passes left to right through four boxes joined by rightward arrows:
+  1. rfft2
+  2. keep $|k| \le k_{\max}$
+  3. multiply by $R_{\phi}$
+  4. irfft2
+After box 4 the two branches meet at a circle containing a plus sign, and the output arrow to the right is labelled $\sigma$
+No numbers, no colorbar, no axes, no curves.
