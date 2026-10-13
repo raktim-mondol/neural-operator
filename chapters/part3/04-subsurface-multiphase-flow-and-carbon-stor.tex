@@ -71,8 +71,8 @@ gives
 subject to saturation completeness $S_w + S_g = 1$ and capillary pressure
 relation $p_c(S_g) = p_g - p_w$. Here $\mathbf{K}(x)$ is the spatially
 heterogeneous permeability tensor, $\phi(x)$ is porosity, $S_g$ is
-$\mathrm{CO}_2$ saturation --- written $S_{\mathrm{CO}_2}$ in panel~(a) of
-Figure~\ref{fig:vol3_sub} and in the reservoir-engineering literature --- and
+$\mathrm{CO}_2$ saturation --- written $S_{\mathrm{CO}_2}$ in the
+reservoir-engineering literature --- and
 $k_{r\alpha}$ are relative permeabilities modeled via the van
 Genuchten~\cite{vanguchten1980closed} or Brooks--Corey curves, with $q_\alpha$ a source or sink term concentrated at the
 well perforations.
@@ -108,7 +108,8 @@ second term on the right is buoyancy: because $\bar{\rho} > \rho_g$ and
 $\mathbf{g}$ points downward, the corresponding correction to the gas flux,
 $-\lambda_g[\bar{\rho}-\rho_g]\mathbf{K}\mathbf{g}$, points upward and drives gas
 along whatever permeability pathways are open to it, which is the mechanism behind
-the gravity override visible in panel~(a) of Figure~\ref{fig:vol3_sub}. Everything
+gravity override that lenses the plume against the caprock in
+Figure~\ref{fig:vol3_sub}. Everything
 difficult about \eqref{eq:ch34-satlaw} sits in the fractional flow \eqref{eq:ch34-mobility},
 which is a strongly nonlinear function of saturation rising from $0$ at the
 irreducible gas saturation to $1$ as the water phase becomes discontinuous and
@@ -216,20 +217,17 @@ its better distribution of gradient signal.
 \index{active-cell masking}
 \index{derivative-weighted loss}
 
-Panel~(a) of Figure~\ref{fig:vol3_sub} renders the physical setting these numbers
-describe, and its conclusion is geometric rather than quantitative. On a section 4~km wide and
-600~m deep, the plume does not spread as a radial ring: it rises off the well tip,
-is arrested beneath the lower-permeability layer that caps the reservoir, and then
-spreads laterally along the dipping bed downdip to the right, the outermost 30-year
-contour reaching a distance coordinate of about 3.5~km, some
-1.9~km beyond the well, while the near-well core stays saturated close to
-$S_{\mathrm{CO}_2} = 1$. The features that decide containment --- the caprock, the
-fault cutting the left flank of the plume, the wellbore itself --- are precisely
-the ones a surrogate could smear across a few grid cells and still score well on an
-interior field average, and the outermost contour, not the plume interior, is what
-a monitoring question is about. That outermost contour is also the least well
-resolved object in the field, which is the tension this architecture is designed
-against.
+Figure~\ref{fig:vol3_sub} draws the physical setting these numbers describe, and it does so
+schematically: the plate fixes which surfaces matter, not how far the plume travels. What
+buoyancy then does with those surfaces is the mechanism written into the flux law above. The
+gravity term drives gas upward along whatever permeability pathways are open to it, so the
+plume does not spread as a radial ring: it rises off the well tip, is arrested beneath the
+lower-permeability layer that caps the reservoir, and then spreads laterally beneath it. The
+features that decide containment --- the caprock, the fault, the wellbore itself --- are
+precisely the ones a surrogate could smear across a few grid cells and still score well on an
+interior field average, and it is the far edge of the plume, not its interior, that a
+monitoring question is about. That edge is also the least well resolved object in the field,
+which is the tension this architecture is designed against.
 
 \begin{figure}[t]
 \centering

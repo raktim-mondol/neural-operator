@@ -39,7 +39,10 @@ Neural_Operator_Book.tex   main file (preamble, parts, back matter)
 frontmatter/               preface, notation master table
 chapters/part1|2|3/        the 24 numbered chapters
 backmatter/                appendices A-E, glossary
-figures/                   images + make_figures.py (the two computed data plots)
+figures/                   every plate, with a generator; see below
+  make_figures.py            COMPUTED plots: exact-solution curves, one per figure
+  make_diagrams.py           STRUCTURAL plates: committed prompts + gemini-3-pro-image
+  generated/                 those plates, each with <name>.prompt.txt and <name>.json
 references.bib             bibliography (all entries resolved to published records)
 ```
 

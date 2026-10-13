@@ -179,13 +179,59 @@ def call(prompt: str) -> bytes:
     raise RuntimeError("no image part returned")
 
 
+def refit(src: bytes, name: str) -> tuple[bytes, tuple[int, int]]:
+    r"""Trim the model's dead white margin and re-encode as true PNG.
+
+    Two reasons. The API returns JPEG in a payload we name .png, and a file whose
+    extension lies about its codec is a latent build failure. And every plate comes
+    back 1408x768 whatever its content, so a five-box row or a stacked three-panel
+    figure is mostly whitespace: at print width that wastes the resolution budget
+    and shrinks the labels. Cropping to the ink restores each plate's real aspect
+    and lets \includegraphics scale it at full width.
+    """
+    from io import BytesIO
+    from PIL import Image, ImageChops
+
+    im = Image.open(BytesIO(src)).convert("RGB")
+    bg = Image.new("RGB", im.size, (255, 255, 255))
+    diff = ImageChops.difference(im, bg).convert("L")
+    bbox = diff.point(lambda v: 255 if v > 12 else 0).getbbox()
+    if bbox:
+        pad = 14
+        l = max(0, bbox[0] - pad)
+        u = max(0, bbox[1] - pad)
+        r = min(im.width, bbox[2] + pad)
+        d = min(im.height, bbox[3] + pad)
+        im = im.crop((l, u, r, d))
+    out = BytesIO()
+    im.save(out, format="PNG", optimize=True)
+    return out.getvalue(), im.size
+
+
 def main() -> int:
-    wanted = sys.argv[1:] or list(PROMPTS)
+    if "--refit-only" in sys.argv:  # reprocess committed files, no API call
+        from io import BytesIO
+        from PIL import Image
+        for name in PROMPTS:
+            j = OUT / f"{name}.jpg"
+            f = OUT / f"{name}.png"
+            src = j if j.exists() else f
+            if not src.exists():
+                continue
+            blob, size = refit(src.read_bytes(), name)
+            f.write_bytes(blob)
+            meta = json.loads((OUT / f"{name}.json").read_text())
+            meta["bytes"], meta["pixels"] = len(blob), list(size)
+            (OUT / f"{name}.json").write_text(json.dumps(meta, indent=2) + "\n")
+            print(f"refit {name}.png {size[0]}x{size[1]} {len(blob)} bytes")
+        return 0
+
+    wanted = [a for a in (sys.argv[1:] or list(PROMPTS)) if not a.startswith("--")]
     OUT.mkdir(exist_ok=True)
     for name in wanted:
         spec = PROMPTS[name]
         prompt = f"{STYLE}\n\n{spec['text']}"
-        blob = call(prompt)
+        blob, size = refit(call(prompt), name)
         (OUT / f"{name}.png").write_bytes(blob)
         (OUT / f"{name}.prompt.txt").write_text(prompt + "\n")
         meta = {
@@ -195,6 +241,8 @@ def main() -> int:
             "content_class": "structural schematic; carries no measured value",
             "prompt_sha256": hashlib.sha256(prompt.encode()).hexdigest(),
             "bytes": len(blob),
+            "pixels": list(size),
+            "codec": "PNG (re-encoded from the model's JPEG; see refit)",
             "generated_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         }
         (OUT / f"{name}.json").write_text(json.dumps(meta, indent=2) + "\n")

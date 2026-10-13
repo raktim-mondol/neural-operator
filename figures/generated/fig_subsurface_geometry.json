@@ -4,6 +4,10 @@
   "host": "chapters/part3/04-subsurface-multiphase-flow-and-carbon-stor.tex",
   "content_class": "structural schematic; carries no measured value",
   "prompt_sha256": "1f2de7343f4932fce8eb25d325196f52a098de61b28db080dd9f500b50b0ebe5",
-  "bytes": 143078,
-  "generated_utc": "2026-10-12T23:38:03+00:00"
+  "bytes": 119281,
+  "generated_utc": "2026-10-12T23:38:03+00:00",
+  "pixels": [
+    1407,
+    768
+  ]
 }
