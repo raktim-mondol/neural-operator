@@ -4,7 +4,9 @@
 %
 %  A monograph in three parts: Part I, Chapters 1--9; Part II,
 %  Chapters 10--16; Part III, Chapters 17--24.
-%  Build: latexmk -pdf Neural_Operator_Book.tex
+%  Build: latexmk -pdf cover.tex  (in covers/, writes covers/cover.pdf)
+%         latexmk -pdf Neural_Operator_Book.tex
+%  The covers are included with \includepdf, so cover.pdf must exist first.
 % =====================================================================
 \documentclass[11pt,a4paper,twoside,openright]{book}
 
@@ -23,6 +25,7 @@
 
 % ------------------------------------------------------------ graphics
 \usepackage{graphicx}
+\usepackage{pdfpages}   % ships covers/cover.pdf as the front and back covers
 \usepackage{booktabs,tabularx}
 \usepackage{xltabular}  % breakable tabularx: the master notation table spans two pages
 
@@ -258,6 +261,13 @@
 \sloppy
 
 % =====================================================================
+% Front cover: the artwork in covers/art/, with all type set by
+% covers/cover.tex. The inside of the cover is left blank, as in print.
+% =====================================================================
+\includepdf[pages=1,pagecommand=\thispagestyle{empty}]{covers/cover.pdf}
+\cleardoublepage
+
+% =====================================================================
 \frontmatter
 % =====================================================================
 \begin{titlepage}
@@ -265,11 +275,7 @@
 {\color{primary}\hrule height 2pt}\par\vspace{2.2em}
 {\Huge\bfseries\color{primary} The Infinite-Dimensional Learner}\par\vspace{0.9em}
 {\Large\bfseries\color{secondary} Neural Operators: From Function Spaces\\[0.25em]
-to Scientific Machine Learning}\par\vspace{2.6em}
-{\large In Three Parts:\\[0.3em]
-\textit{Mathematical Foundations}\\[0.2em]
-\textit{Architectures and Implementation}\\[0.2em]
-\textit{Applications in Science and Engineering}}\par
+to Scientific Machine Learning}\par
 \vfill
 {\large Written by AI,\\[0.25em]
  prompted, edited and reviewed by Dr Raktim Mondol}\par\vspace{0.6em}
@@ -277,6 +283,9 @@ to Scientific Machine Learning}\par\vspace{2.6em}
 {\color{primary}\hrule height 2pt}
 \end{titlepage}
 
+% The verso of the title page carries no marks, so the running head would be an
+% empty rule across the top of the page. Plain keeps the folio and drops it.
+\thispagestyle{plain}
 \begin{center}
 \vspace*{\fill}
 \begin{minipage}{0.86\textwidth}
@@ -290,9 +299,13 @@ identifiers.
 \vspace*{\fill}
 \end{center}
 
+% Names go here if you want them: the wording reads correctly with one dropped
+% onto the first line ("For X, who made me finish the argument").
 \begin{center}
 \vspace*{0.45\textheight}
-\textit{For the people who taught me to read a proof\\and the ones who taught me to ship code.}
+\textit{For the teachers who made me finish the argument,\\
+and the colleagues who made me run it before I shipped it.\\[0.9em]
+The mistakes that got past all of us are mine.}
 \end{center}
 \cleardoublepage
 
@@ -380,5 +393,12 @@ Approximation, and Spectral Theory}
 \phantomsection
 \addcontentsline{toc}{chapter}{Index}
 \printindex
+
+% =====================================================================
+% Back cover, facing the front cover across the binding. Carries no ISBN,
+% no ISSN, no DOI and no barcode.
+% =====================================================================
+\clearpage
+\includepdf[pages=2,pagecommand=\thispagestyle{empty}]{covers/cover.pdf}
 
 \end{document}

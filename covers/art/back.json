@@ -1,0 +1,18 @@
+{
+  "name": "back cover artwork",
+  "model": "gemini-3-pro-image",
+  "requested_aspect": "2:3",
+  "pixels": [
+    848,
+    1264
+  ],
+  "content_policy": "no text of any kind; all cover typography is set by covers/cover.tex so the model cannot garble a title or invent an identifier",
+  "prompt_sha256": "7ff3a72a199249e8bd0f08870c1410743be589789db31f3e939731b20e74e4b2",
+  "bytes": 1152533,
+  "generated_utc": "2026-10-13T03:37:59+00:00",
+  "a4_pixels": [
+    848,
+    1199
+  ],
+  "a4_crop": "top"
+}
