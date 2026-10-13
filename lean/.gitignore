@@ -1,0 +1,3 @@
+# Lean build artifacts and dependency cache (multi-GB; reproducible via lake exe cache get)
+lean/BookProofs/.lake/
+lean/**/lake-packages/
