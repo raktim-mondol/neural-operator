@@ -1,0 +1,12 @@
+epoch  50  val rel-L2 0.0317
+epoch 100  val rel-L2 0.0251
+epoch 150  val rel-L2 0.0220
+epoch 200  val rel-L2 0.0202
+epoch 250  val rel-L2 0.0187
+epoch 300  val rel-L2 0.0175
+epoch 350  val rel-L2 0.0167
+epoch 400  val rel-L2 0.0159
+
+[64-pt grid]   held-out rel-L2 error: 0.0141
+[256-pt grid]  held-out rel-L2 error (no retraining): 0.0141
+saved fno_results.npz

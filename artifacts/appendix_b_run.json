@@ -1,0 +1,19 @@
+{
+  "artifact": "Appendix B worked-example FNO, re-executed on this machine for this book",
+  "script": "FNO Worked Example (PyTorch).py, 166 lines, byte-identical to the listings printed in Appendix B",
+  "command": "python 'FNO Worked Example (PyTorch).py'",
+  "torch": "2.14.1+cpu",
+  "device": "cpu",
+  "seed": "torch.manual_seed(0)",
+  "held_out_rel_l2_from_run_log": [
+    0.0141,
+    0.0141
+  ],
+  "log_lines": [
+    "[64-pt grid]   held-out rel-L2 error: 0.0141",
+    "[256-pt grid]  held-out rel-L2 error (no retraining): 0.0141"
+  ],
+  "npz_contents": "one input/output exemplar pair at N=64 and N=256, for plotting",
+  "npz_caveat": "the npz does NOT store the test-set metric: it holds a single exemplar, whose own relative L2 error is 0.0092. The 0.0141 figures are the 50-sample test-set averages printed by the run and captured in appendix_b_run.txt; they are not recomputable from the npz.",
+  "npz_sha256": "307d00a45b28b74f"
+}

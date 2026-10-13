@@ -383,8 +383,9 @@ raised in step with the grid.
 \centering
 \includegraphics[width=0.92\textwidth]{fig_super_resolution.pdf}
 \caption{\textbf{Resolution transfer versus mesh-bound degradation.} (a) The same continuous field from the band-limited input family of Appendix~\ref{app:b}, sampled on a coarse ($N=32$) and a fine ($N=128$) grid of $\mathbb{T}=[0,1)$. (b) Relative $L^2$ error against the analytic heat solution at $T=1$, averaged over 80 inputs, as the \emph{evaluation} grid is refined from $N=32$ to $N=512$ with all operators calibrated at $N=32$. \textbf{No curve, line or marker stands for a trained network:} the one-layer FNO of Appendix~\ref{app:b} is quoted in Section~\ref{sec:appb-result}
-and not plotted here, because the archive its run writes is not among the artifacts held
-for this book. The three curves are computed from discretization error alone and are not trained networks: a mesh-bound smoothing operator whose kernel width is frozen in \emph{grid} units gradually stops smoothing as $N$ grows, reaching $1.70$ at $N=512$; the same operator with its width stated in \emph{physical} units tracks the analytic solution to between $5.48\times10^{-16}$ and
+and not plotted here, because every curve this plate draws is computed from a solved model;
+the trained run's own numbers are quoted in Appendix~\ref{app:b}, whose log and archive are
+held with the book. The three curves are computed from discretization error alone and are not trained networks: a mesh-bound smoothing operator whose kernel width is frozen in \emph{grid} units gradually stops smoothing as $N$ grows, reaching $1.70$ at $N=512$; the same operator with its width stated in \emph{physical} units tracks the analytic solution to between $5.48\times10^{-16}$ and
 $7.63\times10^{-16}$ on every grid; and solving on the training grid then resampling
 linearly plateaus at the interpolation error of the coarse solve, $5.24\times10^{-3}$. \textbf{Caveat, stated once and not to be forgotten:} the test inputs contain only eight Fourier modes and are therefore already fully resolved on the coarse training grid, so the fine-grid evaluation resamples the \emph{same} continuous functions. What the three curves show is what refinement does to a discretization; resolution
 transfer of a learned operator is the claim of the quoted experiment of
@@ -400,9 +401,9 @@ degrades exactly as \eqref{eq:ch06-receptive} predicts, the resolution-aware
 curve stays at the level of roundoff on every grid, and resampling a
 training-grid solution flattens out at the interpolation error of the coarse
 solve --- the honest price of the ``interpolate, then run'' workaround. The trained model of Appendix~\ref{app:b} is not in this panel: its reported errors,
-$0.0141$ at $N=64$ and the same at $N=256$, are transcribed in
-Section~\ref{sec:appb-result} from an account of a run whose archive this book does not
-hold, and are quoted there rather than plotted.
+$0.0141$ at $N=64$ and the same at $N=256$, are printed by the run re-executed for this book and
+archived at \texttt{artifacts/appendix\_b\_run.txt}, and are quoted in
+Section~\ref{sec:appb-result} rather than plotted.
 
 What that pair of numbers establishes must be read carefully, and the reading is
 less flattering than the usual headline. The inputs carry eight Fourier modes
@@ -420,8 +421,8 @@ followed by any further transform. The two discrete norms behind the
 identical $0.0141$ are Riemann sums of the same real-analytic error field on
 two grids, so their difference is an exponentially small quadrature error, far
 below the four decimals that were printed. Both reported numbers are
-therefore one number: a model error of order $1.4\%$, printed twice. The
-measurement belongs to the original run; this book only transcribes it.
+therefore one number: a model error of order $1.4\%$, printed twice. Both come from one execution, re-run for this book; the archive holds an exemplar
+pair rather than the test-set metric, so the printed averages remain the record.
 Nothing in the figure shows accuracy at resolutions the data never contained,
 and nothing in it shows an advantage over classical solvers for a linear problem
 that a single Fourier multiplier solves exactly. That a model \emph{can be

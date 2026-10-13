@@ -514,7 +514,7 @@ sanity bound on a configuration file. The cost of truncation is the first term o
 set by the smoothing order of the target and independent of depth, width, and grid.
 Figure~\ref{fig:spectral_decay} computes the decay and the conclusion the book draws from
 it --- once the algebraic curve falls below whatever the network's own error turns out to be,
-a term this book never computes, adding modes buys nothing, and a target with one derivative is not
+a term this book measures for one architecture only, adding modes buys nothing, and a target with one derivative is not
 rescued by any affordable budget, because regularity and not resolution is the binding
 constraint. \index{spectral truncation|textbf}
 
@@ -630,7 +630,7 @@ $\mathcal{L}_{\text{rel-}L^{2}}(u, \hat{u}) = \|u - \hat{u}\|_{L^{2}(\Omega)} /
 \|u\|_{L^{2}(\Omega)}$ of \eqref{eq:rel_l2_loss}, evaluated as a quadrature and the
 implementation's root-then-average over the batch; it is the inner quotient of the
 population risk \eqref{eq:ch01-risk} and the metric in which the benchmark percentages of
-Part~\ref{part:2} and the transcribed error of Appendix~\ref{app:b} are reported, and being a
+Part~\ref{part:2} and the measured error of Appendix~\ref{app:b} is reported, and being a
 quotient of two norms it carries no physical units. Two qualifications are part of the
 definition. Constant quadrature weights cancel, so the \emph{metric} is scale-free in $N$;
 the \emph{value} still changes with $N$, because

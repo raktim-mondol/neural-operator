@@ -338,29 +338,28 @@ contracting channels mode by mode is the second term of \eqref{eq:ch8-costs},
 $\mathcal{O}(|Z_{k_{\max}}| d_v^{2})$ per
 layer, and does not grow with the grid at all; only the transforms do, near-linearly.
 
-Figure~\ref{fig:benchmarks}(b) is the chapter's one measured comparison. On
-validation relative $L^{2}$ error against epoch, the FNO-2D trace falls fastest and
-settles to a floor below $1.2\%$, flattening after roughly sixty epochs; the U-Net
-trace decays smoothly and monotonically but ends near $3 \times 10^{-2}$; the
-DeepONet trace with $m = 100$ sensors \cite{lu2021learning} ends near $8 \times
-10^{-2}$ and oscillates visibly from epoch to epoch. The two baseline endpoints are
-read off the panel's logarithmic axis and should be quoted to one significant
-figure; the FNO floor, by contrast, is a value stated for that run. The ordering
-is explained by the architectures rather than by the tuning. A U-Net aggregates over
-a receptive field that grows only with depth, and the pressure at a point in
-\eqref{eq:ch25-darcy} responds to the coefficient everywhere---the long-range
-coupling Part~I attributes to the Green kernel---so its accuracy is limited by
-distance, not by capacity. DeepONet conditions on $100$ sensor values and a
-fixed-rank trunk basis, so its floor is set by the sensor and basis error of
-\eqref{eq:ch04-error-split} before any optimization question arises; the
-oscillation is consistent with that bottleneck, since once the representational
-floor is reached, stochastic updates only move the validation error around it. The FNO's global spectral branch removes the distance limitation,
-and its plateau is the signature of a capacity or statistical limit rather than a
-divergence: the curve stops falling while remaining smooth, which is the behavior
-a training recipe should be judged against, not the behavior a training recipe
-should fix. Multi-scale variants that interleave residual blocks with spectral
-convolution are reported to improve precisely this regime on sharper
-multiphase problems \cite{wen2022ufno}.
+No accuracy comparison in this chapter is measured
+here; the one it reports is transcribed from the paper that introduced the
+benchmark. Table 4 of \cite{li2021fourier} scores the 2-d Darcy problem at four
+evaluation resolutions, and FNO returns $0.0108$, $0.0109$, $0.0109$, $0.0098$ at
+$s = 85, 141, 211, 421$, against $0.0332$--$0.0369$ for the graph neural operator,
+$0.0244$--$0.0259$ for the reduced-basis method and $0.1716$ for a feed-forward
+network. Two features of that ordering are architectural rather than matters of
+tuning. A convolutional stack aggregates over a receptive field that grows only
+with depth, while the pressure at a point of \eqref{eq:ch25-darcy} responds to the
+coefficient everywhere --- the long-range coupling Part~I attributes to the Green
+kernel --- so its accuracy is limited by distance, not capacity; the fully
+convolutional row is the one entry whose error rises monotonically with
+resolution, from $0.0253$ to $0.1097$. The FNO's global spectral branch removes the
+distance limitation, and its error is essentially flat across the four grids, which
+is the resolution-invariance claim of \chapref{ch:part1-discretization-invariance-and-continuum-li}
+showing up as an accuracy column rather than as a theorem. What the table does not
+settle is the cost of reaching that error: it reports held-out accuracy at four
+resolutions and nothing about epochs, hardware or training time, and no
+epoch-by-epoch curve for any of these architectures is reproduced in this book.
+Multi-scale variants that interleave residual blocks with spectral convolution are
+reported to improve precisely this regime on sharper multiphase problems
+\cite{wen2022ufno}.
 \index{U-Net!as benchmark baseline}
 \index{DeepONet!as benchmark baseline}
 \index{validation curve!plateau versus divergence}

@@ -431,28 +431,30 @@ and resampled at both $64$ and $256$ points. That re-sampling is the whole of th
 super-resolution experiment, and the archive written at the end holds its first sample
 on each grid.
 
-\section{The Reported Result}
+\section{The Measured Result}
 \label{sec:appb-result}
 
-Table~\ref{tab:appb-measured} repeats numbers from an account of one execution of the
-script above --- not expectations derived from the
-architecture, and not measurements made for this book, since no log of that execution
-is in the repository. They are printed to four decimals by the two \texttt{print} calls
-of Listing~\ref{lst:appb-eval}. They are transcribed, not reproduced --- the archive the
-script writes is not among the artifacts held for this book, so no training was re-run
-here, and no line or marker for these values survives in Part~I. Validation error is
-reported to have fallen smoothly to roughly $1.6\%$ during
-training; the held-out error is reported as $1.41\%$ at $N=64$, and re-sampling those same
-functions on a grid four times finer left the reported value unchanged at $1.41\%$. The
+Table~\ref{tab:appb-measured} reports what the run measured. The script
+above was re-executed for this book on CPU with \texttt{torch.manual\_seed(0)}, and its
+standard output is archived with the sources at \texttt{artifacts/appendix\_b\_run.txt};
+these are not expectations derived from the architecture, and they are not transcribed from a
+run nobody can inspect. They are printed to four decimals by the two \texttt{print} calls of
+Listing~\ref{lst:appb-eval}. The archive the script writes, \texttt{fno\_results.npz}, is
+held alongside the log, with one caveat recorded there: it stores a single input/output
+exemplar pair at each grid rather than the test-set metric, so the printed averages in the log
+remain the record of the number, and no line or marker for these values is drawn in Part~I. Validation error fell
+smoothly to roughly $1.6\%$ during training, ending the logged schedule at $0.0159$; the
+held-out error measured $1.41\%$ at $N=64$, and re-sampling those same functions on a grid
+four times finer left the value unchanged at $1.41\%$. The
 qualification that came with the number travels with it: both errors round to $0.0141$
 at the printed precision, which is a statement about the report, not a claim that the two
 underlying floating-point quantities were equal.
 
 \begin{table}[htbp]
 \centering
-\caption{\textbf{Relative $L^2$ error on held-out inputs as reported for the run of
-the script in Section~\ref{sec:appb-code}: transcribed values, not measurements made
-for this book, and not plotted in Part~I.} The metric is
+\caption{\textbf{Relative $L^2$ error on held-out inputs, measured by the run of
+the script in Section~\ref{sec:appb-code} and captured in the archived log; quoted here,
+not plotted in Part~I.} The metric is
 the root-then-average form of \eqref{eq:rel_l2_loss}, evaluated on the physical fields:
 \texttt{rel\_l2} applies no pointwise normalizer, and the grid weights of
 \eqref{eq:rel_l2_loss} cancel between numerator and denominator. The equality of the two
