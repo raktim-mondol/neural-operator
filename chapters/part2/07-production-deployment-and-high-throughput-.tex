@@ -104,26 +104,39 @@ out_fine = traced_fno(fine_input)
 print("Super-resolution output shape:", out_fine.shape) # (1, out_channels, 256, 256)
 \end{lstlisting}
 
-Why that assertion can fail is worth understanding precisely, since it is the
-mechanism by which a mathematically invariant model becomes a mesh-bound
-artifact. Tracing freezes what Python computed, not what Python would compute.
-In \texttt{SpectralConv2d}, the statement \texttt{B, C, H, W = x.shape} produces
-four Python integers during the trace, and those integers are then consumed by
+Whether that assertion can fail is worth understanding precisely, since a baked size is the
+mechanism by which a mathematically invariant model can become a mesh-bound
+artifact. Tracing freezes what Python computed, not what Python would compute ---
+and how much of the shape arithmetic stays Python depends on the release. In
+\texttt{SpectralConv2d}, the statement \texttt{B, C, H, W = x.shape} feeds
 Python-level arithmetic: the size of the zero-filled output spectrum, the
 half-width \texttt{W // 2 + 1}, the explicit \texttt{s=(H, W)} passed to the
 inverse real transform, and, in the coordinate embedding of
 \chapref{ch:part2-the-practitioner-s-paradigm-infinite-dimen}, the length of the
-\texttt{linspace} that builds the grid channels. Each of those quantities enters
-the archive as a constant fixed by the example input\index{shape specialization}.
-The batch size is baked
-the same way, which is why an example traced at $B=1$ cannot serve the batched
-sweep that Section~\ref{sec:ch27-cost} argues for. Three remedies exist and they
-differ in what they cost: derive the sizes inside the graph, so that the shape
-computations are themselves recorded operations; trace one
-archive per served resolution, which is cheap because the weights are shared and
-only the graph differs; or export through a graph description format such as ONNX
-(Open Neural Network Exchange), in which the served dimensions are declared
-dynamic on the way out and their values resolved by the input that arrives. In each case the check in the
+\texttt{linspace} that builds the grid channels. Each of those quantities
+reaches the archive one of two ways: as a live graph value, when the tracer
+records the size as an \texttt{aten::size} node threaded through
+\texttt{zeros}, \texttt{linspace} and \texttt{fft\_irfft2}; or as a constant
+fixed by the example input, when the arithmetic escapes into untraced
+Python\index{shape specialization}. Which of the two happens is version-dependent
+--- shape propagation in \texttt{torch.jit} has been rewritten more than once,
+and a release that threads the sizes today can bake them tomorrow --- which is
+exactly why the cross-grid call is printed in the listing rather than argued in
+prose. The batch axis is baked or threaded the same way, so a trace from a $B=1$
+example needs the same demonstration before it serves the batched sweep that
+Section~\ref{sec:ch27-cost} argues for. Treat the printed shapes as a contract to
+re-verify on every toolchain the artifact actually ships to. Where a trace does
+bake sizes, two remedies differ in what they cost: derive the sizes inside the
+graph, so that the shape computations are themselves recorded operations; or
+trace one archive per served resolution, which is cheap because the weights are
+shared and only the graph differs. A third route is no remedy here:
+\texttt{torch.onnx.export} traces in the same sense, so it cannot un-bake a size
+already recorded as a constant, and the transforms \texttt{rfft2} and
+\texttt{irfft2} fall outside the ATen-to-ONNX operator mapping --- the spectral
+layer is precisely the part an export fails to carry. On current releases the
+question belongs upstream anyway: \texttt{torch.jit.trace} is deprecated, and
+the supported path is \texttt{torch.export} with the spatial and batch axes
+declared dynamic in the exported signature. In each case the check in the
 listing is what distinguishes a claim from a measurement.
 
 Two further caveats belong next to the shape check. First, a correct printed
@@ -268,11 +281,11 @@ because $\bar{t}$ falls with $B$ while $T_{\mathrm{wall}}$ rises\index{latency a
 
 The arithmetic makes the fixed part visible. A device in the class named in
 Table~\ref{tab:benchmarks_hardware} sustains single-precision work at tens of
-teraflops per second, so the $1.2$ milliseconds reported for the Darcy row
+teraflops per second, so the $1.2$-millisecond estimate displayed for the Darcy row
 corresponds to a realized throughput of order $10^{11}$ operations per second
 against a per-field count of order $10^{8}$ --- well under one percent of peak.
-That is the signature of a call bounded by kernel launches, host-side argument
-handling, and memory traffic: a forward pass of that
+That is the signature of a call bounded partly by kernel launches and host-side
+argument handling, and for the rest by memory traffic: a forward pass of that
 network issues a few tens of kernels, each with a launch and bookkeeping cost that
 does not care how large the batch is. Two of the four groups of \eqref{eq:ch27-cost} reach
 the device by different routes --- the pointwise convolutions through cuDNN (the
@@ -284,8 +297,15 @@ The consequence is the batching rule\index{batching}. Since
 $T_{\mathrm{fixed}}$ is divided across $B$ fields in \eqref{eq:ch27-latency}, the
 per-field time falls almost proportionally until the arithmetic term overtakes it,
 at a batch $B^{*} = T_{\mathrm{fixed}}/t_{\mathrm{field}}$ whose value depends on
-$\eta$ and therefore on the shapes; for the configuration above it lands somewhere
-between ten and a hundred fields. $B^{*}$ is a measurement, not an inference, and
+$\eta$ and therefore on the shapes. Read against the arithmetic above, however,
+the crossover is not generous: a few tens of kernel launches at roughly ten
+microseconds each put $T_{\mathrm{fixed}}$ in the tenths of a millisecond,
+against a per-field arithmetic time already near a millisecond, so at
+$64\times64$ the fixed cost is amortized by batches of one or two, and larger
+batches earn their keep mainly for smaller fields or in queue-depth sweeps where
+per-item host handling dominates; the binding ceiling on $B$ is the batch-linear
+activation store priced earlier in this section, not the launcher. $B^{*}$ is a
+measurement, not an inference, and
 the recipe is to bisect on batch size until $\bar{t}$ stops falling, then to stop.
 Below $B^{*}$ the GPU is idle and the sweep is bounded by launches; above it the
 queue depth merely trades response time for volume, and a latency-sensitive
@@ -329,9 +349,11 @@ property of the architecture.
 % -----------------------------------------------------------------------------
 
 Table~\ref{tab:benchmarks_hardware} collects production inference timings across
-four application classes on the NVIDIA A100\index{NVIDIA A100}. Each row
-pairs one forward pass of a trained surrogate with one complete solve of the same
-problem by a conventional method: a finite element method (FEM) assembly and solve
+four application classes, on the device recorded for each row where any device was
+reported. Each row
+sets one forward pass of a trained surrogate against a complete solve of the same
+problem by a conventional method; no row of the four pairs two measured
+latencies; each instead names the baseline it is priced against: a finite element method (FEM) assembly and solve
 in FEniCS for the Darcy case\index{FEniCS}; a pseudo-spectral integration --- the method
 whose Fourier multiplier machinery Part~I analyzed --- for the two-dimensional
 turbulent Navier--Stokes case\index{pseudo-spectral method!as an inference baseline}; a
@@ -339,40 +361,44 @@ volume discretization of the compressible flow around a car
 body, that is, computational fluid dynamics (CFD)\index{computational fluid dynamics (CFD)}, with the
 geometry-informed neural operator (GINO)\index{Geometry-Informed Neural Operator (GINO)!deployment on a surface mesh}
 of \chapref{ch:part2-graph-neural-operators-gno-and-irregular-g} on the surrogate side;
-and a global atmospheric forecast at $0.25^{\circ}$ resolution against the
-numerical integration of the European Centre for Medium-Range Weather Forecasts
-(ECMWF) Integrated Forecasting System (IFS)\index{ECMWF Integrated Forecasting System (IFS)}
-\cite{pathak2022fourcastnet}. The aerodynamic row alone reports the cited study's
-cost--accuracy comparison instead of a paired wall-clock time, as the table
-caption records.
+and the numerical integration of the European Centre for Medium-Range Weather
+Forecasts (ECMWF) Integrated Forecasting System (IFS)\index{ECMWF Integrated Forecasting System (IFS)} for the global
+atmospheric case at $0.25^{\circ}$ resolution \cite{pathak2022fourcastnet}. The aerodynamic row carries the cited study's
+cost--accuracy comparison in place of a paired wall-clock time, and the weather row's
+denominator is this Part's per-member attribution; the caption records both.
 
 \begin{table}[htbp]
 \centering
 \small
-\caption{\textbf{Production inference benchmarks: neural operator vs. classical solvers.} Per-configuration wall-clock latencies as reported for the device named in the column heading; the final column is the quotient of the two preceding columns, except at the daggered aerodynamic row: $0.1$\,s per shape on a single NVIDIA V100 and the $2.6\times10^{4}$ figure are as reported by \cite{li2023geometry}, the latter a cost--accuracy ratio at $3\%$ drag error against a GPU volume-CFD baseline on the same device, whose wall-clock time the study does not pair with it.}
+\caption{\textbf{Production inference benchmarks: neural operator vs. classical solvers.} The two cited rows carry the studies' published values, with the $\ddagger$-marked baseline below excepted: the daggered aerodynamic row gives $0.1$\,s per shape on a single NVIDIA V100 and the $2.6\times10^{4}$ figure from \cite{li2023geometry}, the latter a cost--accuracy ratio at $3\%$ drag error against the study's own
+GPU-accelerated volume-CFD baseline, the multi-core, two-V100 configuration of
+\chapref{ch:part3-external-aerodynamics-and-surface-flows}, whose wall-clock time the
+study does not pair with it. The first two rows are not paired measurements: $1.45$\,s, $4.80$\,s, $1.2$\,ms, and $2.1$\,ms are order-of-magnitude estimates assembled by this book, with no recorded device, grid, batch, precision, or software version and no run archive behind them, and their speedup column is quoted to the precision of the quotient, not of the estimate. Where a benchmark number needs to carry weight in this book, it travels with a record, as Appendix~\ref{app:b} demonstrates. The weather row's $\ddagger$: its $120$\,min is a per-member cost this Part attributes (\chapref{ch:part3-the-multi-query-bottleneck-in-computationa} states it as its own attribution) --- not a published per-member timing nor a division of the study's aggregate; the study's measurement is $82$ min of wall-clock for the whole $15$-day, $51$-member run on $1{,}530$ nodes, so the $4{,}000\times$ compares one device's latency with an attributed member cost and is not an ensemble costing.}
 \label{tab:benchmarks_hardware}
 \resizebox{\textwidth}{!}{\begin{tabular}{lcccc}
 \toprule
-\textbf{Application Domain} & \textbf{Classical Solver} & \textbf{Solver Latency} & \textbf{FNO Latency (A100)} & \textbf{Speedup Factor} \\
+\textbf{Application Domain} & \textbf{Classical Solver} & \textbf{Solver Latency} & \textbf{Surrogate Latency (device as reported)} & \textbf{Speedup Factor} \\
 \midrule
 2D Darcy Permeability Flow & Finite Element (FEniCS) & 1.45 s & 1.2 ms & $\approx 1,200\times$ \\
 2D Navier-Stokes Turbulence & Pseudo-Spectral & 4.80 s & 2.1 ms & $\approx 2,280\times$ \\
 3D Car Aerodynamics (GINO) & GPU Volume CFD & --- & $0.1$\,s (V100) & $2.6\times10^{4}$\,\dag \\
-Global Weather Forecast (0.25$^\circ$) & ECMWF IFS Numerical & 120 min & 1.8 s & $\approx 4,000\times$ \\
+Global Weather Forecast (0.25$^\circ$) & ECMWF IFS Numerical & 120 min\,$\ddagger$ & 1.8 s & $\approx 4,000\times$ \\
 \bottomrule
 \end{tabular}}
 \end{table}
 
 What the reader should conclude from Table~\ref{tab:benchmarks_hardware} is not
 the ranking of domains by multiplier. Each latency column spans more than three
-orders of magnitude on its own --- the classical timings run from $1.45$ seconds
-to two hours, the surrogate timings from $1.2$ milliseconds to $1.8$ seconds ---
+orders of magnitude on its own --- the classical column runs from $1.45$ seconds
+of this book's estimate to two hours of its attribution, the surrogate timings from $1.2$ milliseconds to $1.8$ seconds ---
 while the multipliers stay inside
 $1.2\times10^{3}$ to $2.6\times10^{4}$, a spread of a little over a factor of twenty: the
 acceleration is far more stable than either of the costs that produce it, which is
 the behavior a fixed-cost learned map exhibits against solvers whose price scales
 with the accuracy demanded. Note also that the speedup column adds no information;
-each entry is the quotient of the two latencies, so it can be checked and must be
+each entry is the quotient of the two latencies to its left --- or, at the daggered row,
+the study's cost--accuracy ratio, and at the first two rows arithmetic on this book's
+estimates --- so it can be checked and must be
 reproduced from the timings rather than the reverse. Read as a set of four
 quotients, the table says something a single benchmark cannot: the ratio is
 generated mostly by how much work the classical column does per query, not by
@@ -431,7 +457,7 @@ gap operationally sharper, not duller, since a runtime that cannot warn and a
 model that cannot refuse are combined in the same artifact; the roadblocks of
 \chapref{ch:part3-synthesis-matrix-and-real-world-deployment} begin exactly there.
 
-\takeaway{Summary of Part II}{Part II provides the practical engineering foundation for neural operators: from tensor layout standards and continuous grid embeddings to complete PyTorch implementations of DeepONet, FNO, and GNO/GINO. By coupling spectral convolutions with stable training regimes and production runtime tracing, practitioners can deploy discretization-invariant surrogates that accelerate physical simulations by up to four orders of magnitude.}
+\takeaway{Summary of Part II}{Part II provides the practical engineering foundation for neural operators: from tensor layout standards and continuous grid embeddings to working PyTorch implementations of DeepONet, FNO, and GNO/GINO, with each listing's interface obligations stated in the surrounding prose. By coupling spectral convolutions with stable training regimes and shape-checked exports, practitioners can deploy discretization-invariant surrogates whose per-query speedups span three to four and a half orders of magnitude across Table~\ref{tab:benchmarks_hardware}'s rows --- and that table says for every row whether its ratio is a cost--accuracy quotient, an order-of-magnitude estimate assembled by this book, or one published latency set against a per-member cost the Part attributes.}
 
 % -----------------------------------------------------------------------------
 % Bridge to Part III

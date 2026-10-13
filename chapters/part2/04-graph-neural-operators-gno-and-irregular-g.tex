@@ -94,39 +94,45 @@ Table~\ref{tab:comparison} already books it against the generic operator's own
 $\kappa_\theta(x,y)$, the geometric pair collapsed to a displacement, the input values at both
 endpoints retained, and the domain of integration shrunk to a ball.
 
-\begin{lstlisting}[language=Python, caption={One continuous-kernel graph convolution layer: a shared MLP maps each edge displacement to a channel-mixing matrix, and a scatter-add aggregation performs the unnormalized neighborhood sum defined in this section.}, label={lst:gno-kernel-conv}]
+\begin{lstlisting}[language=Python, caption={One continuous-kernel graph convolution layer: a shared MLP maps each edge displacement, together with the feature values at both endpoints, to a channel-mixing matrix; each message carries the source node's quadrature weight; and a scatter-add aggregation performs the weighted neighborhood sum \eqref{eq:ch24-gno-kernel}.}, label={lst:gno-kernel-conv}]
 class KernelGraphConv(nn.Module):
     """Continuous-kernel graph convolution layer for irregular meshes."""
     def __init__(self, in_channels: int, out_channels: int, coord_dim: int = 3, hidden_dim: int = 64):
         super().__init__()
-        # Continuous kernel MLP mapping displacement vectors to transformation matrices
+        # Continuous kernel MLP: displacement and endpoint features in,
+        # transformation matrices out
         self.kernel_mlp = nn.Sequential(
-            nn.Linear(coord_dim, hidden_dim),
+            nn.Linear(coord_dim + 2 * in_channels, hidden_dim),
             nn.GELU(),
             nn.Linear(hidden_dim, in_channels * out_channels)
         )
         self.in_channels = in_channels
         self.out_channels = out_channels
 
-    def forward(self, v: torch.Tensor, coords: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
+    def forward(self, v: torch.Tensor, coords: torch.Tensor, edge_index: torch.Tensor,
+                w: torch.Tensor) -> torch.Tensor:
         """
-        v:          (N_nodes, in_channels) - node feature representations
+        v:          (N_nodes, in_channels) - node features (the lifted field)
         coords:     (N_nodes, coord_dim) - 3D physical coordinates
         edge_index: (2, N_edges) - source and target node connectivity
+        w:          (N_nodes,) - nodal quadrature weights (Voronoi dual areas)
         """
         src, dst = edge_index[0], edge_index[1]
         displacement = coords[dst] - coords[src] # Relative spatial vector (N_edges, coord_dim)
         
-        # Evaluate continuous kernel weights at relative positions
-        kernel_weights = self.kernel_mlp(displacement) # (N_edges, in_ch * out_ch)
+        # Kernel sees displacement and the values at both endpoints
+        kernel_input = torch.cat([displacement, v[dst], v[src]], dim=-1)
+        kernel_weights = self.kernel_mlp(kernel_input) # (N_edges, in_ch * out_ch)
         kernel_weights = kernel_weights.view(-1, self.in_channels, self.out_channels)
         
-        # Message passing: transform node features
+        # Message passing: transform node features, weight by the source cell
         v_src = v[src].unsqueeze(1) # (N_edges, 1, in_ch)
         messages = torch.bmm(v_src, kernel_weights).squeeze(1) # (N_edges, out_ch)
+        messages = messages * w[src].unsqueeze(1)
         
         # Neighborhood aggregation (scatter add)
-        out = torch.zeros(coords.shape[0], self.out_channels, device=v.device)
+        out = torch.zeros(coords.shape[0], self.out_channels,
+                          device=v.device, dtype=v.dtype)
         out.index_add_(0, dst, messages)
         return out
 \end{lstlisting}
@@ -135,9 +141,20 @@ Listing~\ref{lst:gno-kernel-conv} is worth walking tensor shape by tensor shape,
 shapes are where the design is legible. The connectivity arrives as \texttt{edge\_index}, an
 integer tensor of shape $(2, N_{\text{edges}})$ whose two rows hold source and target node
 indices --- the graph's sparse structure in the form a GPU can gather against
-\index{edge index}\index{point-cloud layout}. From it, \texttt{displacement} is
-$(N_{\text{edges}}, \texttt{coord\_dim})$, and the kernel MLP turns every displacement vector
-into a full $\texttt{in\_channels} \times \texttt{out\_channels}$ matrix, so
+\index{edge index}\index{point-cloud layout}. The weights arrive as \texttt{w}, one
+dual-area number per node. Neither is produced by the layer: fixed-radius neighbor
+search over a point cloud and Voronoi or median-dual areas on a triangulated
+surface are mesh preprocessing, standard
+equipment of libraries such as \texttt{scipy.spatial.cKDTree} or
+\texttt{torch\_geometric.nn.pool.radius\_graph}, and that preprocessing is re-run per CAD
+tessellation --- a real cost the arithmetic below deliberately does not price. The
+signed-distance channels of Section~\ref{sec:ch24-gino} belong to the latent-grid side
+of GINO, not to this layer's inputs.
+From the inputs, \texttt{displacement} is
+$(N_{\text{edges}}, \texttt{coord\_dim})$; concatenating the feature values at both
+endpoints gives the kernel MLP an input of width $\texttt{coord\_dim} + 2C_{\text{in}}$, and
+it turns every such vector into a full
+$\texttt{in\_channels} \times \texttt{out\_channels}$ matrix, so
 \texttt{kernel\_weights} has shape $(N_{\text{edges}}, C_{\text{in}}, C_{\text{out}})$
 \index{kernel MLP}. The batched matrix product \texttt{torch.bmm} then applies a
 \emph{different} matrix to every edge, which is the arithmetic content of the sum in
@@ -148,15 +165,17 @@ shared across all edges, so refining the mesh multiplies the compute without mul
 parameters. Second, the aggregation is a \emph{scatter add} --- \texttt{index\_add\_} over the
 target indices, unnormalized
 \index{scatter-add aggregation}\index{computational complexity!graph convolution per edge}---
-because \eqref{eq:ch24-gno-kernel} integrates rather than averages. The listing stops short
-twice: it evaluates the kernel on the displacement alone, the stationary
-reduction of \eqref{eq:ch24-gno-kernel}, and it carries no $w_j$. Both gaps are interface
-obligations rather than bugs. Recovering the input-dependent kernel means concatenating
-$a(x_i)$ and $a(x_j)$ into the MLP input, widening it from $\texttt{coord\_dim}$ to
-$\texttt{coord\_dim} + 2C_{\text{in}}$; recovering the quadrature means folding the dual-area
-weight into the node features or into the message before the scatter, since an unweighted sum
-over a mesh of uneven spacing is a different functional from the one
-\eqref{eq:ch24-gno-kernel} approximates.
+because \eqref{eq:ch24-gno-kernel} integrates rather than averages. The listing keeps both
+halves of \eqref{eq:ch24-gno-kernel} that a widely circulated reference implementation
+drops: there, the kernel MLP consumes the displacement alone --- a stationary reduction of
+the defined layer --- and the scatter carries no $w_j$, so the unweighted sum over a mesh of
+uneven spacing is a different functional from the one
+\eqref{eq:ch24-gno-kernel} approximates. Restoring the two costs exactly the two visible
+lines --- the concatenation into \texttt{kernel\_input}, widening the MLP to
+$\texttt{coord\_dim} + 2C_{\text{in}}$, and the multiplication of \texttt{messages} by
+\texttt{w[src]} --- and both are interface obligations rather than cleverness; dropping them
+also changes what a refinement study means, since an unweighted stationary kernel silently
+reweights the integral as the dual areas become uneven.
 
 Memory, not arithmetic, is the binding constraint. The per-edge matrices alone occupy $|E|
 \times C_{\text{in}} \times C_{\text{out}}$ floating-point values: a million edges at 32
@@ -174,8 +193,10 @@ the receptive-field arithmetic of
 \index{receptive field!layers needed to span a body}. If $r$ is large, $|E|$ grows toward
 $N^{2}$ and the layer quietly reverts to the dense-kernel operator and its $\Theta(N^{2})$
 cost. Nodes in regions of high curvature or on a boundary accumulate different numbers of
-incoming edges from nodes on a flat panel, and because the aggregation is unnormalized the
-magnitude of the output scales with local node occupancy --- a systematic drift across layers,
+incoming edges from nodes on a flat panel, and the weighted sum of \eqref{eq:ch24-gno-kernel}
+tracks the measure of the neighborhood rather than its node count; what still drifts is
+coverage --- a boundary or high-curvature node integrates over a truncated ball, a
+fraction of the weight an interior node accumulates --- a systematic effect across layers,
 not noise. Finally, scatter reductions on a GPU resolve colliding writes with atomic
 additions, so the order in which a node's incoming messages are summed is not fixed by the
 implementation; bit-level results can differ between runs, which matters when a surrogate is
@@ -191,7 +212,7 @@ Figure~\ref{fig:gino} illustrates the \textbf{Geometry-Informed Neural Operator 
 \cite{li2023geometry}. GINO gives the surface mesh to a graph layer and the global
 mixing to a Fourier layer on a latent grid, and the figure is the clearest statement
 of the bargain: pay for geometry only where the data actually touches the mesh, and
-run everything global where a transform is legal. Walking the panels in order, an irregular
+run everything global where a transform is legal. Walking the plate in order, an irregular
 surface mesh $\mathcal{M}_{\text{surf}}$ --- the car body or the duct, nodes and
 triangles --- enters a point-to-grid GNO encoder, which smears the surface features onto a
 regular three-dimensional latent grid filling a bounding box. Inside that box a stack of 3D

@@ -3,7 +3,7 @@
   "model": "gemini-3-pro-image",
   "host": "chapters/part3/06-medical-imaging-and-tomographic-reconstruc.tex",
   "content_class": "structural schematic; carries no measured value",
-  "prompt_sha256": "f972671641be65a7eb60d93c392a7d1b03b9c3c274a1175a38032230d2c6fd99",
+  "prompt_sha256": "4748ae7c0783a66940d5423669250f562ff6f36a162e80fe5dad278d86cddb5e",
   "bytes": 219926,
   "pixels": [
     1402,

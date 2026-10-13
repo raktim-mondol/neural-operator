@@ -13,13 +13,12 @@ PROVENANCE POLICY FOR THIS FILE (what may reach a PDF):
      of them is additionally re-checked by ``check_caption_numbers()`` at the
      end of the run and dumped to ``figure_manifest.json`` next to the PDFs, so
      a caption can be audited without re-reading the plot.
-  3. Nothing from a training run is drawn. Appendix B's worked example is
-     therefore absent from both panels that used to carry it: its archive
-     (fno_results.npz) is not in this repository, torch is not installed here,
-     and the only text in the tree that states its outcome is a chat export
-     headed "Actual observed numbers from the run". A number that cannot be
-     recomputed is not a number this figure may print, and from now on the
-     figures say so instead of drawing a horizontal line for it.
+  3. Nothing from a training run is drawn. Appendix B's worked example now has
+     a real archive in this repository (artifacts/fno_results.npz, whose
+     re-execution reproduces artifacts/appendix_b_run.txt), but this file still
+     refuses to plot it: regenerating the plate would train a fresh network,
+     and a figure must stay reproducible by whoever regenerates it. Training
+     numbers are therefore cited from the archive, never drawn here.
 
 Model problem (identical to Appendix B's worked example):
 1-D periodic heat equation
@@ -375,12 +374,27 @@ def check_caption_numbers():
     assert sup["panel_b_mesh_bound_monotone_increasing"]
 
 
-if __name__ == "__main__":
+def merge_and_emit() -> None:
+    """Write figure_manifest.json preserving keys from runs not in this call.
+
+    A plain run computes spectral-decay and super-resolution; ``--burgers``
+    computes the Burgers plate. Neither should silently drop the other's
+    attestation, so existing keys are merged before writing.
+    """
+    path = os.path.join(HERE, "figure_manifest.json")
+    if os.path.exists(path):
+        with open(path) as fh:
+            for key, val in json.load(fh).items():
+                MANIFEST.setdefault(key, val)
+    with open(path, "w") as fh:
+        json.dump(MANIFEST, fh, indent=2)
+
+
+if __name__ == "__main__" and "--burgers" not in sys.argv:
     spectral_decay()
     super_resolution()
     check_caption_numbers()
-    with open(os.path.join(HERE, "figure_manifest.json"), "w") as fh:
-        json.dump(MANIFEST, fh, indent=2)
+    merge_and_emit()
     for f in ("fig_spectral_decay.pdf", "fig_super_resolution.pdf"):
         p = os.path.join(HERE, f)
         print(f"wrote {f} ({os.path.getsize(p) // 1024} KB)")
@@ -460,7 +474,12 @@ def burgers_exact() -> None:
         fig.savefig(os.path.join(HERE, "fig_burgers_exact.png"), dpi=200, bbox_inches="tight")
     plt.close(fig)
     print(f"burgers: ic_err {ic_err:.2e}, PDE residual {res / scale:.2e}, grid delta {d:.2e}, max t=0.5 {m05:.4f}, max t=1.0 {m10:.4f}")
+    # The Chapter 14 caption quotes 0.6207 and 0.3312: they must stay what the
+    # exact solution computes, checked as the printed strings like every other
+    # caption number (policy 2).
+    assert sig(m05, 4) == "$0.6207$" and sig(m10, 4) == "$0.3312$", (m05, m10)
 
 
 if __name__ == "__main__" and "--burgers" in sys.argv:
     burgers_exact()
+    merge_and_emit()

@@ -1,4 +1,8 @@
 {
+  "burgers_pde_residual": 3.639074682844398e-05,
+  "burgers_max_t05": 0.6207357353046006,
+  "burgers_max_t10": 0.3312240406676485,
+  "burgers_grid_delta": 7.943541657784436e-12,
   "fig_spectral_decay": {
     "panel_b_exact_truncation_error": {
       "s=1 at k_max=16": 0.18891516329221447,

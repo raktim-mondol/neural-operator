@@ -23,7 +23,7 @@ Stretching a conventional network over such a workload does not remove the misma
 these architectures are maps between fixed-dimensional Euclidean spaces: parameter count,
 weight-tensor shapes, and the physical meaning of each activation are all set by the number
 of grid points present at training time. The alternative developed in this book takes the
-\emph{operator} as the object of learning---a map defined on function spaces, written down
+\emph{operator} as the object of learning --- a map defined on function spaces, written down
 without reference to a mesh, then evaluated on whichever discretization a query supplies.
 Parts~II and~III inherit that change of target, and it is not a change of vocabulary: it
 raises three questions finite-dimensional learning theory never asks. What spaces does the
@@ -35,9 +35,8 @@ This chapter states the problem and the shape of its answers; it proves almost
 nothing. The arguments come from the rest of Part~I.
 \chapref{ch:part1-function-spaces-duality-and-sobolev-regula} fixes the spaces, the norms,
 and the compactness machinery;
-\chapref{ch:part1-partial-differential-equations-as-solution} verifies that the solution maps
-of Darcy flow, Burgers' equation, and Navier--Stokes carry the continuity and smoothing
-properties the theory demands;
+\chapref{ch:part1-partial-differential-equations-as-solution} records the estimates from which the continuity and smoothing
+properties of the Darcy, Burgers, and two-dimensional Navier--Stokes solution maps are read;
 \chapref{ch:part1-operator-approximation-theory-and-universa} supplies the density results;
 and \chapref{ch:part1-the-fourier-neural-operator-spectral-theor} with
 \chapref{ch:part1-discretization-invariance-and-continuum-li} deliver an architecture and a
@@ -49,10 +48,10 @@ Appendix~\ref{app:a}.
 
 \section{The Multi-Query Bottleneck in Simulation-Based Science}
 
-Classical deep learning architectures---multilayer perceptrons
+Classical deep learning architectures --- multilayer perceptrons
 \index{multilayer perceptron (MLP)}(MLPs), convolutional neural networks
 \index{convolutional neural network (CNN)}(CNNs), recurrent neural networks
-\index{recurrent neural network (RNN)}(RNNs)---are formulated as maps between
+\index{recurrent neural network (RNN)}(RNNs) --- are formulated as maps between
 finite-dimensional Euclidean spaces,
 \begin{equation}
   \label{eq:ch01-euclidean-map}
@@ -105,7 +104,7 @@ What the fixed-mesh formulation actually forfeits is not speed but scope. Three 
 failures are entangled in \eqref{eq:ch01-euclidean-map} once the mesh changes: resolution
 coupling, since weights sized for $N$ nodes have no defined action on $N'$ nodes; geometry
 coupling, since convolutional weights are indexed by lattice offsets, so a refinement shrinks
-their physical footprint---the argument made quantitatively in
+their physical footprint --- the argument made quantitatively in
 \chapref{ch:part1-discretization-invariance-and-continuum-li}; and a semantic failure often missed in
 benchmarks, namely that a network trained on one sampling of one field learns \emph{a}
 solution rather than the rule that generates solutions from data.
@@ -140,7 +139,7 @@ in \chapref{ch:part1-partial-differential-equations-as-solution}, the coefficien
 $L^{\infty}(\Omega)$ while the solution lands in $H^{1}_{0}(\Omega)$. The same notation covers
 the time-$t$ map $u_{0} \mapsto u(\cdot, t)$, the one-step map
 $u(t) \mapsto u(t + \Delta t)$ used for autoregressive rollouts, and parameter-to-state maps,
-in which finitely many physical parameters enter as functions on $\Omega$---which is why the
+in which finitely many physical parameters enter as functions on $\Omega$ --- which is why the
 target is stated as \eqref{eq:ch01-solution-operator} rather than as a
 particular PDE.
 
@@ -162,7 +161,7 @@ probability measures on $\mathcal{A}$,
     \qquad a \in \mathcal{A},
 \end{equation}
 and the normalization in \eqref{eq:ch01-risk} makes errors comparable across resolutions and
-across magnitudes---the relative-$L^{2}$ metric used throughout Parts~II and~III. Approximation
+across magnitudes --- the relative-$L^{2}$ metric used throughout Parts~II and~III. Approximation
 theory, however, states its guarantees in a different language, as a worst-case bound $\sup_{a \in K} \|\mathcal{G}_{\theta}(a) -
 \mathcal{G}(a)\|_{\mathcal{U}} < \varepsilon$ over a compact set $K \subset \mathcal{A}$. The
 two are related but not interchangeable: the supremum controls the risk only when $\mu$ gives
@@ -180,11 +179,11 @@ $\mathcal{A}$ and $\mathcal{U}$; and the resulting map is continuous in the norm
 $\mathcal{U}$. Continuity is not a formality. Networks assemble bounded linear maps and
 Lipschitz activations, so every architecture considered here produces continuous
 $\mathcal{G}_{\theta}$, while a discontinuous target cannot be approximated uniformly on any
-set containing the jump---which is why the density theorems of
+set containing the jump --- which is why the density theorems of
 \cite{chen1995universal, kovachki2021universal} all place continuity of $\mathcal{G}$ among
 their hypotheses. The requirement pushes the burden of proof upstream: before asking whether
 the architecture class is rich enough, we must ask whether the solution map is continuous and
-on which subsets of $\mathcal{A}$ it is---the content of
+on which subsets of $\mathcal{A}$ it is --- the content of
 \chapref{ch:part1-partial-differential-equations-as-solution}, resting on the regularity
 theory of the chapter before it.
 
@@ -213,10 +212,10 @@ sensors, panel~(c) a spectral network that keeps operator semantics under mesh c
 Table~\ref{tab:comparison} of
 \chapref{ch:part1-comparative-theoretical-taxonomy-of-archit} records the same differences
 property by property. Part~II holds the implementations, in PyTorch \cite{paszke2019pytorch},
-and further descendants---the U-FNO (U-Net-enhanced Fourier neural operator), which interleaves
+and further descendants --- the U-FNO (U-Net-enhanced Fourier neural operator), which interleaves
 multi-scale residual blocks with spectral convolution for multiphase flow, and the
 \index{adaptive Fourier neural operator (AFNO)}adaptive Fourier neural operator (AFNO) for
-global weather---are analyzed
+global weather --- are analyzed
 in \chapref{ch:part1-comparative-theoretical-taxonomy-of-archit}, indexed in
 Appendix~\ref{app:e}, and applied in Part~III
 \cite{wen2022ufno, pathak2022fourcastnet}.
@@ -240,17 +239,19 @@ compacta. \index{compactness!failure in infinite dimensions}
 The second replacement concerns smoothing, which turns out to be the property that makes an
 operator learnable at all. Viscous parabolic problems improve their inputs: for viscous
 Burgers' equation with $\nu > 0$, initial data $u_{0} \in L^{2}(\mathbb{T})$ evolve to
-$u(\cdot, t) \in H^{s}(\mathbb{T})$ for every $s > 0$. Elliptic problems gain regularity by a
+$u(\cdot, t) \in H^{s}(\mathbb{T})$ for every $s > 0$ and each fixed $t > 0$ --- the
+bound deteriorates as $t \downarrow 0$, so the time must stay off the initial slice.
+Elliptic problems gain regularity by a
 fixed amount: for smooth Darcy coefficients, classical estimates turn $L^{2}$ forcing into an
 $H^{2}$ solution, as
 \chapref{ch:part1-partial-differential-equations-as-solution} makes explicit. Where the
 target behaves as
-$\mathcal{G} : H^{s} \to H^{s+\alpha}$ with $\alpha > 0$, the image of a bounded set is
+$\mathcal{G} : H^{s} \to H^{s+\alpha}$ with $\alpha > 0$, the image of a compact set is
 precompact and truncating its range to finitely many Fourier modes costs an amount that
-decays like $k_{\max}^{-\alpha}$, which is the content of the spectral convergence result in
+decays like $k_{\max}^{-(s+\alpha)}$, which is the content of the spectral convergence result in
 \chapref{ch:part1-the-fourier-neural-operator-spectral-theor} \cite{kovachki2021universal}.
-Where smoothing fails---inviscid hyperbolic limits, shock formation, transport of
-discontinuous data---regularity is destroyed rather than created, and neither the compactness
+Where smoothing fails --- inviscid hyperbolic limits, shock formation, transport of
+discontinuous data --- regularity is destroyed rather than created, and neither the compactness
 nor the rate argument survives without new hypotheses. That asymmetry, not a shortage of
 layers, is where the honest limits of the theory sit;
 \chapref{ch:part1-open-theoretical-problems-and-mathematical} lists it as open.
@@ -298,7 +299,8 @@ derivatives $D^{\alpha}u$; the glosses above are reminders, and the table govern
 they differ. Beyond it,
 this book reserves $N$ for the number of grid points, $M$ for the number of queries, and
 $d_a$ and $d_u$ for input and output channel dimensions, while $p$ denotes the number of
-trainable parameters only outside a space name---in $L^{p}$ and $W^{k,p}$ it is always the
+trainable parameters only outside a space name and outside the branch--trunk joint, where
+it is the DeepONet latent width --- in $L^{p}$ and $W^{k,p}$ it is always the
 integrability exponent. Thus $\mathcal{A}$ and $\mathcal{U}$ name spaces while
 $\mathcal{G}$ and $\mathcal{G}_{\theta}$ name maps, and Part~II re-encodes the same
 fields as tensors of shape $(B, C, H, W)$, where $B$ indexes the batch and $C$ the channels
@@ -317,7 +319,7 @@ boundary conditions are not enforced by \eqref{eq:ch01-risk} unless the architec
 loss imposes them, a matter taken up in Part~III. And a spectral representation of
 shock-dominated data exhibits Gibbs oscillations near the jump
 \index{Gibbs phenomenon}, so smoothness-driven accuracy and discontinuity resolution are in
-tension---one of the open problems closing Part~I. Stating these limits first means the
+tension --- one of the open problems closing Part~I. Stating these limits first means the
 theorems that follow read as conditional results, hypotheses attached.
 
 \bigskip

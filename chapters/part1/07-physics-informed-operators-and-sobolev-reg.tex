@@ -19,8 +19,8 @@ up: what objective should be minimized, and what does it control?
 
 The standard recipe trains against paired solver output: draw inputs, run the simulation,
 regress. It fails in three regimes that recur in computation. A three-dimensional
-time-resolved solve makes labels scarce. Observational data---fields recorded below the
-resolution at which the surrogate will be queried---carry fewer degrees of freedom than the
+time-resolved solve makes labels scarce. Observational data --- fields recorded below the
+resolution at which the surrogate will be queried --- carry fewer degrees of freedom than the
 target function. And when the physics is varied, labels generated for one viscosity or one
 forcing family are not labels for the next. In each case the empirical loss has a large flat
 set: any candidate reproducing the recorded samples scores identically whether or not it
@@ -102,12 +102,17 @@ $\mathcal{B}$. Consequently $\lambda_{\text{pde}}$ and $\lambda_{\text{bc}}$ are
 quantities whose usable size depends on the nondimensionalization chosen for the problem,
 and balancing the three terms is a hyperparameter decision rather than a consequence of the
 formulation. Next, the terms are not independent constraints but penalties: what
-physics-informed training really asserts is a conditional. If a parameter $\theta^{*}$
-annihilates all three terms, then $\mathcal{G}_{\theta^{*}}(a)=\mathcal{G}_{\text{true}}(a)$
-for $\mu$-almost every $a$, \emph{provided} the problem \eqref{eq:ch07-bvp} has a unique
-solution in the class containing both fields. Well-posedness---the Lax--Milgram argument of
-\chapref{ch:part1-partial-differential-equations-as-solution}---is therefore a hypothesis of
-the method, needed for the conditional just stated. What the residual term changes about data
+physics-informed training really asserts is a pair of conditionals. The first is
+free: if a parameter $\theta^{*}$ annihilates the data term, then
+$\mathcal{G}_{\theta^{*}}(a)=\mathcal{G}_{\text{true}}(a)$ for $\mu$-almost every
+$a$ by the definition of the true operator. The interesting one is the data-free
+conditional: annihilating the PDE and boundary terms makes
+$\mathcal{G}_{\theta^{*}}$ and $\mathcal{G}_{\text{true}}$ agree only \emph{provided}
+the problem \eqref{eq:ch07-bvp} has a unique solution in the class containing both
+fields. Well-posedness --- the Lax--Milgram argument of
+\chapref{ch:part1-partial-differential-equations-as-solution} --- is therefore a hypothesis of
+the method: required by the second conditional, which is the regime in which training can
+proceed without paired solutions, and owed nothing by the first. What the residual term changes about data
 requirements is visible in this statement: instead of requiring a full solution field as a
 label, an input $a$ together with the equation supplies a target, and the two can be
 combined at different resolutions, as in the coarse-data, fine-residual training reported
@@ -124,7 +129,7 @@ integration by parts transfers derivatives from $v$ onto the smooth test functio
 $\varphi$. For a second-order divergence-form operator the
 strong residual needs two derivatives of $v$ while the weak residual needs one. By Parseval's
 identity the same distinction is a weighting of modal coefficients,
-$\|r_v\|_{H^{-s}}^{2}=\sum_{k}(1+|k|^{2})^{-s}|\hat{r}_v(k)|^{2}$---a relaxation of
+$\|r_v\|_{H^{-s}}^{2}=\sum_{k}(1+|k|^{2})^{-s}|\hat{r}_v(k)|^{2}$ --- a relaxation of
 attention on fine scales, in direct contrast with the sharpening that the Sobolev-norm
 penalty of the third section performs.
 
@@ -148,8 +153,8 @@ which minimizing \eqref{eq:ch07-pde-loss} substitutes for
 labeling: the estimate \eqref{eq:ch07-apriori} says that a small weak residual plus a correct
 trace forces a small energy-norm error. Read it
 also as a warning, because the estimate is conditional on coercivity and degrades as
-$a_{\min}\to0$; where no such estimate is available---the inviscid limit, formation of
-shocks---a small residual is not evidence of a small error. It is worth recording that the
+$a_{\min}\to0$; where no such estimate is available --- the inviscid limit, formation of
+shocks --- a small residual is not evidence of a small error. It is worth recording that the
 empirical ranking does not follow the analysis: in the Darcy experiments reported in~\cite{li2021physics},
 the strong-form residual trained better than the weak-form one, which
 suggests that the test space is an implementation choice entangled with how derivatives are
@@ -159,8 +164,8 @@ The boundary term deserves one further comment. On the torus $\mathbb{T}^d$ ther
 $\partial\Omega$, so \eqref{eq:ch07-bc-loss} vanishes identically and the vorticity-form
 Navier--Stokes problem of \chapref{ch:part1-partial-differential-equations-as-solution} is
 trained on data and residual alone. Where a boundary does exist, \eqref{eq:ch07-bc-loss} is
-still a soft penalty. The alternative is a hard constraint---compose the surrogate with a
-lifting of the boundary data so that the trace is satisfied by construction---which removes
+still a soft penalty. The alternative is a hard constraint --- compose the surrogate with a
+lifting of the boundary data so that the trace is satisfied by construction --- which removes
 one weight from the hyperparameter list but requires the trace operator to be meaningful for
 the output regularity at hand, that is $v\in H^{s}(\Omega)$ with $s>1/2$.
 
@@ -179,8 +184,8 @@ and each point is evaluated independently, so representing a field means represe
 samples.
 
 A neural operator is organized the other way round. Its output is a field on a discretization
-$\mathcal{M}_N$, and its internal spectral layer---a learned Fourier multiplier, as
-\chapref{ch:part1-the-fourier-neural-operator-spectral-theor} constructs it---is a global
+$\mathcal{M}_N$, and its internal spectral layer --- a learned Fourier multiplier, as
+\chapref{ch:part1-the-fourier-neural-operator-spectral-theor} constructs it --- is a global
 operation on that field, defined only for the whole grid at once. Querying such a network at
 a single coordinate $x$ means running the transforms; forcing it into a form on which
 automatic differentiation yields second $x$-derivatives is possible but forfeits exactly the
@@ -210,9 +215,9 @@ entire field at once, rather than a per-point differentiation of a network graph
 \eqref{eq:spectral_diff} is exact on band-limited inputs and, for smooth ones, converges
 faster than any power of the mesh width: if $v$ extends analytically to a complex
 neighborhood of the torus, its coefficients decay geometrically, so truncating at $k_{\max}$
-leaves an error in the $m$-th derivative of the same exponential order, whereas a finite
-difference of order $p$ carries a truncation error $\mathcal{O}(h^{p})$ that shrinks only
-algebraically~\cite{leveque2002finite}. \index{exponential convergence!of spectral differentiation}
+leaves an error in the $m$-th derivative of the same exponential order. A finite
+difference of order $p$, by contrast, carries a truncation error $\mathcal{O}(h^{p})$ that
+shrinks only algebraically~\cite{leveque2002finite}. \index{exponential convergence!of spectral differentiation}
 
 Both statements need qualifying, and the qualification matters more than the advantage. What
 \eqref{eq:spectral_diff} differentiates is the interpolant of the stored samples, not the
@@ -220,9 +225,10 @@ continuum field they came from. Where the two differ, the discrepancy is amplifi
 than damped, because the symbol in \eqref{eq:ch07-diff-prop} has magnitude
 $(2\pi|k|)^{m}$: an error component at the highest resolvable wavenumber $k\approx N/2$ is
 multiplied by $(\pi N)^{m}$ in the $m$-th derivative, so grid-scale noise or truncation
-content dominates a residual built this way. For even $N$ the Nyquist coefficient is not
-resolved by the samples at all---two interpolants agree at the nodes and disagree in their
-derivative---and it is conventionally discarded before an odd-order
+content dominates a residual built this way. For even $N$ the samples do not say
+whether the boundary frequency is $+N/2$ or $-N/2$ --- two interpolants agree at
+the nodes and disagree in their odd-order derivatives --- and the coefficient is
+conventionally zeroed before an odd-order
 differentiation~\index{aliasing!in spectral derivatives}\index{Nyquist mode}. Nor is a
 nonlinear residual free of the same difficulty.
 \begin{example}[pseudo-spectral Burgers residual]
@@ -236,7 +242,7 @@ in~\cite{li2021physics}: spectral differentiation presumes smoothness and a unif
 derivative error is amplified downstream in the predicted solution. For fields with jumps,
 such as the vanishing-viscosity Burgers limit discussed in
 \chapref{ch:part1-partial-differential-equations-as-solution}, no nodal differentiation rule
-is accurate---the Gibbs phenomenon identified as an open problem in
+is accurate --- the Gibbs phenomenon identified as an open problem in
 \chapref{ch:part1-open-theoretical-problems-and-mathematical} is precisely this failure.
 \end{example}
 
@@ -292,13 +298,13 @@ C^{k}(\overline{\Omega})$ continuously when $s>d/2+k$, so with $k=0$ an error $e
 $\|e\|_{L^\infty}\le C_s\|e\|_{H^{s}}$. Controlling $\|\cdot\|_{H^s}$ with $s>d/2$ therefore
 excludes localized pointwise spikes: no defect can be large somewhere without being large in
 the norm the objective measures. The statement is an implication between metrics, not an
-algorithmic guarantee---nothing in \eqref{eq:ch07-sobolev-loss} forces the optimizer to make
+algorithmic guarantee --- nothing in \eqref{eq:ch07-sobolev-loss} forces the optimizer to make
 that norm small, and in dimension $d=3$ the hypothesis $s>d/2$ requires two derivatives,
 which is why the $H^2$ variant rather than the $H^1$ one is the natural target for
 three-dimensional fields. It is also why such losses are attractive independently of any
 physics term: the quantities practitioners read off a simulation are derivatives of the
-state---the Darcy flux $-a\nabla u$, the vorticity $\nabla\times u$, the wall shear
-stress---so an $L^2$-accurate field may still be a poor model of the diagnostic. The
+state --- the Darcy flux $-a\nabla u$, the vorticity $\nabla\times u$, the wall shear
+stress --- so an $L^2$-accurate field may still be a poor model of the diagnostic. The
 companion claim, that derivative regularization preserves conservation properties, should be
 read in the same register: it suppresses non-physical oscillation in gradients, which is
 consistent with better behaved balance laws, but it is not a proof that a trained network
@@ -310,8 +316,8 @@ satisfies any conservation identity.
 carry the cell volume $h^{d}$ to be quadratures at all; the relative normalization then cancels
 the remaining mesh factor, which is why the objective is a mesh-consistent quantity whereas an
 unnormalized discrete seminorm grows with refinement. The normalization has its own failure
-mode: when $\|\partial_{x_j}u\|_{L^2}$ is small---a label that is nearly constant along a
-coordinate, as for shear-driven or symmetry-reduced data---the corresponding term is
+mode: when $\|\partial_{x_j}u\|_{L^2}$ is small --- a label that is nearly constant along a
+coordinate, as for shear-driven or symmetry-reduced data --- the corresponding term is
 ill-conditioned and its gradient is dominated by the surrogate's own derivative fluctuation.
 Normalizing over a batch instead of per sample repairs the scaling but makes an individual
 sample's contribution depend on which other samples were drawn.
@@ -326,7 +332,7 @@ backward pass through them, and adding two further hyperparameters to
 \eqref{eq:pino_loss}. Neither penalty alters the approximation classes of
 \chapref{ch:part1-operator-approximation-theory-and-universa}: they change which element of
 the class is found, not which elements exist. Nor do they immunize training against the
-equation being wrong---when $\mathcal{N}$ encodes a closure or a solver's discretization and
+equation being wrong --- when $\mathcal{N}$ encodes a closure or a solver's discretization and
 passes for the physics of interest, the residual term biases the fit away from the data that
 was generated by that same model. The reported benefits are correspondingly empirical and
 specific: PINO trained with both terms is reported to need fewer labels than a purely
@@ -334,7 +340,7 @@ data-driven \emph{Fourier Neural Operator} (FNO), to generalize better at resolu
 above the training one, and on transient
 and Kolmogorov flows to reduce average relative error by roughly $7\%$, while remaining
 trainable in a data-free regime where a PINN is reported to fail on the optimization
-landscape of the PDE constraint~\cite{li2021physics,raissi2019physics}. Those are benchmark
+landscape of the PDE constraint~\cite{li2021physics}. Those are benchmark
 outcomes, and no theorem in this chapter establishes them; they mark the boundary of what this
 chapter can claim.
 
@@ -349,9 +355,9 @@ geometry-informed architectures use; and for an architecture whose input is a fi
 vector, the data term and the residual term are not measured on comparable discretizations at
 all. Likewise the derivative penalties of \eqref{eq:ch07-sobolev-loss} presuppose that
 $\partial_{x_j}\mathcal{G}_\theta(a)$ has a well-defined discrete meaning. \chapref{ch:part1-comparative-theoretical-taxonomy-of-archit}
-assembles these axes into a single comparison---input format, coordinate query, kernel
+assembles these axes into a single comparison --- input format, coordinate query, kernel
 parameterization, cost per layer, discretization invariance, and support for physics-residual
-evaluation---across DeepONet, the generic neural operator, the FNO, and the geometry-informed
+evaluation --- across DeepONet, the generic neural operator, the FNO, and the geometry-informed
 neural operator. Reading it after this chapter is worthwhile precisely because the two
 decisions it tabulates, how to represent a map and what to minimize, are one decision made
 twice.

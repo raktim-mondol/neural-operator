@@ -123,6 +123,7 @@ then supplies existence, uniqueness, and the a priori bound recorded in the next
 proposition, all in one step.
 
 \begin{proposition}[Properties of the Darcy Solution Operator]
+\label{prop:ch03-darcy}
 \index{Darcy flow!solution operator}Under Assumption~\ref{ass:ellipticity}, for
 every $a \in \mathcal{A}_{\text{adm}}$ and $f \in H^{-1}(\Omega)$, the
 Lax--Milgram theorem guarantees a unique weak solution $u \in H^1_0(\Omega)$
@@ -339,7 +340,8 @@ For the nonlinear viscous Burgers' equation on $\mathbb{T}$,
 \end{equation}
 the solution operator $\mathcal{G}_t : u_0 \mapsto u(\cdot, t)$ maps initial
 conditions $u_0 \in L^2(\mathbb{T})$ to smooth states $u(\cdot, t) \in H^s(\mathbb{T})$
-for any $s > 0$ when $\nu > 0$. Its argument is a state, not a coefficient, so
+for any $s > 0$ when $\nu > 0$ and $t > 0$; the bound deteriorates as $t \downarrow 0$.
+Its argument is a state, not a coefficient, so
 domain and codomain are function spaces of the same kind. Because
 \eqref{eq:ch03-burgers} is autonomous,
 the family $\{\mathcal{G}_t\}_{t \ge 0}$ is a semigroup,
@@ -417,12 +419,15 @@ vorticity--streamfunction formulation, \index{Navier--Stokes equations!vorticity
   \partial_t \omega + \mathbf{u} \cdot \nabla \omega = \nu \Delta \omega + f, \qquad \nabla \cdot \mathbf{u} = 0, \quad \omega = \nabla \times \mathbf{u},
   \label{eq:ch03-navierstokes}
 \end{equation}
-the solution operator maps $\omega(\cdot, 0) \in L^2(\mathbb{T}^2)$ to
-$\omega(\cdot, T) \in L^2(\mathbb{T}^2)$. Two structural facts distinguish
+the solution operator maps $\omega(\cdot, 0) \in L^2_0(\mathbb{T}^2)$ to
+$\omega(\cdot, T) \in L^2_0(\mathbb{T}^2)$: the mean-zero subspace is the natural
+one, since $\int_{\mathbb{T}^2}\omega$ is conserved and $(-\Delta_{\mathbb{T}^2})^{-1}$
+is defined on it (with $\hat{f}(0) = 0$ imposed on the forcing). Two structural facts distinguish
 \eqref{eq:ch03-navierstokes} from \eqref{eq:ch03-burgers}. First, the velocity is
 recovered from vorticity by the Biot--Savart law,
-$\mathbf{u} = \nabla^{\perp}(-\Delta_{\mathbb{T}^2})^{-1}\omega$, a singular
-integral of order zero on the torus, so the nonlinearity is of pure transport
+$\mathbf{u} = \nabla^{\perp}(-\Delta_{\mathbb{T}^2})^{-1}\omega$ --- an order-$(-1)$
+smoothing singular integral, whose gradient is the order-zero Calder\'on--Zygmund
+part, which is why the nonlinearity is of pure transport
 type and $\|\nabla \mathbf{u}\|_{L^2} = \|\omega\|_{L^2}$. Second, incompressibility
 kills the nonlinear term in the energy balance: testing \eqref{eq:ch03-navierstokes}
 against $\omega$ gives
@@ -436,10 +441,12 @@ because $\int_{\mathbb{T}^2} (\mathbf{u}\cdot\nabla\omega)\,\omega\,dx =
 \tfrac{1}{2}\int_{\mathbb{T}^2} \mathbf{u}\cdot\nabla(\omega^2)\,dx = 0$. Once the
 forcing is bounded by $\|f\|_{L^2}\|\omega\|_{L^2}$ and the inequality is closed
 with Gr\"onwall's lemma, the balance \eqref{eq:ch03-enstrophy} is a closed
-\emph{a priori} estimate in two space dimensions --- the reason the forward
-operator in \eqref{eq:ch03-navierstokes} is
-globally defined; in three dimensions vortex stretching adds a term of this same
-sign and the estimate no longer closes, so nothing here is claimed beyond two
+\emph{a priori} estimate in two space dimensions --- the estimate behind the
+classical global well-posedness theory, and thereby behind the forward operator in
+\eqref{eq:ch03-navierstokes} being globally defined; in three dimensions vortex
+stretching adds a term of no fixed sign and super-quadratic growth in
+$\|\omega\|_{L^{3}}$, which no Young or Gr\"onwall closure absorbs, so the estimate
+no longer closes and nothing here is claimed beyond two
 dimensions. Long-time behavior
 supplies one further structural fact: the forced two-dimensional dynamics lie on
 a finite-dimensional global attractor \index{global attractor}\index{dissipative system}, implying that

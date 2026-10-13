@@ -194,7 +194,7 @@ For a Borel probability measure $\mu$ on a separable Hilbert space $H$ with fini
 moment, $C_\mu h = \int_H \langle h,u \rangle_H\, u\, d\mu(u)$ is self-adjoint, positive, and
 trace class, hence compact with eigenvalues $s_1 \ge s_2 \ge \dots \downarrow 0$. The decay of
 $(s_j)$ is what the analysis of \cite{lanthaler2022error} prices the terms of
-Theorem~\ref{thm:appa-deeponet-error} with.
+Remark~\ref{thm:appa-deeponet-error} with.
 \index{covariance operator!spectral decay}\index{trace-class operator}
 \end{definition}
 
@@ -212,33 +212,41 @@ the mean-square optimality of the leading eigenspace of the output covariance, r
 \index{universal approximation!for operators}
 
 \begin{theorem}[Chen and Chen]\label{thm:appa-chen-chen}
-Let $K_2 \subset \mathbb{R}^d$ and $K_1 \subset X$ be compact, $X$ a Banach space of
-continuous functions on $K_2$, $\mathcal{G} : K_1 \to C(K_2)$ continuous and nonlinear,
+Let $K_{\mathrm{in}} \subset \mathbb{R}^{d_{\mathrm{in}}}$ and $K_{\mathrm{out}} \subset
+\mathbb{R}^{d_{\mathrm{out}}}$ be compact, $K_1$ a compact subset of $C(K_{\mathrm{in}})$,
+$\mathcal{G} : K_1 \to C(K_{\mathrm{out}})$ continuous and nonlinear,
 $\sigma : \mathbb{R} \to \mathbb{R}$ continuous and non-polynomial. Then for every
-$\varepsilon > 0$ there are $m, n, p$, sensors $\{x_j\}_{j=1}^m \subset K_2$, coefficients
-$\{c_k^i, \xi_j^i, \theta_i\}$, and continuous $\{g_k\}_{k=1}^p$ on $K_2$ with
-\eqref{eq:chen_chen_form} uniform in $u \in K_1$ and $y \in K_2$ \cite{chen1995universal}:
+$\varepsilon > 0$ there are $m, n, p$, sensors $\{x_j\}_{j=1}^m \subset K_{\mathrm{in}}$, coefficients
+$\{c_k^i, \xi_j^i, \theta_i\}$, and continuous $\{g_k\}_{k=1}^p$ on $K_{\mathrm{out}}$ with
+\eqref{eq:chen_chen_form} uniform in $u \in K_1$ and $y \in K_{\mathrm{out}}$ \cite{chen1995universal}:
 Theorem~\ref{thm:chen_chen},
-the branch--trunk form of \eqref{eq:ch04-deeponet}. Nothing but continuity and
+the branch--trunk form of \eqref{eq:ch04-deeponet}; input and output domains are independent
+compacta, and the displayed double sum is the published single sum with the output basis
+allowed to repeat. Nothing but continuity and
 non-polynomiality is required of $\sigma$; compactness of $K_1$ is not stylistic, a bounded
-non-compact set failing Theorem~\ref{thm:appa-compactness}; and the result is existential, no
+non-compact set failing Theorem~\ref{thm:appa-compactness}; the sensors are point
+evaluations, so the theorem speaks to Sobolev ensembles only above $s > d/2$;
+and the result is existential, no
 bound on $m, n, p$ in terms of $\varepsilon$.
 \index{Chen and Chen theorem}\index{activation function!non-polynomial}
 \end{theorem}
 
 \begin{theorem}[Neural-operator universality]\label{thm:appa-no-universality}
-Let $\Omega \subset \mathbb{R}^d$ be compact, $\mathcal{A} = L^2(\Omega;\mathbb{R}^{d_a})$,
+Let $\Omega \subset \mathbb{R}^d$ be compact, $\mathcal{A} = H^r(\Omega;\mathbb{R}^{d_a})$
+with $r > d/2$,
 $\mathcal{U} = L^2(\Omega;\mathbb{R}^{d_u})$, $K \subset \mathcal{A}$ compact,
-$\mathcal{G} : K \to \mathcal{U}$ continuous, $\sigma$ non-polynomial and Lipschitz. Then a
-network of the form \eqref{eq:no_composition}--\eqref{eq:fredholm_kernel}, of depth $L$ and
-width $d_v$ with kernels $\kappa_\ell \in C(\Omega \times \Omega; \mathbb{R}^{d_v \times d_v})$,
+$\mathcal{G} : K \to \mathcal{U}$ continuous, $\sigma$ non-polynomial and Lipschitz. Then,
+for every $\varepsilon > 0$, there exist a depth $L$, a width $d_v$, a lifting
+$\mathcal{P}$, a projection $\mathcal{Q}$, and kernels $\kappa_\ell \in C(\Omega \times \Omega \times \mathbb{R}^{d_a} \times
+\mathbb{R}^{d_a}; \mathbb{R}^{d_v \times d_v})$ such that a network of the form \eqref{eq:no_composition}--\eqref{eq:fredholm_kernel}
 satisfies $\sup_{a \in K}\|\mathcal{G}(a) - \mathcal{G}_\theta(a)\|_{L^2} < \varepsilon$
-\cite{kovachki2023neural}: Theorem~\ref{thm:no_universality}. Its classical inputs are
-finite-rank approximation on
-compact sets, Stone--Weierstrass density of separable sums in $C(\Omega \times \Omega)$, and
-the Cybenko construction applied pointwise. The theorem quantifies over kernels of $(x,y)$
-alone while \eqref{eq:fredholm_kernel} also conditions on $a(x), a(y)$: the implemented class
-is larger, and no rate is offered.
+\cite{kovachki2023neural}: Theorem~\ref{thm:no_universality}. The margin $r > d/2$ embeds
+inputs in $C(\overline{\Omega})$, which is what makes the endpoint evaluations $a(x), a(y)$
+of \eqref{eq:fredholm_kernel} meaningful; for $K \subset L^2$ only the subclass of kernels
+of $(x,y)$ alone is covered. Its classical inputs are
+finite-rank approximation on compact sets, representation of the resulting functionals by
+integral expressions, Stone--Weierstrass density of separable sums in the kernel's spatial
+variables, and the Cybenko construction applied pointwise. No rate is offered.
 \index{Stone--Weierstrass theorem}\index{Cybenko theorem}\index{universal approximation!neural operator}
 \end{theorem}
 
@@ -253,17 +261,22 @@ neither the coefficient class nor the size bound, so neither appears here.
 \index{Fourier neural operator!error bounds}\index{universality!versus efficiency}
 \end{theorem}
 
-\begin{theorem}[DeepONet error decomposition]\label{thm:appa-deeponet-error}
-For $\mathcal{G} : \mathcal{A} \to \mathcal{U}$ between Sobolev spaces, the error of
-\eqref{eq:ch04-deeponet} splits as $\|\mathcal{G}(u) - \mathcal{G}_\theta(u)\| \le
-\mathcal{E}_{\text{sensor}}(m) + \mathcal{E}_{\text{basis}}(p) + \mathcal{E}_{\text{DNN}}(\theta)$
+\begin{remark}[DeepONet error split, after \cite{lanthaler2022error}]\label{thm:appa-deeponet-error}
+For $\mathcal{G} : \mathcal{A} \to \mathcal{U}$ Hölder-continuous between Sobolev spaces
+with essentially relatively compact range and inputs drawn from a measure $\mu$, the error of
+\eqref{eq:ch04-deeponet}, measured in $L^2(\mu)$ and up to the continuity constants of
+$\mathcal{G}$, separates as $\mathcal{E}_{\text{sensor}}(m) +
+\mathcal{E}_{\text{basis}}(p) + \mathcal{E}_{\text{DNN}}(L, d_b, d_t)$
 \cite{lanthaler2022error}:
-the cost of compressing $u$ to $m$ readings, the projection error onto the $p$-dimensional
-span of the trunk outputs, and the optimization and parameterization error ---
-Theorem~\ref{thm:deeponet_error}, named encoding, approximation, and reconstruction in the
-cited analysis, the first two priced through Definition~\ref{def:appa-covariance}.
+the cost of compressing $u$ to $m$ readings, the approximation error of the rank-$p$ trunk
+span, and the reconstruction error of implementing branch and trunk at depth $L$ and widths
+$d_b$, $d_t$ ---
+Remark~\ref{thm:deeponet_error}, named encoding, approximation, and reconstruction in the
+cited analysis, the first two priced through Definition~\ref{def:appa-covariance}, the
+encoding term entering there to the Hölder power; a taxonomy of bounds, not a theorem
+proved in this book.
 \index{DeepONet!error decomposition}
-\end{theorem}
+\end{remark}
 
 \section{Truncation, Quadrature, and the Continuum Limit}
 \index{spectral truncation}
@@ -271,18 +284,20 @@ cited analysis, the first two priced through Definition~\ref{def:appa-covariance
 \begin{theorem}[FNO spectral convergence bound]\label{thm:appa-fno-rate}
 Let $\mathcal{G} : H^s(\mathbb{T}^d;\mathbb{R}^{d_a}) \to
 H^{s+\alpha}(\mathbb{T}^d;\mathbb{R}^{d_u})$ be continuous and nonlinear with smoothing order
-$\alpha > 0$, let $K \subset H^s(\mathbb{T}^d)$ be bounded, let $R_\phi$ be parameterized up
-to $k_{\max}$ in each direction, and let $\mathcal{G}_{\text{FNO}}$ have depth $L$ and width
-$d_v$. Then $\sup_{u \in K}\|\mathcal{G}(u) -
-\mathcal{G}_{\text{FNO}}(u)\|_{L^2(\mathbb{T}^d)} \le C_1 k_{\max}^{-\alpha} +
-C_2 \mathcal{E}_{\text{NN}}(L,d_v)$ \cite{kovachki2021universal}, $C_1$ depending on the Sobolev
-norm bounds of
-$\mathcal{G}$ and $C_2$ independent of the spatial discretization: Theorem~\ref{thm:fno_convergence}.
-Three hypotheses are load-bearing. $K$ is bounded, not compact, usable only because smoothing
-composes with Theorem~\ref{thm:appa-rellich} to make $\mathcal{G}(K)$ precompact. The
-per-field projection \eqref{eq:ch05-projection-bound} decays like $k_{\max}^{-(s+\alpha)}$
-while the rate quoted uniformly over $K$ is the weaker $k_{\max}^{-\alpha}$, input size
-absorbed into $C_1$. And $\mathcal{E}_{\text{NN}}$ is asserted small but not rated: nothing in
+$\alpha > 0$, let $K \subset H^s(\mathbb{T}^d)$ be compact, let $\Theta(L,d_v,k_{\max})$ be the
+FNO class of depth $L$, width $d_v$ and retained band $k_{\max}$, and let
+$\mathcal{E}_{\text{NN}}$ be the infimum over that class of \eqref{eq:ch05-enn-def}. Then
+$\inf_{\theta \in \Theta}\sup_{u \in K}\|\mathcal{G}(u) -
+\mathcal{G}_\theta(u)\|_{L^2(\mathbb{T}^d)} \le C_1 k_{\max}^{-(s+\alpha)} +
+\mathcal{E}_{\text{NN}}(L,d_v)$ \cite{kovachki2021universal}, with $C_1$ depending on $d$,
+$s$, $\alpha$ and on $\sup_{u\in K}\|\mathcal{G}(u)\|_{H^{s+\alpha}}$:
+Theorem~\ref{thm:fno_convergence}.
+Three hypotheses are load-bearing. $K$ is compact, which smoothing turns into a bounded
+image in $H^{s+\alpha}$ through Theorem~\ref{thm:appa-rellich}; on bounded-but-not-compact
+sets the hypotheses of such bounds are not met. The
+per-field projection \eqref{eq:ch05-projection-bound} decays like $k_{\max}^{-(s+\alpha)}$,
+and the uniform rate inherits that exponent: the regularity of the output, not the gain
+$\alpha$ alone. And $\mathcal{E}_{\text{NN}}$ is asserted small but not rated: nothing in
 the bound involves sample count, grid, or optimizer.
 \index{FNO spectral convergence bound}\index{smoothing order}\index{neural parametric error}
 \end{theorem}
@@ -306,9 +321,13 @@ $k_{\max} < N/2$, and the layer parameters are bounded in the natural norms. The
 compact $\mathcal{A}_c \subset \mathcal{A}$, $\sup_{a \in \mathcal{A}_c}
 N^{-d/2}\|v_t(a) - v_t^N(a)\|_{\ell^2} \le C N^{-s}$, with $v_t$ and $v_t^N$ the continuum and
 grid states after $t$ layers and $C$ depending on the activation and parameter bounds, $d$,
-$s$, $t$, $\mathcal{A}_c$. This is the estimate \eqref{eq:ch06-rate}, stated and derived in the
+$s$, $t$, $\mathcal{A}_c$. This is the estimate \eqref{eq:ch06-rate}, stated in the
 book's own notation in \S\ref{sec:ch06-rates} of
-\chapref{ch:part1-discretization-invariance-and-continuum-li}; the same rate holds at the
+\chapref{ch:part1-discretization-invariance-and-continuum-li}, and recorded there as a claim:
+the derivation available in the literature is for a single linear spectral layer
+\cite{subedi2024controlling}, not for the composed network; the entry's theorem environment
+marks the role this estimate plays in the book's arguments, not a certificate for the
+multi-layer rate; the same rate holds at the
 continuum level after trigonometric interpolation, for $\Psi_{\text{FNO}}$ against
 $\Psi_{\text{FNO}}^N$. Alias accumulation under composition caps the exponent at the least
 regular object in the pipeline --- just below $H^{3/2}$ for a rectified linear unit,
@@ -316,20 +335,26 @@ $H^{1/2-\epsilon}$ with non-periodic positional coordinates appended. The consta
 $t$, and the theorem constrains a fixed $\theta$, not the one training returns. What
 \cite{kovachki2023neural} supplies in general is the corresponding convergence of a neural
 operator's grid realization to its continuum limit as the grid is refined, with no exponent;
-\eqref{eq:ch06-rate} is the sharpening of that statement under the regularity hypotheses above.
+\eqref{eq:ch06-rate} is the sharpening of that statement under the regularity hypotheses
+above, proved for the linear layer and claimed for the composed network.
 \index{discretization error!algebraic rate}\index{ReLU activation!rate saturation}\index{trigonometric interpolation}
 \end{theorem}
 
 \begin{remark}[The three-way bookkeeping, and what no entry says]\label{rem:appa-three-way}
 For a discrete-Fourier-transform least-squares estimator of the linear FNO layer,
-Subedi and Tewari \cite{subedi2024controlling} prove matching upper and lower bounds for the split
-\eqref{eq:ch06-decomp} into statistical, truncation, and discretization terms: the second is
-the first term of Theorem~\ref{thm:appa-fno-rate}, the third is
-Theorem~\ref{thm:appa-discretization}, the first the generalization error whose sharp form is
+Subedi and Tewari \cite{subedi2024controlling} prove the split
+\eqref{eq:ch06-decomp} into statistical, truncation, and discretization terms, with matching
+upper and lower bounds for the truncation term only: their statistical and discretization
+lower bounds are strictly weaker than the corresponding upper bounds, and closing those gaps
+is left by the source to future work. In shape, the second term mirrors
+the truncation term of Theorem~\ref{thm:appa-fno-rate} (in the source's own notation with
+exponent $2s$ for a Sobolev regularity $s$, not $s+\alpha$); the third is
+the claim of Theorem~\ref{thm:appa-discretization}, whose proof exists for the linear layer,
+and the first the generalization error whose sharp form is
 open and listed in \chapref{ch:part1-open-theoretical-problems-and-mathematical}. Against that
-ledger Theorem~\ref{thm:appa-fno-rate} folds the statistical term into
-$\mathcal{E}_{\text{NN}}$ and suppresses the discretization term, being about continuum
-layers. Nothing here concerns optimization, and no entry leaves the periodic uniform grid;
+ledger Theorem~\ref{thm:appa-fno-rate} omits the statistical term (its
+$\mathcal{E}_{\text{NN}}$ is a data-free infimum) and suppresses the discretization term,
+being about continuum layers. Nothing here concerns optimization, and no entry leaves the periodic uniform grid;
 other domains go to graph-based constructions \cite{li2023geometry}.
 \index{error decomposition!statistical, truncation, and discretization}
 \end{remark}
@@ -337,6 +362,6 @@ other domains go to graph-based constructions \cite{li2023geometry}.
 Four facts are underneath all of it: a smoothing gain $\alpha > 0$, the compact injection of
 Theorem~\ref{thm:appa-rellich}, the threshold $s > d/2$ that makes point values meaningful,
 and the algebraic tail of Definition~\ref{def:appa-hs}. Every exponent Part~I reports ---
-$k_{\max}^{-\alpha}$, $N^{-s}$, $\varepsilon^{-d/s}$ --- is one of the four; no theorem here
+$k_{\max}^{-(s+\alpha)}$, $N^{-s}$, $\varepsilon^{-d/s}$ --- is one of the four; no theorem here
 produces the constants multiplying them; and where a fifth was needed, a rate for the
 covariance decay of Definition~\ref{def:appa-covariance}, the book states none.

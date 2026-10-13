@@ -26,12 +26,13 @@ consumed as a composition, so what matters is the rollout amplification
 \eqref{eq:ch09-gronwall}, whose constant no approximation theorem in this book controls.
 Three sheets, three failure modes of one inequality: the columns are not comparable as
 accuracy statements, and a result on one licenses nothing about the others. The sheet's use
-is transcription---fill the row, then train.
+is transcription --- fill the row, then train.
 \index{benchmark!specification sheet}
 
-\begin{table}[t]
+\begin{table}[p]
 \centering
-\footnotesize
+\captionsetup{font=footnotesize}
+\scriptsize
 \caption{\textbf{Benchmark specification sheets}, transcribed from
 \chapref{ch:part2-canonical-pde-benchmarks-and-reference-wor}. ``Not recorded'' means the
 protocol of Section~\ref{sec:ch25-protocol} requires the item and the record does not
@@ -93,8 +94,10 @@ $\nu = 0.1$, target
 $u(\cdot, 1)$ \cite{li2021fourier}. This book's $N = 128$, $\nu = 0.01$ grid was never scored
 & FNO $0.0108$, $0.0109$, $0.0109$, $0.0098$ at $s = 85, 141, 211, 421$; GNO
 $0.0332$--$0.0369$, RBM $0.0244$--$0.0259$, FCN $0.0253$--$0.1097$, NN $0.1716$; all
-Table 4 of \cite{li2021fourier}. That table carries no U-Net row and no DeepONet row,
-and neither is scored on Darcy anywhere in this appendix \\
+Table 4 of \cite{li2021fourier}. That table also carries PCANN, LNO and MGNO rows,
+not reproduced here, none of them scored anywhere in this book; it carries no U-Net row
+and no DeepONet row,
+and neither is scored on Darcy anywhere in this appendix
 & None: no accuracy was measured \\
 \textbf{Reference solver, per query}
 & \emph{Not recorded}; no Burgers row in Table~\ref{tab:benchmarks_hardware}
@@ -119,7 +122,7 @@ data out of the specification, and makes it the cleanest of the three tests of
 discretization invariance. Darcy flow is the awkward case: Dirichlet data on a square, while
 the Fourier machinery of \chapref{ch:part2-fourier-neural-operators-fno-from-scratch} is a
 representation on $\mathbb{T}^{2}$, so either the periodic mismatch at
-$u|_{\partial\Omega} = 0$ is absorbed into the learned map or the field is odd-extended---and
+$u|_{\partial\Omega} = 0$ is absorbed into the learned map or the field is odd-extended --- and
 the record does not say which, leaving the dominant error term unnamed. Double periodicity
 in \eqref{eq:ch25-navierstokes} replaces no-slip, which is what makes the pseudo-spectral
 reference solver cheap and the benchmark a poor proxy for applications, where boundary
@@ -129,7 +132,7 @@ The nondimensional row is the whole specification for the two evolutionary probl
 Burgers' equation carries one parameter, recorded at $\nu = 0.01$ with a unit-amplitude
 trace, so both recorded snapshots lie past Part~I's inviscid gradient catastrophe
 $t_{*} = (2\pi A)^{-1} \approx 0.16$: the steepening is over by then, and each snapshot
-shows a settled viscous shock. The grid row follows from the layer width alone---the
+shows a settled viscous shock. The grid row follows from the layer width alone --- the
 profile \eqref{eq:ch03-shockprofile} gives $\ell_{\nu} = 4\nu/(u^{-} - u^{+}) \approx 0.04$
 at $\nu = 0.01$ for an order-unity jump, about five cells at $N = 128$ and two and a half at
 $N = 64$. At that resolution the sampled profile is an alias of a shock rather than a
@@ -139,20 +142,20 @@ carries $\nu = 10^{-3}$ to $10^{-5}$, hence $\mathrm{Re} = UL/\nu$ from $10^{3}$
 with the torus as length unit and $U$ of order unity; because the cap
 \eqref{eq:ch25-vorticity-bound} of the enstrophy balance \eqref{eq:ch03-enstrophy} grows
 like $1/\nu$, the three viscosities are three distributions with different supports,
-amplitudes, and spectra, and pooling them changes the input measure---train and score one
+amplitudes, and spectra, and pooling them changes the input measure --- train and score one
 $\nu$ at a time.
 \index{Burgers equation!specification sheet}
 \index{Navier--Stokes equations!viscosity range as distinct measures}
 
 The forcing row fixes the symmetry class and the channel count. Burgers' equation has
-none---the datum is $u_0$ and the learned object the forward evolution map $\mathcal{G}_t$
+none --- the datum is $u_0$ and the learned object the forward evolution map $\mathcal{G}_t$
 of \eqref{eq:ch03-burgers}, whose domain and codomain coincide. Darcy's source $f$ is fixed
 and its formula unrecorded, and holding it fixed while the coefficient varies is what
 selects the nonlinear coefficient-to-state map $K \mapsto u$ over the linear
 forcing-to-state map $f \mapsto u$: both maps live on \eqref{eq:darcy}, and
 \eqref{eq:ch25-darcy} is the benchmark form of the first, with the roles of $a$ and $K$
 identified. The Kolmogorov forcing \eqref{eq:ch25-forcing} is
-a vorticity source---the curl of a body force---not a body force, injecting energy at the
+a vorticity source --- the curl of a body force --- not a body force, injecting energy at the
 largest scale at the wavenumbers $k_2 = \pm 1$ alone, with $\mathbb{T}^{2}$ norm exactly
 $0.1$; being fixed it carries no information across the ensemble and
 needs no channel, so a state enters as $(B, 1, N, N)$.
@@ -183,13 +186,13 @@ it; and the horizon $K\Delta t$ at which accuracy is quoted, since an amplificat
 $\Lambda_{\theta}^{K}$ can render an excellent one-step surrogate worthless. The grid and
 mode row carries the tensor arithmetic of
 \chapref{ch:part2-the-practitioner-s-paradigm-infinite-dimen}, its one hazard the symbol
-$m$: modes per band edge here, sensor readings in the DeepONet baseline of
-Figure~\ref{fig:benchmarks}. The transfer row is empty in all three columns, and the
+$m$: modes per band edge here, sensor readings in the branch input of
+\chapref{ch:part2-deeponet-engineering-branch-trunk-networks}. The transfer row is empty in all three columns, and the
 emptiness is the finding: Proposition~\ref{prop:ch06-zeroshot} grants exactness only under
 its band-limited hypothesis, that the input's spectrum lie within the retained set
 $Z_{k_{\max}}$ of \eqref{eq:ch05-modeset}, and none of these three targets satisfies
-it---the Burgers target acquires a shock, the Darcy coefficient is rough, the vorticity
-spectrum is broad by construction---so a super-resolution number here is a measurement at
+it --- the Burgers target acquires a shock, the Darcy coefficient is rough, the vorticity
+spectrum is broad by construction --- so a super-resolution number here is a measurement at
 $N_{\text{test}}$ beside the one at $N_{\text{train}}$, not a corollary.
 
 % -----------------------------------------------------------------------------
@@ -203,7 +206,7 @@ and no generating solver: Table~\ref{tab:benchmarks_hardware} prices the finite 
 method (FEM) Darcy solve and the pseudo-spectral Navier--Stokes trajectory and has no
 Burgers row, so no tolerance record exists to transcribe. It also leaves the operator class
 ambiguous, since ``across all time snapshots'' fits one model per $t$, one model taking $t$
-as an extra channel, or an iterated one-step map---three operators, and this book's record
+as an extra channel, or an iterated one-step map --- three operators, and this book's record
 does not say which. The cited paper is not ambiguous on the point: its Burgers operator
 ends at $t = 1$ \cite{li2021fourier}. The Darcy sheet omits the truncation band, the periodic-versus-odd-extension
 choice, and the resolution of the reference field behind the cited Darcy errors; the
@@ -212,8 +215,8 @@ measured. Common to all three:
 no train/validation/test split ratio is recorded, so no percentage here is a leaderboard
 entry, and normalization by training statistics must be frozen before validation data are
 touched. Only two items are stated
-values---the four Darcy errors and the six Burgers errors of
-\cite{li2021fourier}, transcribed from its Tables 4 and 3 at $\nu = 0.1$---and
+values --- the four Darcy errors and the six Burgers errors of
+\cite{li2021fourier}, transcribed from its Tables 4 and 3 at $\nu = 0.1$ --- and
 nothing in this appendix is a measurement made for this book, so no epoch budget,
 no wall-clock cost and no training curve is attributed to any architecture here;
 Section~\ref{sec:ch25-protocol} names mode-count augmentation as a convention none of them
@@ -232,7 +235,7 @@ survives refinement: mean squared error grows with the node count when summed, a
 averaged it carries the field's own scale, letting one large-magnitude batch member
 dominate. On equispaced grids the quadrature weights $w_i = \Delta x$ cancel
 between numerator and denominator of \eqref{eq:rel_l2_loss}, making the metric strictly
-invariant to grid density $N$---what a benchmark competing at two resolutions needs. The
+invariant to grid density $N$ --- what a benchmark competing at two resolutions needs. The
 invariance belongs to the functional, not the value: $u$ and $\hat{u}$ are sampled on
 different grids, so the number still moves with $N$ by the amount
 \eqref{eq:ch06-rate} describes. Against the population risk \eqref{eq:ch01-risk},
@@ -244,8 +247,8 @@ averages, and the percentages above are of that root-then-average form.
 The order of those two reductions is a specification choice, not a notational one: a mean
 of per-sample relative errors weights a low-amplitude sample as heavily as a high-amplitude
 one, whereas the ratio of aggregated norms is dominated by the largest fields in the batch;
-on a measure whose amplitude varies by an order of magnitude---what the log-normal Darcy
-coefficient and the $1/\nu$ vorticity cap produce---the two summaries can differ by a factor
+on a measure whose amplitude varies by an order of magnitude --- what the log-normal Darcy
+coefficient and the $1/\nu$ vorticity cap produce --- the two summaries can differ by a factor
 of two, and a report that names neither has reported an unidentifiable quantity. The metric
 also forgives: a Gibbs overshoot of fixed height on a set of measure $O(1/M)$ contributes
 $O(M^{-1/2})$, and a displacement $\delta$ of a unit-height front contributes $\sqrt{2\delta}$, so a

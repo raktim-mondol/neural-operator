@@ -23,7 +23,7 @@ The \textbf{Fourier Neural Operator} (FNO)~\cite{li2021fourier} escapes the
 bottleneck by accepting a restriction rather than by inventing a faster dense
 product. It requires the kernel to be \emph{stationary},
 $\kappa(x,y)=\kappa(x-y)$, and the domain to be the periodic torus
-$\\mathbb{T}^d$. Both are modeling assumptions. They declare the medium
+$\mathbb{T}^d$. Both are modeling assumptions. They declare the medium
 homogeneous and the boundary periodic, and they remove
 the explicit input dependence that the generic kernel carries. The premise binds
 the kernel of each layer; the network as a whole is freer --- the lifted
@@ -300,29 +300,38 @@ operator of
 bounded coefficient sets into a bounded subset of $H^1_0$; \eqref{eq:darcy} is
 posed there on a bounded domain with homogeneous Dirichlet conditions, and on
 the torus the same estimate reads in the homogeneous seminorm, which is the
-form the theorem speaks of. $K$ is
-assumed bounded rather than compact. That is not an oversight. Composed with
-the smoothing, the Rellich--Kondrachov embedding of
-\chapref{ch:part1-function-spaces-duality-and-sobolev-regula} makes
-$\mathcal{G}(K)$ precompact in $H^s$, which is precisely the condition under
-which continuity becomes uniform approximation; boundedness alone would not
-suffice, since in infinite dimensions no closed bounded set is compact. The
-statement below is the spectral convergence theorem of Kovachki, Lanthaler, and
-Mishra~\cite{kovachki2021universal}, restated in this book's notation with the two
-error sources displayed separately.
+form the theorem speaks of. $K$ is assumed
+compact. This follows the source: the error bounds of Kovachki, Lanthaler, and
+Mishra~\cite{kovachki2021universal} quantify over compact sets, and
+\chapref{ch:part1-function-spaces-duality-and-sobolev-regula} warned that on
+bounded-but-not-compact sets the hypotheses of such theorems simply are not met.
+Composed with the smoothing, compactness of $K$ makes $\mathcal{G}(K)$ compact
+in $H^{s+\alpha}$ and hence precompact in $H^s$ through the Rellich--Kondrachov
+embedding of
+\chapref{ch:part1-function-spaces-duality-and-sobolev-regula}, which is
+precisely the condition under which continuity becomes uniform approximation,
+and it supplies the bound $M := \sup_{u \in K} \|\mathcal{G}(u)\|_{H^{s+\alpha}}
+< \infty$ that the proof consumes.
+The statement below restates their spectral convergence theorem in this book's
+notation with the two error sources displayed separately.
 
 \begin{theorem}[FNO Spectral Convergence Bound]
 \label{thm:fno_convergence}
-Let $\mathcal{G} : H^s(\mathbb{T}^d; \mathbb{R}^{d_a}) \to H^{s+\alpha}(\mathbb{T}^d; \mathbb{R}^{d_u})$ be a continuous nonlinear solution operator with smoothing order $\alpha > 0$. Let $K \subset H^s(\mathbb{T}^d)$ be a bounded set.
+Let $\mathcal{G} : H^s(\mathbb{T}^d; \mathbb{R}^{d_a}) \to H^{s+\alpha}(\mathbb{T}^d; \mathbb{R}^{d_u})$ be a continuous nonlinear solution operator with smoothing order $\alpha > 0$, and let $K \subset H^s(\mathbb{T}^d)$ be a compact set.
 
-Assume $R_{\phi}$ is parameterized up to wavenumber $k_{\max}$ in each spatial dimension, and let $\mathcal{G}_{\text{FNO}}$ denote an FNO network of depth $L$ with width $d_v$. Then the total approximation error in $L^2(\mathbb{T}^d)$ decomposes as:
+Write $\Theta(L, d_v, k_{\max})$ for the class of FNO networks of depth $L$, width $d_v$, whose multiplier $R_{\phi}$ is parameterized up to wavenumber $k_{\max}$ in each spatial dimension, and set
+\begin{equation}
+  \label{eq:ch05-enn-def}
+  \mathcal{E}_{\text{NN}}(L, d_v) := \inf_{\theta \in \Theta(L, d_v, k_{\max})} \; \sup_{u \in K} \big\| P_{k_{\max}} \mathcal{G}(u) - \mathcal{G}_\theta(u) \big\|_{L^2(\mathbb{T}^d)},
+\end{equation}
+the error of the best member of the class at representing the band-limited target, where $P_{k_{\max}}$ is the projection defined in the proof below. Then the approximation error of the best network in the class decomposes as:
 \index{FNO spectral convergence bound}
 \index{smoothing order}
 \begin{equation}
   \label{eq:ch05-error-decomposition}
-  \sup_{u \in K} \|\mathcal{G}(u) - \mathcal{G}_{\text{FNO}}(u)\|_{L^2(\mathbb{T}^d)} \le \underbrace{C_1 \, k_{\max}^{-\alpha}}_{\text{Spectral Truncation}} + \underbrace{C_2 \, \mathcal{E}_{\text{NN}}(L, d_v)}_{\text{Neural Parametric Error}},
+  \inf_{\theta \in \Theta} \sup_{u \in K} \|\mathcal{G}(u) - \mathcal{G}_\theta(u)\|_{L^2} \le \underbrace{C_1 \, k_{\max}^{-(s+\alpha)}}_{\text{Spectral Truncation}} + \underbrace{\mathcal{E}_{\text{NN}}(L, d_v)}_{\text{Neural Parametric Error}},
 \end{equation}
-where $C_1$ depends on the Sobolev norm bounds of the solution operator and $C_2$ is independent of the spatial discretization.
+where $C_1$ depends on $d$, $s$, $\alpha$ and on $M = \sup_{u \in K} \|\mathcal{G}(u)\|_{H^{s+\alpha}}$, and $\mathcal{E}_{\text{NN}}$ on the class sizes $L$, $d_v$, $k_{\max}$; nothing in the display depends on a deployment grid, and the distance between the best network and the one a training loop returns lies outside it entirely.
 \end{theorem}
 
 \begin{proof}[Justification of the truncation term]
@@ -335,24 +344,32 @@ Let $P_{k_{\max}}$ denote the $L^2$-orthogonal projection onto the subspace span
 For any function $w \in H^{s+\alpha}(\mathbb{T}^d)$, the projection error satisfies:
 \begin{equation}
   \label{eq:ch05-projection-bound}
-  \|w - P_{k_{\max}} w\|_{L^2}^2 = \sum_{|k| > k_{\max}} |\hat{w}(k)|^2 = \sum_{|k| > k_{\max}} \frac{(1 + |k|^2)^{s+\alpha}}{(1 + |k|^2)^{s+\alpha}} |\hat{w}(k)|^2 \le \frac{1}{(1 + k_{\max}^2)^{s+\alpha}} \|w\|_{H^{s+\alpha}}^2.
+  \begin{aligned}
+    \|w - P_{k_{\max}} w\|_{L^2}^2 = \sum_{k \notin Z_{k_{\max}}} |\hat{w}(k)|^2
+    &\le \frac{1}{(1 + k_{\max}^2)^{s+\alpha}} \sum_{k \notin Z_{k_{\max}}} (1 + |k|^2)^{s+\alpha} |\hat{w}(k)|^2 \\
+    &\le \frac{1}{(1 + k_{\max}^2)^{s+\alpha}} \|w\|_{H^{s+\alpha}}^2.
+  \end{aligned}
 \end{equation}
-Taking the square root yields $\|w - P_{k_{\max}} w\|_{L^2} \le C k_{\max}^{-(s+\alpha)}$. For an operator mapping into $H^{s+\alpha}$, the high-frequency tail truncation error decays algebraically with rate $k_{\max}^{-\alpha}$. The remaining component $\mathcal{E}_{\text{NN}}$ arises from approximating the finite collection of complex multiplier matrices $\{R(k)\}_{k \in Z_{k_{\max}}}$ and local transformations using feedforward layers.
+The middle step uses $|k| \ge \max_i |k_i| > k_{\max}$ for every discarded mode $k \notin Z_{k_{\max}}$.
+Taking the square root and writing $M$ for the bound on $\|w\|_{H^{s+\alpha}}$ yields $\|w - P_{k_{\max}} w\|_{L^2} \le C M k_{\max}^{-(s+\alpha)}$, and applying this to every $w$ in $\mathcal{G}(K)$ bounds the truncation term uniformly over $K$. The remaining component $\mathcal{E}_{\text{NN}}$ arises from approximating the finite collection of complex multiplier matrices $\{R(k)\}_{k \in Z_{k_{\max}}}$ and local transformations using feedforward layers.
 \end{proof}
 
-Two exponents appear in the display above and must not be confused. For a
-single field with $\|w\|_{H^{s+\alpha}} \le M$, the estimate
-\eqref{eq:ch05-projection-bound} delivers $M$ times $k_{\max}^{-(s+\alpha)}$.
-The rate quoted in \eqref{eq:ch05-error-decomposition} is the weaker
-$k_{\max}^{-\alpha}$, because the quantity being bounded uniformly over $K$ is
-the operator's \emph{regularity gain}, with the input set's own $H^s$ size
-absorbed into $C_1$. The exponent $\alpha$ is therefore the conservative
-choice, and it is the one that survives uniformly over a bounded set rather
-than over a unit ball of the target space. Also worth noting: the sum in
-\eqref{eq:ch05-projection-bound} is written over $\{|k| > k_{\max}\}$ while the
-retained set \eqref{eq:ch05-modeset} is a box; the two index sets differ, but
-both tails are algebraic in $k_{\max}$ with the same exponent, so the notational
-slippage changes nothing.
+One exponent deserves care, because an earlier drafting of this chapter
+printed the wrong one. The truncation term in
+\eqref{eq:ch05-error-decomposition} decays as $k_{\max}^{-(s+\alpha)}$: the
+exponent is the \emph{output} regularity $s + \alpha$ of the target, not the
+operator's gain $\alpha$ alone, since what is truncated is the tail of
+$\mathcal{G}(u)$, a function of $s+\alpha$ derivatives in $L^2$. A weaker
+$k_{\max}^{-\alpha}$ bound follows for $k_{\max} \ge 1$, but it is a deliberate
+degradation, not a constant absorbed into $C_1$: no constant can move an
+exponent. What downstream chapters must carry --- at a shock, at a front, in
+the taxonomy ledger --- is the regularity of the output, which the smoothing
+hypothesis bounds by $s + \alpha$ and which a discontinuity drives below $1/2$
+outright. Also worth noting: the sum in \eqref{eq:ch05-projection-bound} now
+runs over the complement of the box \eqref{eq:ch05-modeset}, exactly the modes
+the projector discards; the round-tail set written there in the earlier drafting
+was not the discarded set, and the estimate survived only because the mistaken
+inclusion ran in the favorable direction.
 
 The second term, $\mathcal{E}_{\text{NN}}(L,d_v)$, is
 \index{neural parametric error}
@@ -360,13 +377,14 @@ the error of representing the finitely many matrices
 $\{R(k)\}_{k \in Z_{k_{\max}}}$ and the local maps within a network of depth
 $L$ and width $d_v$; it is an approximation-theoretic quantity, and
 \eqref{eq:ch05-error-decomposition} asserts it can be made small, not how fast.
-Continuity of the approximating network is what makes the question of smallness
-answerable at all, and Remark~\ref{rem:ch05-lipschitz} grants it
-unconditionally; what the theorem declines to rate is how small the best member
-of the class is, not how regular it is.
-Nor does the bound contain anything about the training procedure: the
-difference between the best parameters and the parameters a solver returns lies
-outside \eqref{eq:ch05-error-decomposition} entirely. A more informative split
+That it can be made small at all is a density fact about the class, established
+in \chapref{ch:part1-operator-approximation-theory-and-universa};
+Remark~\ref{rem:ch05-lipschitz} grants each member of the class Lipschitz
+continuity --- a property of the networks, not a rate for the infimum.
+Nor does the bound say anything about training: \eqref{eq:ch05-enn-def} prices
+the best parameters, and the gap between them and the parameters a solver
+returns is outside the display.
+A more informative split
 for a learned surrogate is the three-way decomposition proved for Fourier
 \index{error decomposition!statistical, discretization, and truncation}
 linear operators by Subedi and Tewari~\cite{subedi2024controlling}, who
@@ -374,10 +392,10 @@ separate a \emph{statistical} term, decaying with the number of training
 input-output pairs, a \emph{discretization} term, controlled by the grid
 spacing at which the field is sampled, and a \emph{truncation} term from
 \index{truncation error!algebraic rate}
-keeping finitely many modes. Theorem~\ref{thm:fno_convergence} keeps the first
-and third of these folded into $\mathcal{E}_{\text{NN}}$ and $C_1
-k_{\max}^{-\alpha}$ and suppresses the middle one altogether, because it is a
-statement about continuum layers. The decay rate behind the truncation term is
+keeping finitely many modes. Theorem~\ref{thm:fno_convergence} prices only the third of these, through $C_1
+k_{\max}^{-(s+\alpha)}$; its $\mathcal{E}_{\text{NN}}$ is data-free, so the statistical term is not
+folded in but absent, and the discretization term is suppressed altogether, because the
+theorem is a statement about continuum layers. The decay rate behind the truncation term is
 easy to see in a model, and the model is the one drawn in
 Figure~\ref{fig:spectral_decay}. Let $\tau$ denote a coefficient decay
 exponent --- the letter is reserved here precisely so that $\sigma$ can keep
@@ -453,12 +471,13 @@ and a continuum FNO whose layer \eqref{eq:fno_layer} is written with continuous
 transforms $\mathcal{F}$, $\mathcal{F}^{-1}$; a real network never computes
 those. It evaluates coefficient sums on $N$ grid points, where the FFT replaces
 $\mathcal{F}$ with a discrete transform whose coefficients are quadrature
-approximations carrying aliasing of their own. The constant $C_2$ in
-\eqref{eq:ch05-error-decomposition} was declared independent of the spatial
-discretization, which is exactly the claim that now requires proof: that the
-discrete operator induced by any grid converges to the continuum operator as
-$h \to 0$, and that the parameter vector $\phi$ means the same object on every
-grid. \chapref{ch:part1-discretization-invariance-and-continuum-li} states that
+approximations carrying aliasing of their own. Nothing in
+\eqref{eq:ch05-error-decomposition} mentions a grid --- and that is the whole
+point of the chapter that follows. The theorem bounds a continuum object, so
+what still requires proof is a commutation of limits, not a property of $C_1$
+or of $\mathcal{E}_{\text{NN}}$: that the discrete operator induced by any grid
+converges to the continuum operator as $h \to 0$, and that the parameter vector
+$\phi$ means the same object on every grid. \chapref{ch:part1-discretization-invariance-and-continuum-li} states that
 property precisely, checks it for the spectral layer against the quadrature
 consistency of the generic kernel, and shows why a conventional convolutional
 network fails the same test --- with a consequence, zero-shot evaluation on

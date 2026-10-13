@@ -9,7 +9,7 @@
 Parts~I and~II of this book were written against a physics that stays out of the way. The
 domains are the periodic box, the torus, and the unit square; the equations are Darcy flow,
 Burgers' equation, and forced two-dimensional Navier--Stokes; the error is a relative $L^{2}$
-distance between two fields; and the operator is applied once, to one input, on a grid of a few thousand points. That
+distance between two fields; and the operator is applied once, to one input, on grids ranging from a few thousand to a few hundred thousand points. That
 austerity was deliberate.
 \chapref{ch:part1-operator-approximation-theory-and-universa} and
 \chapref{ch:part1-the-fourier-neural-operator-spectral-theor} could state approximation and
@@ -223,7 +223,8 @@ Hemodynamics sit in the same regime with a different constraint: Velikorodny, Lu
 high-fidelity in-vitro measurements in a multi-fidelity DeepONet for flow through stenosed
 coronary vessels, so that the simulation need not be repeated for each new geometry; the
 instantaneous pressure error they report against the in-vitro reference is $1.2 \pm 3.5$
-millimeters of mercury (mmHg), and the validation is against phantoms and simulations rather than
+millimeters of mercury (mmHg) --- a spread nearly three times the mean, quoted as published
+and not re-audited against the source's result tables in this book --- and the validation is against phantoms and simulations rather than
 prospective patient measurements. Here the scarce
 resource is admissible training data and a geometry outside the sampled distribution, not
 floating-point operations.
@@ -233,7 +234,8 @@ floating-point operations.
 \small
 \caption{\textbf{The four multi-query workload families of Part~III, organized by the relation
 among their queries.} Query counts and per-query costs are those this Part inherited; the
-citation names the surrogate study associated with the row, and the row states
+citation names the surrogate study associated with the row, or the row says that no study is
+named; the row states
 explicitly when the study does not itself report the baseline timing beside it. The rows are not
 comparable with one another and are not combined anywhere in this book.}
 \label{tab:ch31-workloads}
@@ -245,9 +247,8 @@ comparable with one another and are not combined anywhere in this book.}
 Bayesian inversion & $\mathcal{O}(10^{5}\text{--}10^{7})$ & chained; warm-startable & $\approx$10 min per
 30-yr realization, one Xeon core \cite{wen2022ufno}; the 10--30 min range is unattributed \\
 Shape optimization & thousands & neighboring, driven by gradients & 15--45 min per geometry on 64 CPU cores (unattributed pairing; \cite{li2023geometry} prices a GPU solve) \\
-Ensemble NWP & 50 members, twice daily & perturbed initial states, one grid & $\approx$ 2 h per member,
-ECMWF IFS (figure with no primary reference; the study times ensembles \cite{pathak2022fourcastnet}) \\
-Procedural clinical & one per patient, per step & independent, often novel geometry & minutes per rollout (framing with no primary reference; the associated study reports no solve-versus-rollout pairing for this workload) \cite{li2021physics} \\
+Ensemble NWP & 50 members, twice daily & perturbed initial states, one grid & $\approx 9{,}840$ node-s per member-day, i.e.\ $\approx 27$ node-hours for a ten-day member; $82$ min wall-clock for the whole $15$-day $51$-member run on $1{,}530$ nodes \cite{pathak2022fourcastnet} (the per-member node-time is this book's division of the study's aggregate; the $\approx 2$\,h per-member wall-clock used in the $4{,}000\times$ latency ratio is likewise this Part's attribution, neither published nor a division of that aggregate) \\
+Procedural clinical & one per patient, per step & independent, often novel geometry & minutes per rollout (framing with no primary reference; no solve-versus-rollout pairing is reported for this workload) \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -324,10 +325,13 @@ a campaign may claim is bounded by the accuracy of the grid it was trained on\in
 The third item is the band in the takeaway, whose endpoints are traceable but not all on the same
 machine or against the same class of baseline. Roughly $4{,}000\times$ for global weather
 \cite{pathak2022fourcastnet} is formed by dividing this Part's own two numbers --- $7{,}200$
-seconds of IFS wall-clock against the $1.8$ seconds the working record gives FourCastNet for a
-week-long forecast on one NVIDIA A100 --- which \chapref{ch:part3-global-weather-forecasting-and-climate-dyn}
-reads as a statement about latency on a device rather than a costing, the study's own comparison
-being node-to-node over a whole ensemble. $26{,}000\times$ for car-surface aerodynamics is not a
+seconds attributed to one IFS member, against the $1.8$ seconds the working record gives FourCastNet for a
+week-long forecast on one NVIDIA A100 --- where the $7{,}200$-second figure is the book's own
+per-member attribution, not a published per-member wall-clock: the study times whole ensembles,
+reporting $82$ minutes for a $15$-day, $51$-member run. The chapter that prices it,
+\chapref{ch:part3-global-weather-forecasting-and-climate-dyn}, reads that quotient as a
+statement about latency on a device rather than a costing, since the study's own comparison
+is node-to-node over a whole ensemble. $26{,}000\times$ for car-surface aerodynamics is not a
 latency ratio on that device at all, but the cost--accuracy quotient \cite{li2023geometry} forms
 against a GPU volume solver, read at a $3\%$ relative error in $C_d$; and $60{,}000\times$ for
 30-year $\mathrm{CO}_{2}$ plume migration is an A100 inference ratio against the finite-difference
@@ -376,12 +380,12 @@ domain by domain.
 Aerodynamics reports a surface integral. The drag coefficient $C_{d}$, obtained by integrating
 pressure and wall shear stress over the body, is the number that sizes an engine, and this Part
 reads a surrogate against it at the $3\%$ relative error where \cite{li2023geometry} forms its
-cost--accuracy comparison; the tighter agreement of $1.2\%$ quoted in this Part's record is
-not a figure that study reports, and \chapref{ch:part3-external-aerodynamics-and-surface-flows}
-uses the $3\%$ value. Either way a surrogate may misplace a separation region and still reproduce
+cost--accuracy comparison, and \chapref{ch:part3-external-aerodynamics-and-surface-flows}
+uses the same $3\%$ value. Such a surrogate may misplace a separation region and still reproduce
 the scalar a design office consumes\index{drag coefficient}. Atmospheric science reports a
-correlation: the ACC for 500 hPa geopotential height against an analysis, with useful skill taken
-as $\mathrm{ACC} > 0.6$ through day 7 in the figures this Part carries forward. The study's own statements are
+correlation: the ACC for 500 hPa geopotential height against an analysis, with useful skill
+conventionally taken as $\mathrm{ACC} > 0.6$ through day 7 in numerical weather prediction
+--- a convention this Part cites but has no figure with which to check. The study's own statements are
 differently shaped --- ACC above $0.6$ for total column water vapor beyond day eight, and
 comparability with the IFS on ACC and root mean squared error only at lead times up to three days
 \cite{pathak2022fourcastnet} --- so the horizon is a threshold one agrees to cross, not a property

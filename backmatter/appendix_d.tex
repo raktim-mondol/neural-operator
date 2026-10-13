@@ -52,9 +52,11 @@ the truncation contribution by roughly $2^{\,s-1/2}$ --- about $1.4$, $2.8$, $5.
 at $s=1,2,3$ --- and if widening still moves nothing with steps scaled, the binding
 term is capacity or the statistical and discretization contributions of
 \cite{subedi2024controlling}. A port between grids requires rechecking rate and
-decay: gradient magnitude grows with the grid under the unscaled forward transform, and orthonormal normalization shrinks that product by the whole grid,
-absorbed by Adam but not by a fixed \texttt{weight\_decay}, so decay tightens at the
-least-signal end; no compensating setting is recorded. The library workflow of
+decay for the reason of \chapref{ch:part2-training-regimes-optimization-and-failure-}:
+the grid-dependent factor is a property of the stored coefficients, not of the
+gradients the optimizer sees --- the inverse transform's adjoint cancels it exactly,
+so switching the normalization convention changes what a reduced-precision format
+must hold, not what \texttt{lr} or \texttt{weight\_decay} should be set to. The library workflow of
 \chapref{ch:part2-fourier-neural-operators-fno-from-scratch} sets \texttt{lr=8e-3}
 with no scheduler: an initial value, not a rate to be held constant.
 \index{learning rate scheduling!reference configuration}
@@ -75,9 +77,10 @@ convolutions in \texttt{bfloat16} and keeps the transform and the complex
 multiplication in \texttt{float32}, and stops there.
 \chapref{ch:part2-training-regimes-optimization-and-failure-} widens the
 reduced-precision set to the bypass $W_\ell$ and the stored activations, on the
-ground that nothing there accumulates. The demotion must be an explicit cast
-at the spectral-layer boundary, or autocast disabled there, since
-\texttt{torch.cuda.amp.autocast} assigns types by operation kind and not by role.
+ground that nothing there accumulates. The protection must be an explicit cast
+at the lift-to-spectral boundary: \texttt{torch.amp.autocast} casts the pointwise
+convolutions and never the complex contraction, so the transform is exposed through
+its input's dtype, not through an entry on a demotion list.
 
 \texttt{float16} is excluded on range. Forward-unscaled, a unit-mean field on a
 $256\times256$ grid has a direct-current coefficient of $65\,536$, thirty-two past

@@ -3,11 +3,12 @@
   "model": "gemini-3-pro-image",
   "host": "chapters/part3/02-external-aerodynamics-and-surface-flows.tex",
   "content_class": "structural schematic; carries no measured value",
-  "prompt_sha256": "e591a5ee244beb0859dea1ee552e214667eaacdd1bd798788b02cd0217f0da07",
+  "prompt_sha256": "f989c28a7902ff5300db4656fb0e309dc25a00ff96f0adcfbcebb482cea910ef",
   "bytes": 192776,
   "generated_utc": "2026-10-12T23:41:40+00:00",
   "pixels": [
     1403,
     768
-  ]
+  ],
+  "codec": "PNG (re-encoded from the model's JPEG; see refit)"
 }

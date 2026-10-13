@@ -74,7 +74,7 @@ heterogeneous permeability tensor, $\phi(x)$ is porosity, $S_g$ is
 $\mathrm{CO}_2$ saturation --- written $S_{\mathrm{CO}_2}$ in the
 reservoir-engineering literature --- and
 $k_{r\alpha}$ are relative permeabilities modeled via the van
-Genuchten~\cite{vanguchten1980closed} or Brooks--Corey curves, with $q_\alpha$ a source or sink term concentrated at the
+Genuchten~\cite{vanguchten1980closed} or Brooks--Corey~\cite{brooks1964hydraulic} curves, with $q_\alpha$ a source or sink term concentrated at the
 well perforations.
 \index{Darcy's law!multiphase form}
 \index{relative permeability}
@@ -251,16 +251,19 @@ represent, not to reproduce a published model. The U-FNO results discussed in th
 \section{Performance vs. Classical Reservoir Solvers (Finite Difference)}
 % -----------------------------------------------------------------------------
 
-The baseline is not a straw solver. Commercial reservoir simulators of the class
-used to generate the training data --- Eclipse, CMG, and the open-source research
-toolkit MRST --- solve the coupled nonlinear system
+The baseline is not a straw solver, and simulator output is not the same thing as a
+toy model: the labels came from the full-physics finite-difference reservoir simulator
+Eclipse~(e300)~\cite{wen2022ufno}. Simulators of that class --- commercial products such
+as Eclipse and CMG, and research codes such as the open-source MRST --- solve the coupled nonlinear system
 \eqref{eq:ch34-cons-w}--\eqref{eq:ch34-cons-g} implicitly in time, with an
 adaptive or fully implicit method (FIM) in which each step requires the residual
 and its Jacobian and a Newton--Raphson iteration to convergence, upstream weighting
 for the mobility, and a time-step controller that shortens steps whenever the
-nonlinear solver struggles \cite{quarteroni2008numerical}. Wen et
-al.~\cite{wen2022ufno} generated their data with the full-physics finite-difference
-simulator Eclipse (e300) and report an average run time of about 10~min per
+nonlinear solver struggles --- a reservoir-simulation practice whose canonical
+domain account is \cite{peaceman1977fundamentals} and whose general numerical
+machinery, implicit schemes and Newton iteration, is what \cite{quarteroni2008numerical}
+treats, at that level of generality and not as reservoir practice. Wen et
+al.~\cite{wen2022ufno} report an average run time of about 10~min per
 30-year case on one dedicated Intel Xeon E5-2670 core, each simulation using a
 fully dedicated processor; the wider 10 to 30~min range per realization that this Part
 carries forward is the working envelope for this class of problem. Against that, the trained U-FNO evaluates the same 30-year
@@ -273,16 +276,18 @@ gas saturation plume error and 0.68\% pressure error \cite{wen2022ufno}.
 Those two percentages deserve to be read as what they are. In the study, 1.6\% is
 the mean over 500 held-out cases of a mean absolute error computed \emph{inside the
 separate-phase plume} --- the region where either the truth or the prediction is
-nonzero --- and the accompanying standard deviation is about 1.1 percentage points;
+nonzero --- and the accompanying standard deviation is about 1.05 percentage points;
 0.68\% is the mean field relative error in pressure buildup, with a standard
-deviation near 0.45. Neither number is a worst-case bound, and reporting the
+deviation near 0.45 percentage points. Neither number is a worst-case bound, and reporting the
 plume error as ``below 1.6\%'' would misdescribe a distribution whose spread is
 two-thirds of its center. The comparison against the plain FNO is more
 informative still, because it shows what the U-Net path buys and what it costs. At
 essentially the same parameter count, the plain FNO reaches a test plume error near
 2.8\% and evaluates in about 0.005~s, while U-FNO reaches 1.6\% in 0.010~s: the
-multi-scale path cuts the front error by roughly 40\% and doubles the inference
-time, and the convolutional benchmark requires about three times the training data
+multi-scale path cuts the plume error by roughly 43\% and doubles the inference
+time. The study's third arm is a standard convolutional network --- not an operator
+architecture, named here once because it is quoted again at the front-extent error
+below --- which requires about three times the training data
 to match the U-FNO's accuracy \cite{wen2022ufno}. The acceleration factor is
 therefore not the largest available, and the architecture's claim is not speed but
 speed at the accuracy where the physics concentrates.
@@ -333,7 +338,7 @@ Ensemble of 1,000 cases &
   $\sim$10 s of GPU time \\
 Accuracy, held-out cases &
   reference solution &
-  1.6\% plume error ($\sigma \approx$ 1.1\%); 0.68\% pressure error ($\sigma \approx$ 0.45\%) \\
+  1.6\% plume error ($\sigma \approx$ 1.05\%); 0.68\% pressure error ($\sigma \approx$ 0.45\%) \\
 Data and training cost &
   none beyond the solve &
   5{,}500 simulator runs ($\approx$920 core-hours); 1{,}872 s per epoch \\
@@ -444,7 +449,8 @@ representation buys geometric reach and no additional regularity at the front.
 The pattern established here transfers, with almost no modification, to the next
 domain. A cardiac action potential is also a sharp traveling front: the Phase~0
 depolarization upstroke is a transition of roughly a tenth of a volt across a
-wavefront of order a millimeter wide, propagated through an anisotropic diffusion
+wavefront of order a half of a millimeter wide at physiological conduction
+speeds, propagated through an anisotropic diffusion
 tensor by a
 reaction term that switches on abruptly, and its speed is likewise selected rather
 than carried: in an excitable medium the front speed is set by the ratio of the

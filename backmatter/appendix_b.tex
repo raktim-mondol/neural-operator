@@ -390,7 +390,8 @@ uses the other convention, the root of the ratio
 per sample and then the average;
 \chapref{ch:part2-the-practitioner-s-paradigm-infinite-dimen} distinguishes the two
 and notes that the percentages reported here are of the root-then-average form and are
-in physical units, there being no normalizer in these four blocks.
+computed on the physical (un-normalized) fields; being a quotient of two norms of the
+same field, they carry no units, there being no normalizer in these four blocks.
 
 \subsection{Held-out evaluation and zero-shot transfer}
 
@@ -448,7 +449,10 @@ held-out error measured $1.41\%$ at $N=64$, and re-sampling those same functions
 four times finer left the value unchanged at $1.41\%$. The
 qualification that came with the number travels with it: both errors round to $0.0141$
 at the printed precision, which is a statement about the report, not a claim that the two
-underlying floating-point quantities were equal.
+underlying floating-point quantities were equal. The held-out mean sits below the final
+validation mean by roughly a tenth of its own size; with fifty samples drawn under the same
+distribution that gap is unremarkable, but no spread across seeds is recorded, so the
+appendix notes the ordering without interpreting it.
 
 \begin{table}[htbp]
 \centering
@@ -459,7 +463,8 @@ the root-then-average form of \eqref{eq:rel_l2_loss}, evaluated on the physical 
 \texttt{rel\_l2} applies no pointwise normalizer, and the grid weights of
 \eqref{eq:rel_l2_loss} cancel between numerator and denominator. The equality of the two
 entries holds at the four decimals at which the script prints them. The record supplies
-no timings, no spread across seeds, no per-epoch curve, and no error at any other
+no timings, no spread across seeds, no per-epoch curve at a finer cadence than the
+fifty-epoch samples the log prints, and no error at any other
 resolution.}
 \label{tab:appb-measured}
 \begin{tabular}{@{}llr@{}}

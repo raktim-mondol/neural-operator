@@ -15,9 +15,9 @@ sphere of fixed radius, so the lattice and stationarity assumptions that
 body are available here again, and the transform machinery of Part~II applies without an
 encoder or a decoder in front of it. What has become hard is the number of applications.
 A ten-day forecast is forty successive uses of a six-hour map; an operational center
-integrates an ensemble of some fifty members at each forecast cycle --- the fifty-member,
-ten-day benchmark forecast that \cite{pathak2022fourcastnet} takes as its unit of cost
-comparison --- and that is the multi-query budget
+integrates an ensemble of some fifty members at each forecast cycle --- while the
+unit of cost comparison that \cite{pathak2022fourcastnet} itself takes is a
+$100$-member, $24$-hour ensemble --- and that is the multi-query budget
 \chapref{ch:part3-the-multi-query-bottleneck-in-computationa} prices and which
 \chapref{ch:part2-production-deployment-and-high-throughput-} notes is already spent
 before any surrogate exists. \index{weather forecasting!as an operator problem}
@@ -321,12 +321,13 @@ wall-clock for a single IFS member on a supercomputer cluster. Their ratio,
 $7{,}200/1.8$, is the familiar $4{,}000\times$. That division is arithmetic on two different
 machines, and the primary source does not report the elapsed time of one member on one
 partition at all: its only wall-clock figure is for a whole ensemble, a $15$-day,
-$51$-member IFS run on $1{,}530$ CPU nodes in $82$ minutes, from which the node-second
-totals above are derived. This chapter therefore reads the $4{,}000\times$ as a statement
+$51$-member IFS run on $1{,}530$ CPU nodes in $82$ minutes; from that run this book
+derives the per-member-day node-time in Table~\ref{tab:ch33-cost}, while the
+node-second, energy and node-count totals above are the study's own estimates. This chapter therefore reads the $4{,}000\times$ as a statement
 about latency on a device rather than as a costing. The two accountings answer different
 questions, and the
-difference between $4{,}000\times$ and $45{,}000\times$ is mostly the ensemble size divided
-out. Table~\ref{tab:ch33-cost} sets them side by side. \index{speedup!wall-clock versus node-hour}
+difference between $4{,}000\times$ and $45{,}000\times$ is the difference between a single-device
+latency ratio and a node-time ratio computed over a whole ensemble. Table~\ref{tab:ch33-cost} sets them side by side. \index{speedup!wall-clock versus node-hour}
 \index{European Centre for Medium-Range Weather Forecasts (ECMWF)}
 \index{Integrated Forecasting System (IFS)}
 
@@ -335,8 +336,10 @@ out. Table~\ref{tab:ch33-cost} sets them side by side. \index{speedup!wall-clock
 \small
 \caption{Two accountings of the same surrogate. Wall-clock ratios compare one forecast
 member on one device; aggregate ratios compare the machine time of a whole ensemble.
-Values as reported or estimated by \cite{pathak2022fourcastnet}; the per-member wall-clock
-figures in the third row are the ones this book carries.}
+Values as reported or estimated by \cite{pathak2022fourcastnet}; in the third row the
+$\approx 2$ hours of per-member wall-clock is the figure this Part attributes for the
+latency ratio --- no per-member wall-clock is published --- and the per-member node-time
+is this book's arithmetic from the study's aggregate.}
 \label{tab:ch33-cost}
 \begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.30\textwidth}>{\raggedright\arraybackslash}p{0.30\textwidth}>{\raggedright\arraybackslash}p{0.32\textwidth}@{}}
 \toprule
@@ -344,7 +347,7 @@ figures in the third row are the ones this book carries.}
 \midrule
 State represented & $>150$ variables, $>50$ vertical levels & 20 variables at five levels, surface included \\
 Time stepping & spectral-transform dynamical core and parameterized physics & learned six-hour map \eqref{eq:ch33-statemap} \\
-Week-long global forecast & $\approx 2\ \mathrm{h}$ per member; $82$ min for a $15$-day $51$-member run on $1{,}530$ nodes & under $2\ \mathrm{s}$ ($1.8\ \mathrm{s}$ as quoted) on one A100 \\
+Week-long global forecast & $\approx 9{,}840$ node-s per member-day, i.e.\ $\approx 27$ node-hours for a $10$-day member; $\approx 2$\,h per member of wall-clock as this Part attributes it, for the latency ratio; $82$ min wall-clock for the whole $15$-day $51$-member run on $1{,}530$ nodes, the study's only published IFS timing & under $2\ \mathrm{s}$ ($1.8\ \mathrm{s}$ as quoted) on one A100 \\
 $100$-member, $24$-h ensemble & $\approx 984{,}000$ node-s, $\approx 271\ \mathrm{MJ}$, $\approx 3{,}060$ nodes & $\approx 7$ node-s, $\approx 8\ \mathrm{kJ}$, one $4\times$A100 node \\
 Aggregate speedup & --- & $45{,}000\times$ ($18\ \mathrm{km}$, extrapolated) to $145{,}000\times$ ($30\ \mathrm{km}$) \\
 Energy ratio & --- & $12{,}000\times$ to $24{,}000\times$ lower \\
@@ -365,7 +368,7 @@ throughput machinery of \chapref{ch:part2-production-deployment-and-high-through
 exactly what turns that arithmetic into a batch dimension. Panel~(b) of
 Figure~\ref{fig:vol3_aero}, printed in \chapref{ch:part3-external-aerodynamics-and-surface-flows},
 shows the object these numbers are attached to: the sphere. That plate's other panel,
-(a), carries the vehicle surface treated in the present chapter; the two are printed
+(a), carries the vehicle surface treated in that chapter; the two are printed
 together there because they are the same transform applied to a domain that is fixed
 and to one that is not.
 \index{ensemble forecasting!cost of}
@@ -376,10 +379,11 @@ and to one that is not.
 \label{sec:ch33-limits}
 % -----------------------------------------------------------------------------
 
-Panel~(b) of Figure~\ref{fig:vol3_aero} is also the first clue to what is missing. Its vorticity
-contours are smooth and its jets are broad; nothing in that panel shows a squall line, a
-frontal band, or the sub-structure of a precipitation field. The quantitative literature
-agrees with the eye test. Bonavita's 2024 audit~\cite{bonavita2024limitations}, which examines FourCastNet alongside two
+The plate drawn for this pair of domains shows no flow at all --- neither panel
+carries a computed field --- so nothing about squall lines, frontal bands, or
+precipitation substructure can be read from it; the eye has no test to run here,
+and the quantitative literature supplies the measurement instead. Bonavita's 2024
+audit~\cite{bonavita2024limitations}, which examines FourCastNet alongside two
 other leading learned forecasters, concludes that such models ``are not
 able to properly reproduce sub-synoptic and mesoscale weather phenomena and lack the
 fidelity and physical consistency of physics-based models,'' with consequences for the

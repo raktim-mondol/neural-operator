@@ -59,19 +59,21 @@ Figure~\ref{fig:fno_spectral} diagrams the tensor dataflow through a 2D spectral
 convolution layer, and reading it stage by stage yields the claims about shapes
 and roles that the code must realize. An input tensor of shape
 $(B, C_{\text{in}}, H, W)$ splits into two paths. The upper path is a pointwise
-linear map $W$, drawn as
-$\operatorname{Conv2d}(C_{\text{in}}, C_{\text{out}}, k{=}1)$, whose output is
+linear map $W$, the bypass wire labelled $Wv + b$ on the plate, realized in code
+as $\operatorname{Conv2d}(C_{\text{in}}, C_{\text{out}}, k{=}1)$, whose output is
 $(B, C_{\text{out}}, H, W)$: it mixes channels at a fixed grid point and touches
 no other point. The lower path is the global spectral convolution
-$\mathcal{K}$, drawn as three boxes. The figure labels the first with
-$(B, C_{\text{in}}, H, \tfrac{W}{2}+1)$ complex entries and the third with the
-real space $(B, C_{\text{out}}, H, W)$, but it states no shape for the middle
-stage, only the shape of $R_\phi$ itself. That shape has to be read off the
-code: it is $(B, C_{\text{out}}, H, \tfrac{W}{2}+1)$, the same half-spectrum
-with the channel axis moved from $C_{\text{in}}$ to $C_{\text{out}}$, and it is
-the shape of \texttt{out\_ft} in Listing~\ref{lst:ch23-spectral-conv2d}. The two
-paths are then summed and
-passed through the activation $\sigma$. The conclusion the figure carries is
+$\mathcal{K}$, drawn as four boxes: \texttt{rfft2}, band retention,
+multiplication by $R_\phi$, \texttt{irfft2}. The only shape printed on the plate
+is the input's; the shapes of the three intermediate states have to be read off
+the code. After \texttt{rfft2} the state is $(B, C_{\text{in}}, H,
+\tfrac{W}{2}+1)$ complex; after the multiplication it is $(B, C_{\text{out}}, H,
+\tfrac{W}{2}+1)$, the same half-spectrum with the channel axis moved from
+$C_{\text{in}}$ to $C_{\text{out}}$, the shape of \texttt{out\_ft} in
+Listing~\ref{lst:ch23-spectral-conv2d}; after \texttt{irfft2}, the real space
+$(B, C_{\text{out}}, H, W)$. The two paths are then summed at the plate's
+summing node and passed through the activation $\sigma$. The conclusion the
+figure carries is
 architectural: nothing on the lower path couples two frequencies, so all spatial
 communication is performed by the transform pair and all spatial locality by $W$,
 and the learned array performs neither.
@@ -80,7 +82,7 @@ and the learned array performs neither.
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.95\textwidth]{fig_fno_spectral_layer.png}
-\caption{\textbf{The 2D spectral convolution layer, as a block diagram.} The input $v$ with shape $(B, C_{\text{in}}, H, W)$ splits into a pointwise local bypass $Wv + b$ and a global spectral branch: the real-to-complex transform \texttt{rfft2}, retention of the modes $|k| \le k_{\max}$, multiplication by the learned complex tensor $R_\phi$ of \eqref{eq:ch23-Rtensors}, and the inverse \texttt{irfft2} back to the grid shape. The branches sum and pass through $\sigma$. Shapes at each stage are those of Listings~\ref{lst:ch23-spectral-conv2d} and~\ref{lst:ch23-fno2d}. Schematic; no quantity on the plate is measured.}
+\caption{\textbf{The 2D spectral convolution layer, as a block diagram.} The input $v$ with shape $(B, C_{\text{in}}, H, W)$ splits into a pointwise local bypass $Wv + b$ and a global spectral branch: the real-to-complex transform \texttt{rfft2}, retention of the modes $|k| \le k_{\max}$, multiplication by the learned complex tensor $R_\phi$ of \eqref{eq:ch23-Rtensors}, and the inverse \texttt{irfft2} back to the grid shape. The branches sum and pass through $\sigma$. The only shape printed on the plate is the input's; shapes at each stage are those of Listings~\ref{lst:ch23-spectral-conv2d} and~\ref{lst:ch23-fno2d}. Schematic; no quantity on the plate is measured.}
 \label{fig:fno_spectral}
 \end{figure}
 
@@ -149,8 +151,8 @@ of \eqref{eq:ch23-corners} and whose first two enumerate the channel rotation
 applied at each of them. The one liberty is the order of those first two
 indices: the arrays are stored with the input channel first, so each slice is
 the transpose of the continuum matrix acting on a column of channel
-coefficients. That convention is fixed by the \texttt{einsum} subscript below,
-and it is the opposite of the one written on the figure. Note what is absent
+coefficients. That convention is fixed by the \texttt{einsum} subscript below;
+nothing on the plate records an index order. Note what is absent
 from the shapes:
 neither $H$ nor $W$ appears. The learnable parameters of a spectral layer do not
 know the resolution they are applied to, which is the concrete form the
@@ -182,7 +184,7 @@ the diagonalization \eqref{eq:ch05-convolution-theorem} establishes.
 \index{Einstein summation convention (einsum)}
 \index{channel mixing!per-mode matrix product}
 
-\begin{lstlisting}[language=Python, caption={\texttt{SpectralConv2d}: the 2D Fourier spectral convolution of \eqref{eq:ch23-rfft2}--\eqref{eq:ch23-Rtensors} in full. Its four commented stages map onto the three boxes of Figure~\ref{fig:fno_spectral}; the second stage, allocating the zeroed output tensor, is the zero-padding that figure's caption mentions rather than a box of its own.}, label={lst:ch23-spectral-conv2d}]
+\begin{lstlisting}[language=Python, caption={\texttt{SpectralConv2d}: the 2D Fourier spectral convolution of \eqref{eq:ch23-rfft2}--\eqref{eq:ch23-Rtensors} in full. Its four commented stages map onto the four boxes of Figure~\ref{fig:fno_spectral}; the second stage, allocating the zeroed output tensor, is the code's mechanism for the band limitation the plate draws as the retention box.}, label={lst:ch23-spectral-conv2d}]
 import torch
 import torch.nn as nn
 
@@ -512,8 +514,11 @@ is thus fixed by the rank chosen against the band and the channel widths entered
 in \eqref{eq:ch23-paramcount}, not by the factorization as such: the two counts
 can be subtracted by hand on any configuration, and the \texttt{rank=0.42} of
 Listing~\ref{lst:ch23-neuraloperator-workflow} is one illustration of the
-trade; the percentage annotated on that line describes
-that example alone and is not a compression factor this book reports. Compression is not free, however, and Part~I is explicit about
+trade; the library's fractional rank is defined against the array's whole store, so
+that argument asks the factorized representation to keep about 42\% of the original
+parameter count, core and factor matrices together, the split among the modes set by
+the per-axis rank arguments. The realized saving is a property of the particular
+tensor's shape, and no compression factor is quoted from this listing. Compression is not free, however, and Part~I is explicit about
 the price: the ranks must genuinely be small for the count to fall, and whether
 the multiplier arrays a solution operator induces are low-rank is an empirical
 premise that no theorem here supports. Factorizing constrains
@@ -529,14 +534,14 @@ from neuralop.training import AdamW
 # Instantiate Tensorized FNO (TFNO) for high memory efficiency
 model = TFNO(
     n_modes=(16, 16),
-    in_channels=1,
+    in_channels=1,   # grid coordinates appended internally by the default embedding
     out_channels=1,
     hidden_channels=64,
     factorization='tucker',
-    rank=0.42 # Compresses complex parameter tensor by 58%
+    rank=0.42  # factorized store keeps ~42% of the array's parameter count
 ).cuda()
 
-loss_fn = LpLoss(d=2, p=2)
+loss_fn = LpLoss(d=2, p=2, reduction="mean")  # per-sample mean over the batch, as in the from-scratch relative-L2 loss
 optimizer = AdamW(model.parameters(), lr=8e-3, weight_decay=1e-4)
 \end{lstlisting}
 
@@ -558,7 +563,14 @@ plain vector norm over flattened data; on an equispaced grid the weights cancel
 in the ratio and the two coincide, which is exactly why the from-scratch version
 of \chapref{ch:part2-the-practitioner-s-paradigm-infinite-dimen} is safe there.
 A weighted implementation keeps its meaning when the quadrature is nonuniform
-or when the norm mixes terms of different differential order. And
+or when the norm mixes terms of different differential order. One more
+convention the call must pin down: this workflow sets
+\texttt{reduction="mean"} to match the from-scratch loss: the class reduces with
+\texttt{"sum"} if not told otherwise, summing per-sample relative errors over
+the batch --- a different number, larger by the batch size --- and the rule of
+\chapref{ch:part2-canonical-pde-benchmarks-and-reference-wor} that a relative
+$L^{2}$ figure without its averaging order reports an unidentifiable quantity
+applies to a library call before it applies to anyone's plot. And
 \texttt{AdamW} --- Adam with decoupled weight decay --- is imported from the library's own training module, though \texttt{torch.optim}
 provides its own implementation, so that a question the from-scratch file never has
 to answer is settled

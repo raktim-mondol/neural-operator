@@ -1,13 +1,8 @@
 # BookProofs
 
-## GitHub configuration
-
-To set up your new GitHub repository, follow these steps:
-
-* Under your repository name, click **Settings**.
-* In the **Actions** section of the sidebar, click "General".
-* Check the box **Allow GitHub Actions to create and approve pull requests**.
-* Click the **Pages** section of the settings sidebar.
-* In the **Source** dropdown menu, select "GitHub Actions".
-
-After following the steps above, you can remove this section from the README file.
+Lean 4 + mathlib verification of selected statements from the monograph.
+Build with `lake build` from this directory (requires elan; see
+`lean-toolchain`). What is formalized, and what each result does and does
+not claim about the book, is documented in `../REPORT.md`. The 0-sorry
+invariant is enforced locally: `lake build`, plus
+`grep -rn "sorry\|admit\|axiom\|native_decide" .` returning nothing.

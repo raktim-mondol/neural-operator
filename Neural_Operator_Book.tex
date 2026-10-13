@@ -39,8 +39,8 @@
 % The pdfTeX notices
 %   ignored error: Infinite glue shrinkage found in box being split
  % (kept here rather than in one table's file: the defect is document-wide)
-% printed once per page break inside Table~\ref{tab:notation-master} (pp. xxv
-% to xxvii) and once inside Appendix~E's Table~\ref{tab:symbol-map} (p. 248)
+% printed once per page break inside the two long tables (the notation master
+% and Appendix~E's symbol map)
 % are an upstream defect of longtable in the LaTeX2e 2025-11-01 kernel
 % (latex3/latex2e issue #1907), not of these rows. \LT@output ships every chunk
 % of a breakable table ending in \vss, i.e. \vskip 0pt plus 1fil minus 1fil,
@@ -264,13 +264,15 @@
 % Front cover: the artwork in covers/art/, with all type set by
 % covers/cover.tex. The inside of the cover is left blank, as in print.
 % =====================================================================
-\includepdf[pages=1,pagecommand=\thispagestyle{empty}]{covers/cover.pdf}
+\includepdf[pages=1,pagecommand={\thispagestyle{empty}%
+  \pdfbookmark[0]{Front Cover}{frontcover}}]{covers/cover.pdf}
 \cleardoublepage
 
 % =====================================================================
 \frontmatter
 % =====================================================================
 \begin{titlepage}
+\pdfbookmark[0]{Title Page}{titlepage}
 \centering
 {\color{primary}\hrule height 2pt}\par\vspace{2.2em}
 {\Huge\bfseries\color{primary} The Infinite-Dimensional Learner}\par\vspace{0.9em}
@@ -297,12 +299,26 @@ easiest person to fool.''\\[0.55em]
 \end{flushright}
 \cleardoublepage
 
+% book.cls does not enter these four lists in the table of contents the way
+% article.cls does, so hyperref had no anchor to make a bookmark from and the
+% outline began at the first \chapter. \phantomsection before each line is what
+% puts the bookmark on the page the list actually starts: without it, the entry
+% inherits the page counter of the preceding \cleardoublepage and points a page
+% or two early, which is how "List of Listings" came to link to p. 15.
+\cleardoublepage
+\phantomsection
+\addcontentsline{toc}{chapter}{Contents}
 \tableofcontents
 \cleardoublepage
+\phantomsection
+\addcontentsline{toc}{chapter}{List of Figures}
 \listoffigures
 \cleardoublepage
+\phantomsection
+\addcontentsline{toc}{chapter}{List of Tables}
 \listoftables
 \cleardoublepage
+\phantomsection
 \addcontentsline{toc}{chapter}{List of Listings}
 \lstlistoflistings
 \cleardoublepage
@@ -387,6 +403,7 @@ Approximation, and Spectral Theory}
 % no ISSN, no DOI and no barcode.
 % =====================================================================
 \clearpage
-\includepdf[pages=2,pagecommand=\thispagestyle{empty}]{covers/cover.pdf}
+\includepdf[pages=2,pagecommand={\thispagestyle{empty}%
+  \pdfbookmark[0]{Back Cover}{backcover}}]{covers/cover.pdf}
 
 \end{document}

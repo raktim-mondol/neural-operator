@@ -250,7 +250,7 @@ set by regularity, and exactness for band-limited data, are the same identity
 read under two different assumptions on $\hat v$. What this elementary estimate
 does \emph{not} give is the behavior of that error after it has been amplified
 by repeated composition through the layers of a network; that is the content of
-the continuum-limit theorem in \S\ref{sec:ch06-rates}.
+the continuum-limit estimate \eqref{eq:ch06-rate} in \S\ref{sec:ch06-rates}.
 
 \section{Why Standard CNNs Fail Under Grid Refinement}
 \label{sec:ch06-cnn}
@@ -446,8 +446,8 @@ networks on rough data is a discretization
 error\index{discretization error!algebraic rate} of a particular kind: it sits
 between the continuum definition of an FNO and its grid-based realization, with
 the parameters held fixed, and is therefore distinct from approximation error
-and from estimation error. The estimate this book uses for that gap is the
-following.
+and from estimation error. The estimate this book uses for that gap is stated
+here at the strength at which it is actually available.
 Write $\Psi_{\text{FNO}}$ for the
 continuum network determined by a fixed $\theta$ and $\Psi_{\text{FNO}}^N$ for
 its implementation on the $N^d$ grid, and let $v_t$ and $v_t^N$ denote the
@@ -470,8 +470,20 @@ interpolant. The decay is algebraic, and its
 exponent is the Sobolev regularity of the input, inherited by the states it
 produces --- the very currency
 \chapref{ch:part1-function-spaces-duality-and-sobolev-regula} introduced.
+\eqref{eq:ch06-rate} is a claim of this book, not a proved theorem. The proof
+the literature supplies is for a single linear spectral layer, in the
+discrete-Fourier-transform least-squares model of Subedi and
+Tewari~\cite{subedi2024controlling}; for the multi-layer network named above,
+\eqref{eq:ch06-rate} states the rate the grid error is expected to obey, and the
+composition estimate that would deliver it --- propagating $H^s$ bounds through
+the stack of nonlinear spectral layers --- is exactly the step the next
+paragraph identifies as difficult and \chapref{ch:part1-open-theoretical-problems-and-mathematical}
+lists as open. It is used throughout as a working rate, and wherever a
+conclusion depends on its algebraic exponent rather than on its mere existence,
+that dependence should be read as conditional.
 
-""
+Three features of \eqref{eq:ch06-rate} deserve to be singled out. The mechanism is
+aliasing, exactly as in \eqref{eq:ch06-alias}: bounding one quadrature is
 elementary, but bounding an entire network requires controlling
 $\|v_t\|_{H^s}$ through compositions of nonlinear maps, and that regularity
 propagation is where the whole difficulty of \eqref{eq:ch06-rate} sits.
@@ -509,12 +521,12 @@ to a multiplicative constant, that error splits as
   \;+\;
   \underbrace{\mathcal{E}_{\mathrm{disc}}(N)}_{\text{discretization}},
 \end{equation}
-a separation made explicit, and rigorous with matching upper and lower bounds for
+a separation made explicit, and rigorous for
 a discrete-Fourier-transform least-squares estimator of the linear FNO layer, by
-Subedi and Tewari \cite{subedi2024controlling}\index{error decomposition!statistical, truncation, and discretization|textbf}.
+Subedi and Tewari \cite{subedi2024controlling}\index{error decomposition!statistical, truncation, and discretization|textbf}: their two-sided bounds match for the truncation term, while the statistical and discretization terms carry an upper bound and a strictly weaker lower bound, a gap the source closes only by leaving it to future work. The three terms are rigorously identified only inside that single linear model; each rate this book attaches to them is imported from a different argument, and the displayed sum is bookkeeping rather than a theorem. In the source, moreover, the truncation exponent is $2s$ with $s$ the Sobolev regularity of the linear model's target --- not the output regularity $s+\alpha$ of Theorem~\ref{thm:fno_convergence} --- so the correspondence is by shape, not by identity of hypotheses.
 The truncation term is the spectral truncation of
-Theorem~\ref{thm:fno_convergence}, decaying like $k_{\max}^{-\alpha}$ where
-$\alpha$ is the smoothing order of that theorem; the discretization term is
+Theorem~\ref{thm:fno_convergence}, decaying like $k_{\max}^{-(s+\alpha)}$ under
+the smoothing hypothesis of that theorem; the discretization term is
 \eqref{eq:ch06-rate}; and the statistical term is the generalization error of the
 fit, whose sharp form for the operator classes this book learns --- a matching
 lower bound, and an estimate whose statistical part does not move with $N$ ---

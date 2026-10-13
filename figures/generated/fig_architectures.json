@@ -3,11 +3,12 @@
   "model": "gemini-3-pro-image",
   "host": "chapters/part1/04-operator-approximation-theory-and-universa.tex",
   "content_class": "structural schematic; carries no measured value",
-  "prompt_sha256": "689e8148c4f3c4181c6ef899ace0ff8e5ed3f310c51cb8295375a5a1bbb358e6",
+  "prompt_sha256": "3add573dcece445e698cafc1ae1d745057fc1b90027b3ace367529c1a02c7f95",
   "bytes": 237362,
   "generated_utc": "2026-10-12T23:37:27+00:00",
   "pixels": [
     1396,
     767
-  ]
+  ],
+  "codec": "PNG (re-encoded from the model's JPEG; see refit)"
 }

@@ -13,7 +13,7 @@ deliverable.
 External aerodynamics is the plainest case: no-slip
 \index{no-slip condition}
 on the body is a Dirichlet condition on the velocity, and the reported quantities of
-interest---drag and lift coefficients, surface pressure, wall shear stress (WSS)---are integrals
+interest --- drag and lift coefficients, surface pressure, wall shear stress (WSS) --- are integrals
 over the same surface (\chapref{ch:part3-external-aerodynamics-and-surface-flows}). In cardiac
 electrophysiology the zero-flux condition through the endocardium and epicardium helps determine
 whether a reentrant spiral wave persists, drifts, or annihilates
@@ -41,8 +41,8 @@ objective, or leave it to the data and measure the consequence.
 Section~\ref{sec:ch37-classical} states the classical mechanisms and pins down what ``hard'' means.
 Section~\ref{sec:ch37-operator} gives the two operator-side mechanisms and the
 qualifications each carries, Section~\ref{sec:ch37-structural} collects the structural
-routes---coordinate channels, lifting, parameterizations that satisfy the condition by
-form---and their cost in regularity, geometry work, and guarantees, and Section~\ref{sec:ch37-ledger}
+routes --- coordinate channels, lifting, parameterizations that satisfy the condition by
+form --- and their cost in regularity, geometry work, and guarantees, and Section~\ref{sec:ch37-ledger}
 prices the mechanisms
 against an elliptic stability estimate before separating what is proven from what is observed.
 
@@ -52,8 +52,8 @@ against an elliptic stability estimate before separating what is proven from wha
 
 The three workhorses of scientific computing enforce boundary conditions by one device, and the
 device is not a penalty. In a conforming discretization the condition is imposed on the space from
-which the numerical solution is drawn, so every member of that space---the exact discrete solution,
-every Krylov or Newton iterate on the way to it, and every diagnostic read off them---satisfies it
+which the numerical solution is drawn, so every member of that space --- the exact discrete solution,
+every Krylov or Newton iterate on the way to it, and every diagnostic read off them --- satisfies it
 by construction. Nothing is appended to an objective and no weight is tuned. The three variants
 named in the section title are three realizations of that idea.
 
@@ -113,7 +113,7 @@ Spectral methods apply the same idea with global bases
 harmonics, whose individual terms can be chosen to satisfy the condition, so that no linear
 combination of them can violate it. The Fourier case is the instructive limit, because there the
 basis \emph{is} the boundary condition: periodicity on $\mathbb{T}^d$ is built into the trigonometric
-system and no trace constraint is left to impose---the assumption behind Part~I's spectral theory
+system and no trace constraint is left to impose --- the assumption behind Part~I's spectral theory
 and behind \eqref{eq:fno_layer}. Operational numerical weather prediction (NWP) dynamical
 cores such as the European Centre for Medium-Range Weather Forecasts (ECMWF) Integrated Forecasting
 System (IFS) truncate a spherical-harmonic expansion horizontally: no lateral boundary, the
@@ -123,8 +123,8 @@ geometry: a global basis conforms to a box, a sphere, or a mapped image of one, 
 takes substructuring or penalty machinery.
 
 The lesson that transfers is narrower than it looks. Hard enforcement is free at run time and
-expensive per geometry---meshing a new vehicle, generating boundary-layer prisms, re-deriving a
-mapping for a new ventricle---and that per-geometry cost, not the linear solve, is what the
+expensive per geometry --- meshing a new vehicle, generating boundary-layer prisms, re-deriving a
+mapping for a new ventricle --- and that per-geometry cost, not the linear solve, is what the
 multi-query workflows of this part cannot afford
 \index{mesh generation!as the recurring cost}. Classical schemes bind exactness to conformity;
 operator learning drops the conforming mesh, and with it the source of the exactness.
@@ -137,7 +137,7 @@ Neither mechanism below is needed because operators are inaccurate; both are nee
 operators are unconstrained. A generic layer is pointwise lifting and projection around a nonlocal
 integral operator, \eqref{eq:no_composition}, and on a uniform grid the spectral specialization
 \eqref{eq:fno_layer} makes every one of those operations equivariant to translations on
-$\mathbb{T}^d$---the property the multiplier form \eqref{eq:ch05-multiplier} buys---so a network fed
+$\mathbb{T}^d$ --- the property the multiplier form \eqref{eq:ch05-multiplier} buys --- so a network fed
 only field values cannot tell a feature at $x$ from the same feature at $x+h$. Nothing in the
 composition restricts the trace of the output, whose regularity is not assumed to exceed $L^2(\Omega)$,
 where the trace is undefined.
@@ -199,12 +199,12 @@ a Dirichlet problem and no assistance at all for a Neumann, zero-flux, or no-pen
 \chapref{ch:part1-discretization-invariance-and-continuum-li} is able to price. A distance function
 is Lipschitz on $\overline{\Omega}$ and as smooth as $\partial\Omega$ near it, but loses
 differentiability on the interior medial axis, the locus of points with more than one nearest
-boundary point \index{signed distance function (SDF)}\index{medial axis!regularity of the distance function}---not an exotic object in the geometries of this part, since the mid-surface of a
+boundary point \index{signed distance function (SDF)}\index{medial axis!regularity of the distance function} --- not an exotic object in the geometries of this part, since the mid-surface of a
 ventricular wall, the centerline of a channel, and the interior of a layered aquifer all have one.
 Multiplying by a Lipschitz envelope caps the Sobolev regularity of the product; feeding the distance
 in as an input channel instead puts a non-periodic function on a periodic grid, jumping across the
 wrap wherever the modeled boundary is not a face of the box, with regularity
-$H^{1/2-\epsilon}$ for every $\epsilon>0$ and no better---the obstruction that chapter records for
+$H^{1/2-\epsilon}$ for every $\epsilon>0$ and no better --- the obstruction that chapter records for
 non-periodic coordinate channels, and the reason the discretization rate in \eqref{eq:ch06-rate}
 fails to reach $N^{-1}$.
 
@@ -213,8 +213,8 @@ The second mechanism is soft: a variational penalty on the boundary residual,
   \label{eq:ch37-soft}
   \mathcal{L}_{\text{boundary}}(\theta) = \lambda_{\text{bc}} \int_{\partial\Omega} |\mathcal{B}(\mathcal{G}_\theta(a)) - g|^2 \, ds,
 \end{equation}
-where $\mathcal{B}$ is whatever boundary operator the problem states---trace for Dirichlet, normal
-flux for Neumann, both for no-slip---and $\lambda_{\text{bc}}$ is a weight. This is the boundary term
+where $\mathcal{B}$ is whatever boundary operator the problem states --- trace for Dirichlet, normal
+flux for Neumann, both for no-slip --- and $\lambda_{\text{bc}}$ is a weight. This is the boundary term
 of the physics-informed objective \eqref{eq:ch07-bc-loss}, used by the Physics-Informed Neural
 Operator (PINO) constructions of \chapref{ch:part1-physics-informed-operators-and-sobolev-reg},
 specialized here to the $L^2$ surface norm, so the properties established there transfer: the weight
@@ -245,7 +245,7 @@ convolution mixes the channel into the hidden representation, exactly as
 the output trace stays unconstrained: the channel makes the right answer easier to fit and nothing
 more.
 
-On the output side, \eqref{eq:ch37-hard} is one instance of a lifting scheme---hand the network the
+On the output side, \eqref{eq:ch37-hard} is one instance of a lifting scheme --- hand the network the
 deviation from a field that already satisfies the condition, then add the field back. For a
 grid-based model the envelope is applied after the projection; for DeepONet the same idea folds into
 the trunk by replacing $t_k$ with $d\cdot\varphi_k$, so every term of \eqref{eq:ch04-deeponet} has
@@ -259,12 +259,12 @@ evaluating one is the difficulty. Where it bites, practitioners use the penalty
 \eqref{eq:ch37-soft} instead.
 
 The third family is the one spectral methods already practice: parameterize the unknown so that
-every element of the family satisfies the condition---a stream-function or divergence-free form for
+every element of the family satisfies the condition --- a stream-function or divergence-free form for
 incompressible velocity, a basis of functions vanishing on the boundary, a discretization of the
 monodomain operator that admits no flux through the organ surface. In operator learning these remain
 largely unbuilt, and their status is the analogue of choosing a conforming Galerkin space: exactness
 by construction, and a construction redone whenever the geometry changes. The Fourier basis on the
-torus is the single case where the construction is free and uniform---and the geometry it is
+torus is the single case where the construction is free and uniform --- and the geometry it is
 indifferent to is fixed at $[0,1]^d$, which is why the periodic benchmark family of
 \chapref{ch:part2-canonical-pde-benchmarks-and-reference-wor} is at once cheap and silent about this
 chapter's question.
@@ -274,7 +274,7 @@ In the geometry-informed neural operator (GINO) the surface mesh \emph{is} the d
 points are lifted to a latent grid, the spectral work happens there, and the decode returns pressure
 and WSS at surface vertices, where the quantities of interest live
 \cite{li2023geometry}\index{Geometry-Informed Neural Operator (GINO)!surface as domain}. There is
-then no exterior ghost cell to fill and no trace to impose from the network's standpoint---the model
+then no exterior ghost cell to fill and no trace to impose from the network's standpoint --- the model
 is asked nothing about the field inside the body, and nothing about the velocity on the surface,
 whose pressure and traction are all it returns. No-slip survives only as a regularity of the labels
 on surface nodes, and nothing in the graph neural operator (GNO) kernel \eqref{eq:ch24-gno-kernel}
@@ -312,7 +312,7 @@ is absent, because there $v$ already has the correct trace. Equation \eqref{eq:c
 more
 than that boundary errors add to the total: the boundary enters as a term no amount of residual
 minimization removes, measured in $H^{1/2}(\partial\Omega)$, a norm strictly stronger than the
-$L^2(\partial\Omega)$ norm \eqref{eq:ch37-soft} shrinks---control in the former would take a
+$L^2(\partial\Omega)$ norm \eqref{eq:ch37-soft} shrinks --- control in the former would take a
 bound on a fractional tangential derivative of the trace defect, which the penalty does not attempt.
 The envelope \eqref{eq:ch37-hard} is exactly the device that zeroes the term by construction,
 leaving only the question of how small the residual is;
@@ -325,7 +325,7 @@ Table~\ref{tab:ch37-enforcement} arranges the six regimes along the axes that ha
 constraint is a property of, whether it holds exactly, what it costs, how it fails. The
 conclusion is the third column read against the fourth. Exactness is relative to a discretized
 object in every row where it appears, the three classical rows no less than the envelope row, and
-each classical row buys it with an object tied to the domain---a conforming mesh, a flux stencil
+each classical row buys it with an object tied to the domain --- a conforming mesh, a flux stencil
 on the faces, a basis for the specific geometry. The envelope row is exact by the same one-line
 argument but for values only, on the nodes at which $d$ vanishes; the last two rows are not exact
 at all. What the three operator rows share is nothing spent per query.
@@ -382,7 +382,7 @@ inspects a constraint space: the boundary condition is an enumerable property of
 exactly as the flux stencil of \eqref{eq:ch37-fvm-cons} is auditable. A
 learned trace is a statistical claim about a label distribution, and the labels nearest the boundary
 are the costliest to generate, because boundary-layer resolution sets the size of the whole mesh. The
-region that matters most is where the data are thinnest---the regime the penalty
+region that matters most is where the data are thinnest --- the regime the penalty
 \eqref{eq:ch37-soft} was written for, and the one in which it is least verifiable
 \index{certification!auditable constraint spaces}\index{data availability!boundary labels}.
 
@@ -395,9 +395,9 @@ for. The pattern is not confined to the trace. Conservation of mass, momentum, a
 the same silent way, and so does reliability outside the training distribution, where a classical
 solver diverges, violates a time-step restriction, or refuses to converge while a network returns a
 smooth, plausible, wrong field. \chapref{ch:part3-synthesis-matrix-and-real-world-deployment}
-assembles these into a single cross-domain ledger---the five application chapters with the cost
+assembles these into a single cross-domain ledger --- the five application chapters with the cost
 ratio each row can form and the two rows that cannot, their fidelity metrics, and the rigorous
-statement Part~I supplies---and then takes up five roadblocks between a published surrogate and a
+statement Part~I supplies --- and then takes up five roadblocks between a published surrogate and a
 deployed one: error estimation without a reference solver, exact conservation, the price of labels,
 distribution shift, and clinical clearance. This chapter supplies the template for that synthesis: for each guarantee, ask
 which object carries it, whether it is exact, what it costs, and what would have to be measured to

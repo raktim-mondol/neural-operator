@@ -72,7 +72,7 @@ derivative. Its norm is bounded by the product $\lvert\hat{v}_\ell(k)\rvert\,
 assumes, both factors decay algebraically in $\lvert k\rvert$ by
 \eqref{eq:ch05-coefficient-decay}. Gradient magnitude therefore spans orders of magnitude
 across one parameter array, and it is smallest at the band edge --- precisely at the modes
-whose removal the truncation term $C_1 k_{\max}^{-\alpha}$ of
+whose removal the truncation term $C_1 k_{\max}^{-(s+\alpha)}$ of
 \eqref{eq:ch05-error-decomposition} charges to the model.
 \index{Fourier multiplier $R_\phi(k)$!gradient of}
 \index{condition number!across the mode budget}
@@ -153,16 +153,18 @@ coefficient tuned at one resolution require rechecking at another. Requesting or
 transform normalization removes the grid factor from the coefficient array, because the
 library then divides by the square root of the number of points in each direction. That
 change does not reparameterize the network: the two factors cancel in the round trip, as
-they must for an identity multiplier, so the same $R_\phi$ computes the same map. What it
-does change is the gradient, since both factors in \eqref{eq:ch26-mode-gradient} shrink by
-the square root of the grid and their product by the whole grid. Adam absorbs a uniform
-rescaling of the gradient --- its update is a ratio of a moment to the root mean square of
-the same quantity --- which is why the switch passes unnoticed most of the time; a fixed
-\texttt{weight\_decay} does not, because decay is written against the parameters rather than
-against the gradient, so shrinking the gradient by the grid size silently strengthens decay's
-grip on exactly the band edge that has the least signal to begin with. The next section makes
-the same point from the storage side, where the grid factor is not a tuning matter but an
-overflow one.
+they must for an identity multiplier, so the same $R_\phi$ computes the same map. Nor does
+it change the gradient of $R_\phi$: the adjoint of the inverse transform carries exactly the
+compensating constant: under \texttt{norm="ortho"} the forward half of the contraction in
+\eqref{eq:ch26-mode-gradient} shrinks by the square root of the grid while the adjoint
+half grows by it --- the adjoint of the inverse transform now divides by the square root
+rather than by the whole grid --- and the product
+is unchanged: identical to the \texttt{norm="backward"} gradient, mode for mode. The
+optimizer, the moments, the noise scale, and the decay all see exactly the same numbers
+under either convention, and no re-tuning follows from the switch. What does change is the
+magnitude of the stored coefficients and of the forward-transform intermediates, and the
+next section takes that up from the storage side, where the grid factor is not a tuning
+matter but an overflow one.
 
 \begin{lstlisting}[language=Python, label={lst:ch26-onecycle}, caption={Reference optimizer and schedule configuration for a spectral network: decoupled weight decay, a cyclic schedule with cosine annealing whose initial, peak and terminal learning rates are fixed by the two divisor arguments, and a global gradient-norm clip applied before every update.}]
 optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-4)
@@ -290,12 +292,20 @@ this part reports. This is the reasoning behind the recommended policy for opera
 models: run the lifting and projection convolutions, which are pointwise $1\times1$
 maps with no global accumulation, in \texttt{bfloat16}, and keep the transform itself and the
 complex multiplication in \texttt{float32}. Two details of that policy are worth more than
-the policy. It must be expressed as an explicit dtype cast at the boundary of the spectral
-layer, or by disabling autocast around that layer, because
-\texttt{torch.cuda.amp.autocast} assigns dtypes by operation type rather than by the role an
-operation plays in the model: the per-mode contraction reaches it as a sum over channels,
-indistinguishable there from any other batched product, and no operation table records that
-this particular sum is the one whose dynamic range was just measured. And
+the policy. First, the exposure is the boundary between the blocks, not the demotion list:
+\texttt{torch.amp.autocast} does not touch complex tensors --- the per-mode contraction
+reaches it in \texttt{float32} and stays there --- but it does cast the pointwise
+convolutions, and the first spectral layer of
+\chapref{ch:part2-fourier-neural-operators-fno-from-scratch} consumes the lifted output of
+one, so the transform's input dtype follows the demoted tensor. The protection that is
+needed is therefore an explicit cast at the lift-to-spectral boundary; a recipe that merely
+\emph{disables} autocast around the layer protects what autocast never demoted. The
+overflow arithmetic above binds wherever the forward transform runs in \texttt{float16},
+whether it got there by an explicit cast or by a demoted input:
+there the $65{,}536$ against $65{,}504$ is the end of the story, not
+a warning. (The API name is worth carrying forward too: the call is
+\texttt{torch.amp.autocast(``cuda'', \ldots)} on current releases, and
+\texttt{torch.cuda.amp.autocast} is deprecated.) And
 because the spectral and bypass paths of the layer meet in an addition, casting a demoted
 bypass back up to \texttt{float32} at that point recovers nothing, since the precision of a
 sum is set by its coarsest addend. The savings are real where nothing accumulates --- the

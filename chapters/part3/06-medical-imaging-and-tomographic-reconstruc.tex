@@ -36,7 +36,10 @@ chapter puts the three to work on the Radon transform.
 The route is short. Section~\ref{sec:ch36-radon} states the continuous forward
 model, the FBP inversion, and what undersampling in angle does to the range of
 the sampled operator. Section~\ref{sec:ch36-operators} takes up the two
-arrangements by which a learned map has been inserted into that inversion --- an
+arrangements by which this book's idealized formulation inserts a learned map into that
+inversion (no named published system is cited for either; both are stated here to make
+the operator-theoretic trade-off explicit, the way \chapref{ch:part3-cardiac-electrophysiology-and-arrhythmia-d}
+states the cardiac PINO as a construction rather than a result) --- an
 unrolled cascade that alternates learned refinement with a projection onto the
 measured data, aimed at sparse-view data at several sampling rates, and a learned
 filtering stage inside FBP itself, aimed at data whose angular range is
@@ -48,7 +51,7 @@ characteristic failure is not a divergent iterate but a plausible
 image\index{inverse problem!ill-posedness in tomography}.
 
 % -----------------------------------------------------------------------------
-\section{The Continuous Inverse Radon Transform}
+\section{The Radon Transform and Its Classical Inversion}
 \label{sec:ch36-radon}
 % -----------------------------------------------------------------------------
 
@@ -83,8 +86,11 @@ two-dimensional transform of $f$,
   \hat{p}(\theta,\omega) = \hat{f}(\omega\cos\theta,\,\omega\sin\theta),
 \end{equation}
 the \textbf{Fourier slice theorem}\index{Fourier slice theorem} --- each
-projection fills one central line of the object's spectrum. Reading
-\eqref{eq:ch36-slice} backwards gives FBP:
+projection fills one central line of the object's spectrum
+\cite{kak2001tomographic,natterer2001mathematics}. Reading
+\eqref{eq:ch36-slice} backwards gives FBP, up to a multiplicative constant fixed
+by the Fourier-transform convention and by whether the adjoint integrates over
+$[0,\pi)$ or $[0,2\pi)$:
 \begin{equation}
   \label{eq:ch36-fbp}
   f_{\text{FBP}}(x) = \mathcal{R}^* \big( \mathcal{F}^{-1} (|\omega| \cdot \mathcal{F} p) \big)(x),
@@ -374,8 +380,8 @@ test of \chapref{ch:part2-production-deployment-and-high-throughput-} asks for
 but cannot supply, needing held-out labels where this check does not
 \index{verification!consistency check at inference}. The failure modes are then
 predictable. Streak suppression and lesion restoration act on the same degrees
-of freedom, so the boundary recovered in box~B of
-Figure~\ref{fig:vol3_ct} is an inference, and the only defensible safety statement
+of freedom, so an anatomical boundary restored at a low view count is an
+inference, and the only defensible safety statement
 about it is conditional on the training distribution. HU error is not cosmetic:
 treatment-planning systems convert HU into electron density, so a bias of tens of
 units propagates into whatever the next device computes. Data are the binding

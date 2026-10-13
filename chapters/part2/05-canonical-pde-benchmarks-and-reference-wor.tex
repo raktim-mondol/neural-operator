@@ -91,7 +91,7 @@ produced by classical solvers whose per-query costs are tabulated in
 Table~\ref{tab:benchmarks_hardware}: roughly $1.5$ seconds for a finite element
 method (FEM) Darcy solve, $4.8$ seconds for a pseudo-spectral Navier--Stokes
 trajectory. A thousand training pairs therefore cost about twenty-five minutes of
-wall-clock FEM work and eighty minutes of time integration---cheap by simulation
+wall-clock FEM work and eighty minutes of time integration --- cheap by simulation
 standards, which is why these three problems remain the field's defaults even
 though only the Darcy problem arrives in a form an application uses unchanged. The
 cost is also a constraint on
@@ -108,8 +108,8 @@ evaluation grid the surrogate will see.
 The remaining items of the protocol are short to state and routinely omitted. The
 input measure must be given as a measure, not as one representative draw; the
 normalization of
-\chapref{ch:part2-the-practitioner-s-paradigm-infinite-dimen}---pointwise mean and
-standard deviation fields computed over the training ensemble only---must be
+\chapref{ch:part2-the-practitioner-s-paradigm-infinite-dimen} --- pointwise mean and
+standard deviation fields computed over the training ensemble only --- must be
 frozen before validation data are touched, because normalizing with test
 statistics leaks information and inflates accuracy by an amount that grows as the
 test set shrinks; and the train/validation/test partition must be reported, an
@@ -150,9 +150,10 @@ applications consume its $K$-fold composition, and the quantity that matters is
 the rollout bound \eqref{eq:ch09-gronwall}, whose amplification factor
 $\Lambda_{\theta}$ no approximation theorem in this book controls. Three
 benchmarks, three different failure modes of one inequality. Figure~\ref{fig:benchmarks}
-documents the first two; the third, specified in
-Section~\ref{sec:ch25-navierstokes}, comes with no accuracy claim attached,
-because none was measured.
+documents the Burgers target alone; the Darcy sheet carries transcribed
+published values, and the third benchmark, specified in
+Section~\ref{sec:ch25-navierstokes}, a specification only; no accuracy curve on
+either was measured for this book.
 \index{benchmark!specification checklist}
 \index{benchmark taxonomy}
 
@@ -177,24 +178,26 @@ forward time-evolution operator of the kind introduced in
 \eqref{eq:ch03-burgers}, with domain and codomain the same space, in contrast to
 the coefficient-to-state map of Section~\ref{sec:ch25-darcy}.
 
-The viscosity is the whole specification. Panel~(a) of Figure~\ref{fig:benchmarks}
+The viscosity is the whole specification. Figure~\ref{fig:benchmarks}
 is drawn at $\nu = 0.01$, a tenth of the $\nu = 0.1$ of the cited Burgers
 experiment \cite{li2021fourier}; its initial trace is consistent with
 $u_0(x) = \sin(2\pi x)$, amplitude one. Part~I computes the inviscid gradient
 catastrophe for exactly that family: $t_{*} = (2\pi A)^{-1}$, which at $A = 1$ is
 $t_{*} \approx 0.16$, occurring where the initial slope is most negative, at
-$x = 0.5$. Both snapshots in the panel, $t = 0.5$ and $t = 1.0$, lie well past
+$x = 0.5$. Both snapshots, $t = 0.5$ and $t = 1.0$, lie well past
 that time, so what the reader sees is not steepening in progress but a settled
 viscous shock: the $t = 0.5$ trace has developed a sharp descent through zero at
 $x \approx 0.5$, and by $t = 1.0$ the descent is confined to a narrow layer with
-the smooth remainder of the wave barely changed. The panel is a schematic of the
+the smooth remainder of the wave barely changed. The figure is a schematic of the
 target family rather than a predicted field, and one feature of it is worth using
 as a check on any solver or surrogate. At $\nu > 0$ the maximum principle for
 \eqref{eq:ch25-burgers} gives $\sup_x u(\cdot, t) \le \sup_x u_0 = 1$ for all $t$,
-yet the $t = 1.0$ trace crests marginally above the initial maximum. A computed
-profile that exceeds $\|u_0\|_{L^{\infty}}$ has produced an artifact---an
-under-resolved layer, or the ringing of a trigonometric representation near a steep
-front---not a feature, and no relative $L^{2}$ number will tell you so.
+and the drawn traces obey it strictly: the exact peak falls $1 \to 0.6207 \to
+0.3312$ at $t = 0, 0.5, 1$, so every point of the figure sits below the initial
+maximum. A computed profile that exceeds $\|u_0\|_{L^{\infty}}$ has produced an
+artifact --- an under-resolved layer, or the ringing of a trigonometric
+representation near a steep front --- not a feature, and no relative $L^{2}$
+number will tell you so.
 \index{Burgers equation!benchmark specification}
 \index{shock wave!viscous layer width on a grid}
 \index{maximum principle!as an implementation check}
@@ -220,14 +223,14 @@ $\nu \to 0$.
 Tensors and cost follow the layout of
 \chapref{ch:part2-the-practitioner-s-paradigm-infinite-dimen}. A batch of initial
 conditions arrives as $(B, 1, 128)$; one normalized coordinate channel is
-appended---one rather than two, this being a one-dimensional geometry---giving
+appended --- one rather than two, this being a one-dimensional geometry --- giving
 $(B, 2, 128)$; lifting to width $d_v$ and taking the real FFT along the last axis
 gives $(B, d_v, 128, 65)$ complex, of which the two retained blocks at either end
 of the spectrum, $(B, d_v, m)$ each, are multiplied by the learned weights. Here $m$
-is the retained mode count per band edge---written $m_x, m_y$ in the
-two-dimensional tally below, and not to be confused with the $100$ sensor readings of
-the DeepONet baseline in Figure~\ref{fig:benchmarks}(b), which the legend also labels
-$m$. With
+is the retained mode count per band edge --- written $m_x, m_y$ in the
+two-dimensional tally below, and not to be confused with the $m$ that counts a
+DeepONet branch's sensor readings, as in the $m = 100$ configuration of
+\chapref{ch:part2-deeponet-engineering-branch-trunk-networks}. With
 $m = 12$ and $d_v = 32$ the two complex weight tensors hold
 $4 m d_v^{2} \approx 4.9 \times 10^{4}$ real numbers per layer, against a
 transform cost $\mathcal{O}(d_v N \log N)$ that is essentially flat in $m$: the
@@ -239,7 +242,7 @@ The number
 \chapref{ch:part1-open-theoretical-problems-and-mathematical} interrogates is the
 cited paper's own; the book never measured it. The source fixes the
 viscosity at $\nu = 0.1$ (Appendix A.3.1) and learns
-$u_{0} \mapsto u(\cdot, 1)$, the solution at time one---one output time only
+$u_{0} \mapsto u(\cdot, 1)$, the solution at time one --- one output time only
 (Section 5.1). Its Table 3 lists relative $L^{2}$ errors
 $0.0149$, $0.0158$, $0.0160$, $0.0146$, $0.0142$, $0.0139$ at evaluation
 resolutions $s = 256, 512, 1024, 2048, 4096, 8192$; two of the six exceed
@@ -261,8 +264,8 @@ one: as \chapref{ch:part1-open-theoretical-problems-and-mathematical} shows, a
 Gibbs overshoot of fixed height on a set of measure $O(1/M)$ contributes
 $O(M^{-1/2})$ and a displacement $\delta$ of a unit-height front contributes
 $\sqrt{2\delta}$, so a score of $1.4\%$ to $1.6\%$ is fully compatible with a shock placed
-in the wrong cell. The benchmark remains the right test---it is the only one of
-the three whose target loses regularity---but it should be reported with an
+in the wrong cell. The benchmark remains the right test --- it is the only one of
+the three whose target loses regularity --- but it should be reported with an
 $H^{1}$ or a front-location error beside the $L^{2}$ number.
 \index{Burgers equation!snapshot operator ambiguity}
 
@@ -280,7 +283,7 @@ coefficient fields to smooth potential solutions:
 Two differences from \eqref{eq:ch25-burgers} matter more than the change of
 dimension. The map here is coefficient-to-state: the input is $K$, the output is
 $u$, and the spaces differ, so the operator is smoothing rather than
-evolutionary---it is the benchmark form of \eqref{eq:darcy}, with the roles of
+evolutionary --- it is the benchmark form of \eqref{eq:darcy}, with the roles of
 $a$ and $K$ identified. And the boundary condition is homogeneous Dirichlet on a
 square, not periodicity on a torus, which is inconvenient for a spectral
 architecture: the Fourier machinery of
@@ -297,7 +300,7 @@ itself log-normal,
   \log K \sim \mathcal{N}\big(0, (-\Delta + \tau^{2} I)^{-d}\big), \qquad d = 2,
 \end{equation}
 with $\tau$ a correlation-length parameter and $-\Delta$ the Laplacian with the
-problem's own boundary condition \cite{stuart2010inverse}---a Mat\'ern-type
+problem's own boundary condition \cite{stuart2010inverse} --- a Mat\'ern-type
 covariance, the standard prior for subsurface coefficients. Read as a covariance
 operator, \eqref{eq:ch25-darcy-measure} assigns the mode $k$ a variance of order
 $(1 + |k|^{2})^{-2}$, so the sum $\sum_{k} |k|^{2s}(1+|k|^{2})^{-2}$ converges
@@ -319,17 +322,17 @@ The regularity that survives is enough to make the benchmark theoretically clean
 With $K$ bounded and measurable, the energy estimate gives $u \in
 H^{1}_{0}(\Omega)$; with $K$ smooth, classical regularity lifts the solution to
 $H^{2}(\Omega)$. The solution operator therefore has a positive smoothing order
-$\alpha$ in the sense of Theorem~\ref{thm:fno_convergence}, its image of a bounded
+$\alpha$ in the sense of Theorem~\ref{thm:fno_convergence}, its image of a compact
 input set is precompact in $L^{2}$ by Rellich--Kondrachov, and the truncation term
-$C_1 k_{\max}^{-\alpha}$ is a live prediction rather than a formality. That is why
+$C_1 k_{\max}^{-(s+\alpha)}$ is a live prediction rather than a formality. That is why
 \eqref{eq:ch25-darcy} is the default test of the approximation theory and the
 default data source for porous-media work \cite{li2021fourier, wen2022ufno}.
 
 Tensor shapes are the two-dimensional case of the tally in
 Section~\ref{sec:ch25-burgers}, and larger by the square: a batch arrives as
 $(B, 1, 64, 64)$, two coordinate channels make it $(B, 3, 64, 64)$, lifting gives
-$(B, d_v, 64, 64)$, and \texttt{torch.fft.rfft2}---the real-to-complex transform
-along the two trailing axes---returns $(B, d_v, 64, 33)$ complex, the half-spectrum
+$(B, d_v, 64, 64)$, and \texttt{torch.fft.rfft2} --- the real-to-complex transform
+along the two trailing axes --- returns $(B, d_v, 64, 33)$ complex, the half-spectrum
 being all that conjugate symmetry requires. The two retained corners at
 $m_x = m_y = 12$ hold $4 m_x m_y d_v^{2} \approx 5.9 \times 10^{5}$ real numbers
 per layer at $d_v = 32$, so four layers carry roughly $2.4$ million spectral
@@ -387,7 +390,7 @@ applications, where boundary layers carry the drag. The tensor bookkeeping diffe
 from Section~\ref{sec:ch25-darcy} in one respect worth stating: the forcing is
 fixed and time-independent, so it carries no information across the ensemble and
 needs no input channel, and a state enters as $(B, 1, N, N)$ with a single channel
-in and out. What the ensemble varies is the initial vorticity---and the viscosity,
+in and out. What the ensemble varies is the initial vorticity --- and the viscosity,
 if more than one is trained at once, which the paragraph below argues against.
 
 The forcing is Kolmogorov's,
@@ -398,7 +401,7 @@ The forcing is Kolmogorov's,
 and the viscosity ranges over $\nu = 10^{-3}$ to $10^{-5}$. Two things about
 \eqref{eq:ch25-forcing} must be pinned down before it is used. As written, $f$ is
 a scalar added to the vorticity equation,
-so it is a vorticity source---the curl of a body force---not a body force; a
+so it is a vorticity source --- the curl of a body force --- not a body force; a
 specification that reports only ``$f$'' lets the two be confused and changes the
 problem's symmetry class. The expression depends on $x_2$ alone and carries
 only the wavenumbers $k_2 = \pm 1$, so it injects energy at the largest scale and
@@ -479,9 +482,9 @@ route to \eqref{eq:ch25-rollout}.
 
 \bigskip
 \noindent Each of the three specifications above ends at the same place: a number
-that comes out of an optimization, not out of an approximation bound. The Darcy
-curve in Figure~\ref{fig:benchmarks}(b) flattens, and whether it flattened because
-capacity was exhausted or because the schedule had nothing left to give is a
+that comes out of an optimization, not out of an approximation bound. A trained
+Darcy surrogate's validation curve eventually flattens, and whether it flattens
+because capacity was exhausted or because the schedule had nothing left to give is a
 question the specification cannot answer. The Burgers model must be trained at a
 viscosity whose target spectrum is barely decaying, which is the regime in which
 complex-weighted layers are least forgiving of a step size. The rollout in

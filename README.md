@@ -43,6 +43,11 @@ figures/                   every plate, with a generator; see below
   make_figures.py            COMPUTED plots: exact-solution curves, one per figure
   make_diagrams.py           STRUCTURAL plates: committed prompts + gemini-3-pro-image
   generated/                 those plates, each with <name>.prompt.txt and <name>.json
+covers/                    A4 cover art and cover.tex; cover.pdf must be present
+                           for the \includepdf calls to resolve
+artifacts/                 the archived Appendix B run: script, log, JSON record, npz
+lean/                      Lean 4 + mathlib verification project (see lean/REPORT.md)
+tools/                     chapter extraction helper
 references.bib             bibliography (all entries resolved to published records)
 ```
 

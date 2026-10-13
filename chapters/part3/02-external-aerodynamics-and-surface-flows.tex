@@ -95,9 +95,15 @@ The dimensionless group that sets the difficulty of \eqref{eq:rans} is the Reyno
 \end{equation}
 the ratio of inertial to viscous force scales, with $L$ a body length\index{Reynolds number}.
 The numerical content of \eqref{eq:ch32-reynolds} is
-in the boundary layer. Viscosity is confined to a wall-attached layer of thickness
-$\delta \sim L\,Re^{-1/2}$, so at $Re = 10^7$ and $L = 4.7\ \mathrm{m}$ --- a full-scale sedan
---- the layer is of order $1.5\ \mathrm{mm}$, three and a half orders below the body. A discretization that
+in the boundary layer. Viscosity is confined to a wall-attached layer, and at the
+full-scale end of \eqref{eq:ch32-reynolds} the layer along a car body is turbulent: the flat-plate
+one-fifth-power estimate $\delta/x \sim 0.37\,Re_x^{-1/5}$
+\cite{schlichting2017boundary} gives a layer of order $0.07\ \mathrm{m}$ at $Re = 10^7$ and
+$L = 4.7\ \mathrm{m}$ --- a full-scale sedan at the highway end of the range --- nearly
+two orders below the body, not the $1.5\ \mathrm{mm}$ and three and a half orders the laminar
+$\delta \sim L\,Re^{-1/2}$ scaling would falsely suggest; at the sampled floor of
+$4.35\times10^{5}$ the flat-plate boundary layer is barely turbulent, and what
+neither scaling can move is the verdict that the layer is orders thinner than the body. A discretization that
 is uniform in $L$ resolves nothing inside it. The wall-normal resolution a solver must therefore
 achieve is conventionally stated in viscous units,
 \begin{equation}
@@ -203,15 +209,17 @@ its grid for every shape, \eqref{eq:ch24-g2p} only needs new evaluation coordina
 \label{case:ch32-ahmed}
 The published evidence for \eqref{eq:ch32-surrogate-map} comes from two families of vehicle
 geometries \cite{li2023geometry}. The first is a set of more than five hundred Ahmed-body
-variants\index{Ahmed body} generated for the study by Latin-hypercube sampling over six design
-parameters --- length, width, height, ground clearance, slant angle, and fillet radius --- together
-with the inlet velocity; each surface carries $\mathcal{O}(10^{5})$
+variants\index{Ahmed body} generated for the study by Latin-hypercube sampling over six geometric
+parameters --- length, width, height, ground clearance, slant angle, and fillet radius --- plus the
+inlet velocity, which sets the Reynolds number together with the sampled
+length rather than joining the design vector; each surface carries $\mathcal{O}(10^{5})$
 nodes and each
-flow field $\mathcal{O}(10^{7})$ volume cells (7.2 million mesh points, of which 100{,}000 are on
+flow field $\mathcal{O}(10^{6})$ volume cells (7.2 million mesh points, of which 100{,}000 are on
 the surface, in the configuration reported). The labels were produced with the GPU-accelerated
 OpenFOAM solver run in steady mode with the SST $k$--$\omega$
-closure of \eqref{eq:ch32-reynolds-stress}, at Reynolds numbers from $4.35\times10^{5}$ to
-$6.82\times10^{6}$ --- the inlet velocities just mentioned, $10$ to $70\ \mathrm{m\,s^{-1}}$ --- at
+closure of \eqref{eq:ch32-reynolds-stress} \cite{menter1994two}, at Reynolds numbers from $4.35\times10^{5}$ to
+$6.82\times10^{6}$ --- the inlet velocities just mentioned, $10$ to $70\ \mathrm{m\,s^{-1}}$,
+based on each sampled body length --- at
 a cost of 7--19 hours per geometry on 16 central processing unit (CPU) cores and two NVIDIA V100
 GPUs. The second family is the
 ShapeNet Car collection\index{ShapeNet Car dataset}, whose surfaces are stored with roughly
@@ -305,7 +313,9 @@ but a surface one rather than a volume one. On wall-clock, the attributed figure
 the 7--19 hours per geometry for label generation reported in Case
 Study~\ref{case:ch32-ahmed}, against the
 $2.6\times10^{4}$ ratio the cost--accuracy analysis of \cite{li2023geometry} reports for
-computing drag coefficients relative to that same GPU OpenFOAM solver, measured as
+computing drag coefficients relative to that same GPU OpenFOAM solver --- quoted by the source for
+the variant trained with the drag functional in its objective, not for the bare surface-field map
+\eqref{eq:ch32-surrogate-map} --- measured as
 the inference time needed to reach a $3\%$ relative error in $C_d$\index{cost--accuracy trade-off}.
 Three qualifications make
 that ratio usable. It is quoted against an optimized GPU solver run of the same case, not against
@@ -316,9 +326,12 @@ figure. It excludes meshing on both sides, though not the surrogate's own geomet
 reported evaluation time includes computing the signed distance function, running the model, and
 integrating the drag. And it is a ratio of times at matched accuracy, not a
 statement that the surrogate is accurate --- the accuracy in question is the $3\%$ drag error at
-which both curves are read. A tighter agreement with the volume solve, $1.2\%$, is also quoted for
-this workload, but it is not a number \cite{li2023geometry} reports, and this chapter does not use
-it.
+which both curves are read, and because the ratio belongs to the training configuration that
+scores drag directly, this is the only case in this Part in which a functional
+entered the objective rather than the output; the $0.1$\,s per shape quoted later in this
+chapter belongs to the field-map variant that recovers drag by quadrature, so the ratio
+and the per-shape time attach to different configurations of the same architecture --- the
+distinction \chapref{ch:part3-the-multi-query-bottleneck-in-computationa} builds on.
 
 % -----------------------------------------------------------------------------
 \section{Amortization, the Pipeline Ledger, and Four Failure Modes}
@@ -372,11 +385,11 @@ was trained on; the certification row records what a reviewer may ask of each.
 \textbf{Stage} & \textbf{RANS volume solver (FVM)} & \textbf{GINO surface surrogate} \\
 \midrule
 Geometry intake & CAD cleanup, surface wrap, prismatic boundary-layer cells at $y^{+} \lesssim 1$ & surface tessellation plus $\mathrm{SDF}_{\mathcal{B}}$; no volume mesh \\
-Unknowns & $\mathcal{O}(10^{7})$ cells, $\mathcal{O}(10^{5})$ surface nodes & $\mathcal{O}(10^{5})$ surface nodes at the interfaces; $64^{3}$ latent grid inside \\
+Unknowns & $\mathcal{O}(10^{6})$ cells ($7.2$ million), $\mathcal{O}(10^{5})$ surface nodes & $\mathcal{O}(10^{5})$ surface nodes at the interfaces; $64^{3}$ latent grid inside \\
 Physics & \eqref{eq:rans} with closure \eqref{eq:ch32-reynolds-stress}, solved simultaneously & closure never solved; its effect is absorbed into the labels \\
 Solve & SIMPLE-type outer iterations, linear solves per step, residual monitoring & one forward pass; cost per field as \eqref{eq:ch27-cost} \\
 Output & volume field $(\mathbf{u},p,k,\omega)$ everywhere, plus surface integrals \eqref{eq:ch32-force-coeff} & surface fields $(p,\boldsymbol{\tau}_w)$ only; $C_d$ obtained by quadrature \\
-Wall-clock per geometry & 7--19 h on 16 cores and 2 GPUs (label generation) & $0.1\ \mathrm{s}$ per shape on one NVIDIA V100; $2.6\times10^{4}\times$ faster at $3\%$ drag error \\
+Wall-clock per geometry & 7--19 h on 16 cores and 2 GPUs (label generation) & $0.1\ \mathrm{s}$ per shape on one NVIDIA V100; the $2.6\times10^{4}$ cost--accuracy ratio of the drag-scored variant at $3\%$ drag error \\
 Error reference & grid, domain, and time-step convergence & relative $L^2$ on surface pressure, $7$--$8\%$ on the two families \\
 Certification hook & conservation identity, inspectable residuals, mesh study & no conservation guarantee; requires the (model, mesh, metric) triple of \chapref{ch:part2-graph-neural-operators-gno-and-irregular-g} \\
 \bottomrule

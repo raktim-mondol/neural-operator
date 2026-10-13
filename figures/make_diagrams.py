@@ -262,7 +262,7 @@ def main() -> int:
             "model": MODEL,
             "host": spec["host"],
             "content_class": "structural schematic; carries no measured value",
-            "prompt_sha256": hashlib.sha256(prompt.encode()).hexdigest(),
+            "prompt_sha256": hashlib.sha256((prompt + "\n").encode()).hexdigest(),
             "bytes": len(blob),
             "pixels": list(size),
             "codec": "PNG (re-encoded from the model's JPEG; see refit)",

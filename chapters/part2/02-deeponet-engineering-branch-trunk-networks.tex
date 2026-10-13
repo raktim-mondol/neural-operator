@@ -17,9 +17,9 @@ single inner product. Between those two displays sits this chapter's problem. Fo
 precede the first gradient step: the sensor count $m$ and its locations, the shared latent
 width $p$, the depth and hidden width of each sub-network, and the batched layout in which the
 contraction runs on a graphics processing unit (GPU). The first three price one term apiece in
-the bound of Theorem~\ref{thm:deeponet_error}---encoding
-$\mathcal{E}_{\text{sensor}}(m)$, reconstruction $\mathcal{E}_{\text{basis}}(p)$, network
-$\mathcal{E}_{\text{DNN}}(\theta)$ in \eqref{eq:ch04-error-split}---and the fourth buys speed
+the bound of Remark~\ref{thm:deeponet_error} --- encoding
+$\mathcal{E}_{\text{sensor}}(m)$, approximation $\mathcal{E}_{\text{basis}}(p)$, reconstruction
+$\mathcal{E}_{\text{DNN}}(L, d_b, d_t)$ in \eqref{eq:ch04-error-split} --- and the fourth buys speed
 rather than accuracy. The first three are also irreversible: $m$ is welded into one parameter
 tensor, $p$ into two, and the hidden widths into all of them, so branch-trunk design is a
 budget allocation settled before the first epoch rather than a hyperparameter sweep. Only the
@@ -32,7 +32,7 @@ The reader should bring PyTorch \cite{paszke2019pytorch} at the level of writing
 residency and batched matrix multiplication; the layout, loss, and normalization conventions of
 \chapref{ch:part2-the-practitioner-s-paradigm-infinite-dimen} are used without restatement,
 including the relative $L^{2}$ loss \eqref{eq:rel_l2_loss}, the metric that prices
-$\mathcal{E}_{\text{DNN}}(\theta)$ in an experiment. Two Part~I conditions make the architecture
+the split terms in an experiment. Two Part~I conditions make the architecture
 well posed at all: point evaluation must be a bounded functional on the input space, the
 Sobolev embedding condition of Remark~\ref{rmk:ch8-inclusions}, and the input ensemble must be
 efficiently encodable, which is where the rate $\mathcal{E}_{\text{sensor}}(m)\lesssim m^{-s/d}$
@@ -106,9 +106,9 @@ initialized at zero, absorbs the ensemble mean of the output field so that the l
 spent on variation rather than on offset; the pointwise normalizer of
 \chapref{ch:part2-the-practitioner-s-paradigm-infinite-dimen} does the same job on the input
 side, and together they determine what is left for $\mathbf{b}(u)$ and $\mathbf{t}(y)$ to
-represent---the part of the field that actually varies.
+represent --- the part of the field that actually varies.
 
-\begin{lstlisting}[language=Python, caption={\textsf{DeepONet} in PyTorch: two independent stacks joined only at the latent width $p$. The constructor fixes the sensor count $m$, the coordinate dimension $d$, and $p$; the closing \texttt{einsum} (Einstein summation) calls are meant to carry out the batched contraction of \eqref{eq:ch22-batch-contraction}, and the discussion after the listing explains why, as printed, they do not.}, label={lst:ch22-deeponet}]
+\begin{lstlisting}[language=Python, caption={\textsf{DeepONet} in PyTorch: two independent stacks joined only at the latent width $p$. The constructor fixes the sensor count $m$, the coordinate dimension $d$, and $p$; the closing \texttt{einsum} (Einstein summation) calls carry out the batched contraction of \eqref{eq:ch22-batch-contraction}, and they are written deliberately differently from a published version of this module --- the paragraph after the listing explains why the published subscripts fail.}, label={lst:ch22-deeponet}]
 import torch
 import torch.nn as nn
 
@@ -150,11 +150,11 @@ class DeepONet(nn.Module):
         if y_coords.dim() == 2:
             # Query coordinates shared across entire batch: (P, coord_dim)
             T_features = self.trunk(y_coords) # Shape: (P, p)
-            out = torch.einsum('bp, pp -> bp', B_features, T_features) # (B, P)
+            out = torch.einsum('bp,qp -> bq', B_features, T_features) # (B, P)
         else:
             # Query coordinates vary per sample: (B, P, coord_dim)
             T_features = self.trunk(y_coords) # Shape: (B, P, p)
-            out = torch.einsum('bp, bpp -> bp', B_features, T_features)
+            out = torch.einsum('bp,bqp -> bq', B_features, T_features)
             
         return out + self.bias
 \end{lstlisting}
@@ -167,17 +167,18 @@ output label are summed\index{Einstein summation convention (einsum)}.
 In the first path, query coordinates shared across the batch arrive as $(P, d)$ and produce
 trunk features of shape $(P, p)$, so the intended operation is exactly
 \eqref{eq:ch22-batch-contraction}; in the second, per-sample coordinates $(B, P, d)$ produce
-$(B, P, p)$ and the batch label must be matched as well. Note, however, that both strings as
-printed reuse the letter \texttt{p} for the latent axis and for the query axis, and a letter
-repeated inside a single operand takes the diagonal of those two axes and forces them to the
-same length. The consequence is stated plainly: the contraction of
-\eqref{eq:ch22-batch-contraction} is obtained only if the query and latent axes are labeled
-distinctly---\texttt{bp,qp->bq} for a shared grid and \texttt{bp,bqp->bq} for per-sample
-coordinates---and a caller who asks for $P = 256$ queries with $p = 128$ will meet a shape
-error rather than a silently wrong field, while a caller who happens to take $P = p$ receives
-numbers, wrong ones, with no complaint. The listing is reproduced as published; the
-reconciliation is recorded here because no unit test catches this failure by
-itself\index{tensor layout!branch-trunk contraction}.
+$(B, P, p)$ and the batch label must be matched as well. The printed strings therefore label
+the latent and query axes distinctly: \texttt{bp,qp->bq} for a shared grid,
+\texttt{bp,bqp->bq} for per-sample coordinates. A widely circulated version of this module
+instead writes \texttt{bp,pp->bp} and \texttt{bp,bpp->bp}. A letter repeated inside a
+single operand takes the diagonal of the two axes it names and forces them to the same
+length, so the published contraction of
+\eqref{eq:ch22-batch-contraction} raises a shape error whenever $P \ne p$ --- a caller who
+asks for $P = 256$ queries with $p = 128$ fails outright --- while a caller who happens to
+choose $P = p$ receives numbers, wrong ones, with no complaint at all. No shape check on a
+square configuration detects the reuse; it surfaces only when the module is run at
+unequal sizes, which is why Listing~\ref{lst:ch22-deeponet} labels the two axes apart
+\index{tensor layout!branch-trunk contraction}.
 
 The arithmetic of the two stacks follows directly from their shapes. Each linear layer of
 width pair $(r, c)$ stores $rc$ weights and $c$ biases, so the branch contributes
@@ -191,7 +192,7 @@ sensors, that is
 $32{,}768 + 128 \cdot 234 + 129 \approx 6.3 \times 10^{4}$ parameters, of which the two hidden
 square layers supply just over half. Two readings of \eqref{eq:ch22-params} matter in practice.
 The sensor budget $m$ enters linearly and only through the first branch layer, so doubling the
-readings adds $hm = 1.28 \times 10^{4}$ entries---small next to the cost of the solver runs
+readings adds $hm = 1.28 \times 10^{4}$ entries --- small next to the cost of the solver runs
 that produced the training pairs, which is the comparison Part~I's cost bookkeeping
 \eqref{eq:ch01-cost-bookkeeping} insists on. The latent width $p$ enters as $2hp$, that is, once per
 stack, so widening the shared code is also cheap; what widening $p$ does \emph{not} buy is
@@ -204,15 +205,16 @@ Per step, the multiply-add count for a batch of $B$ samples evaluated at $P$ que
 \end{equation}
 the last term being the entries of the rank-$p$ contraction. The count is the per-sample one:
 the trunk work is charged $B$ times. On a query grid shared across the batch, drop the factor
-$B$ from the two trunk terms only---the contraction stays $B P p$---and the single trunk pass of
+$B$ from the two trunk terms only --- the contraction stays $B P p$ --- and the single trunk pass of
 \eqref{eq:ch22-batch-contraction} is what the ledger should charge. Setting $d_b = d_t = h$,
 \eqref{eq:ch22-query-cost} is
 the DeepONet row of the cost ledger \eqref{eq:ch8-costs}, $\Theta(m d_b + p d_t + p N_{\mathrm{out}})$,
 spelled out: the branch pass does not grow with the number of output
 points, and the output pass grows linearly in it. Memory behaves differently\index{memory
 footprint!trunk activations}: the trunk activations dominate, $P p$ entries for a shared query
-grid and $B P p$ for per-sample grids---so $65{,}536$ query points on a $256 \times 256$ output
-grid with $p = 64$ reserve about $4.2$ million floats, roughly $17$ megabytes per sample before
+grid and $B P p$ for per-sample grids --- so $65{,}536$ query points on a $256 \times 256$ output
+grid with $p = 64$ reserve about $4.2$ million floats, roughly $17$ megabytes once per step for
+the shared grid and $B$ times that for per-sample query sets, before
 autograd storage.
 The standard remedy is to split the query set into chunks over $P$, since
 \eqref{eq:ch22-batch-contraction} makes the output entries independent of one another; the
@@ -233,7 +235,7 @@ model is being asked to distinguish inputs that its own argument list says are i
 encoding term $\mathcal{E}_{\text{sensor}}(m)$ of \eqref{eq:ch04-error-split} measures exactly
 that ambiguity, and \eqref{eq:ch8-sensor-rate} gives its size for ensembles bounded in
 $H^{s}(\Omega)$ with $s > d/2$: the error decays like $m^{-s/d}$, so halving it costs a
-factor $2^{d/s}$ in sensors---four times the readings for a two-dimensional ensemble with one
+factor $2^{d/s}$ in sensors --- four times the readings for a two-dimensional ensemble with one
 Sobolev derivative, and about $1.6$ times for the same two-dimensional ensemble with three
 derivatives\index{sensor placement!cost of halving the
 encoding error}\index{point evaluation!conditioning of the encoding}.
@@ -243,7 +245,7 @@ Remark~\ref{rmk:ch8-inclusions}: for rougher inputs, point evaluation is not a c
 functional, sensor noise is amplified without control, and no placement strategy rescues the
 architecture.
 
-Three families of node sets are used in practice, and they differ along one axis---how node
+Three families of node sets are used in practice, and they differ along one axis --- how node
 density is distributed over $\Omega$, and correspondingly which failure each guards
 against\index{sensor placement!equispaced, space-filling, and clustered node sets}.
 \emph{Equispaced grids} put the density where the geometry is simplest and are the natural
@@ -251,7 +253,7 @@ choice for smooth, periodic fields: the sensor vector is precisely what a discre
 transform consumes, so a band-limited ensemble is recovered from its samples and the encoding
 error is the tail beyond the sensor Nyquist rate\index{Nyquist rate!sensor sampling}. The
 exposure is equally clear. Once the ensemble carries energy above that rate, the readings do
-not merely omit it---the sampled representation folds it back onto the resolved coefficients,
+not merely omit it --- the sampled representation folds it back onto the resolved coefficients,
 so the branch is trained on a corrupted encoding rather than an incomplete one, and neither a
 wider trunk nor a longer run repairs it\index{aliasing!sensor sampling}. Steep gradients in
 shock-forming data are the usual casualty.
@@ -262,14 +264,14 @@ sampling (LHS)}. The construction divides each coordinate axis into $m$ equal-pr
 strata, places exactly one sensor in every stratum of every axis, and pairs the resulting
 one-dimensional samples by a random permutation, so no two sensors share a slab in any
 coordinate. The property bought is isotropy: the worst-case gap between nodes, the fill
-distance of \chapref{ch:part1-discretization-invariance-and-continuum-li}---its mesh parameter
+distance of \chapref{ch:part1-discretization-invariance-and-continuum-li} --- its mesh parameter
 $h_N$ evaluated on a node set of $m$ sensors rather than on a mesh of $N$ grid
 points\index{fill
-distance!sensor sets}---is controlled in every direction at once rather than only along lattice
+distance!sensor sets} --- is controlled in every direction at once rather than only along lattice
 lines, and there is no preferred direction along which aliasing can organize itself. The
-property paid for is the logarithm in the coverage asymptotics---the fill distance of $m$
+property paid for is the logarithm in the coverage asymptotics --- the fill distance of $m$
 random points in $d$ dimensions is of order
-$(\log m / m)^{1/d}$ where a grid achieves $m^{-1/d}$---so a random set needs somewhat more
+$(\log m / m)^{1/d}$ where a grid achieves $m^{-1/d}$ --- so a random set needs somewhat more
 sensors for the same worst-case gap. That cost is often worth accepting, because the error
 analysis of \cite{lanthaler2022error} prices ensembles whose sensors are drawn at random from
 a measure rather than tuned by hand, and the probabilistic construction
@@ -289,7 +291,7 @@ classical polynomial interpolation, and the branch inherits its conditioning: th
 stable only if the function reconstructed from the readings stays close to the true one in the
 gaps between sensors. Reconstruction from equispaced samples carries a Lebesgue constant that
 grows exponentially with $m$, and the interpolants of smooth non-periodic functions oscillate
-with growing amplitude near the boundary---Runge's phenomenon\index{Runge phenomenon}, whose
+with growing amplitude near the boundary --- Runge's phenomenon\index{Runge phenomenon}, whose
 mitigation is the property this node set is selected for. For the extrema nodes the nodal
 polynomial $\prod_j (x - x_j)$ remains small and nearly equioscillating on the interval, so the
 growth of that constant is logarithmic instead. That is precisely the well-posedness the
@@ -320,14 +322,14 @@ $p$ in the pair of variables, and for every input the predicted field lies in th
 $p$-dimensional span of the trunk functions plus a constant. The reconstruction term
 $\mathcal{E}_{\text{basis}}(p)$ of \eqref{eq:ch04-error-split} is therefore a subspace
 approximation problem, and the mean-square-optimal $p$-dimensional subspace for the output
-ensemble is spanned by the leading eigenvectors of its covariance operator---the
+ensemble is spanned by the leading eigenvectors of its covariance operator --- the
 Eckart--Young argument in finite dimension, its Karhunen--Lo\`eve counterpart for
 function-valued ensembles, which is exactly the spectral decay through which
 \cite{lanthaler2022error} prices this term\index{trunk basis!optimal rank-$p$ subspace}
 \index{covariance operator!spectral decay}. The engineering use of the fact is a diagnostic
 available before training: compute the fraction of output energy captured by the leading $p$
 empirical modes of the training targets. If that fraction does not approach one, the ensemble
-is not $p$-dimensionally encodable and enlarging $p$ is the only remedy---more epochs cannot
+is not $p$-dimensionally encodable and enlarging $p$ is the only remedy --- more epochs cannot
 reduce a term that \eqref{eq:ch04-error-split} attributes to the basis. The same logic gives
 the triage for a stalled run, and which curve is stalled carries the information. A basis
 bottleneck binds the \emph{training} loss, because the model class of
@@ -336,19 +338,21 @@ level that more epochs cannot lower. A shortfall in the readings usually shows t
 round, with the training loss still falling while the validation error floors, since a fixed
 sensor set can be partly memorized on the training ensemble and cannot be recovered on a fresh
 sample. Each hypothesis is then tested by the intervention that moves only it, at fixed data:
-raise $p$ with $m$ fixed, raise $m$ with $p$ fixed, or raise the training budget and the
-capacity with the architecture fixed. Only the last touches $\mathcal{E}_{\text{DNN}}(\theta)$.
+raise $p$ with $m$ fixed, raise $m$ with $p$ fixed, raise depth and widths with the sensor and basis budgets fixed, or raise
+the training budget alone with the architecture fixed. The first three move terms of
+\eqref{eq:ch04-error-split}; the last touches none of them --- it moves the optimizer's
+gap, which the display does not price.
 
 The listing implements the unstacked form named in its own docstring, in which one latent code
 and one trunk serve the whole output; the return shape $(B,P)$ is a scalar output field, and a
-field with $d_u > 1$ output channels---$d_u$ is Part~I's channel count for
-$\mathcal{U}$---either enters through additional query coordinates or through the stacked
+field with $d_u > 1$ output channels --- $d_u$ is Part~I's channel count for
+$\mathcal{U}$ --- either enters through additional query coordinates or through the stacked
 variant of \cite{lu2021learning}, in which each output channel carries its own branch and
 trunk pair\index{DeepONet!stacked and unstacked variants}. The comparison is parameter count
 against sharing: stacking multiplies the branch cost by $d_u$ and lets each channel have its
 own basis, while the unstacked form ties all channels to the same $p$ trunk functions and
 keeps the contraction of \eqref{eq:ch22-batch-contraction} intact. Channels that share spatial
-structure---the pressure and velocity components of one flow, say---can be read off a single
+structure --- the pressure and velocity components of one flow, say --- can be read off a single
 shared code and pay one branch pass; channels whose spatial scales differ by an order of
 magnitude are then forced through the same $p$ basis functions, and the constraint surfaces as
 a floor on the harder channel rather than as an error message. Which of the two regimes an
@@ -366,23 +370,24 @@ dimension plus noise, which is why the grid conventions of
 And the trunk must resolve the output at the query spacing $\Delta y$: the basis rank bounds
 what the model class contains, but the depth and width of the trunk bound what the trunk can
 represent within it, so boundary layers and sharp fronts need trunk capacity as well as
-$p$. How the family fares against these constraints on a real benchmark is reported in
-Figure~\ref{fig:benchmarks}(b) of
-\chapref{ch:part2-canonical-pde-benchmarks-and-reference-wor}\index{Darcy flow!branch-trunk
-baseline}, where a branch-trunk network with $m = 100$ sensors is plotted on two-dimensional
-Darcy flow beside a convolutional baseline and a spectral operator. The conclusion the panel
-carries is the ordering: the branch-trunk trace ends highest of the three and is markedly the
-noisiest, which is what a floor set by the encoding or the basis term looks like rather than a
-floor set by training---though a convergence plot alone cannot say which of the two terms is
-responsible.
+$p$. How the family fares against these constraints on a real benchmark is not
+measured in this book:
+\chapref{ch:part2-canonical-pde-benchmarks-and-reference-wor}\index{Darcy
+flow!branch-trunk baseline} draws its one computed plot for Burgers, and its Darcy
+sheet, mirrored in Appendix~\ref{app:c}, transcribes published numbers for other
+architectures. What can be said a priori is the shape of the risk. A branch-trunk
+floor set by the encoding or by the basis term looks exactly like a floor set by
+training in the loss curve; telling them apart wants measured convergence curves
+paired with the architectures --- precisely the evidence the Darcy literature this
+book transcribes does not supply.
 
 \bigskip
-\noindent Both restrictions this chapter has been circling---the $m$ prescribed readings on
-the input, the $p$ trunk functions on the output---descend from one design act, the pairing of
+\noindent Both restrictions this chapter has been circling --- the $m$ prescribed readings on
+the input, the $p$ trunk functions on the output --- descend from one design act, the pairing of
 two codes by a single inner product, and everything the architecture gains and loses is a
 consequence of that pairing. \index{Fourier neural operator (FNO)!versus DeepONet}The next
-chapter changes what the parameters are functions of---wavenumbers instead of sensor
-slots---and with it the cost line: where \eqref{eq:ch22-query-cost} charges a fixed sensor set
+chapter changes what the parameters are functions of --- wavenumbers instead of sensor
+slots --- and with it the cost line: where \eqref{eq:ch22-query-cost} charges a fixed sensor set
 and a rank-$p$ readout, the Fourier neural operator (FNO) \cite{li2021fourier} reads every grid
 point at every layer and pays $\Theta(d_v N \log N + K d_v^{2})$, with the ledger's own symbols
 ($d_v$ the lifted width, $K$ the retained modes, $N$ the number of grid nodes), the second row
@@ -393,6 +398,6 @@ layer from the same conventions used here: the real-input two-dimensional transf
 condition \eqref{eq:ch05-reality} explains, the mode-wise complex contraction, and the lifting
 and projection stacks that surround it. The \texttt{einsum} discipline that governs the
 contraction in Listing~\ref{lst:ch22-deeponet} returns there as \texttt{"bixy,ioxy->boxy"},
-five letters to keep straight---batch, input channel, output channel, and the two mode
-axes---and the habit formed here, checking which letters are matched and which are summed, is
+five letters to keep straight --- batch, input channel, output channel, and the two mode
+axes --- and the habit formed here, checking which letters are matched and which are summed, is
 the one that makes the spectral layer readable rather than mysterious.

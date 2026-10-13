@@ -20,7 +20,7 @@ approximation guarantees --- Theorem~\ref{thm:chen_chen} in its classical form,
 Theorem~\ref{thm:no_universality} for integral-kernel neural operators,
 Theorem~\ref{thm:fno_convergence} for the Fourier neural operator (FNO),
 \index{Fourier neural operator (FNO)!open problems}
-whose error splits into a spectral truncation term of order $k_{\max}^{-\alpha}$
+whose error splits into a spectral truncation term of order $k_{\max}^{-(s+\alpha)}$
 and a neural parametric term. \chapref{ch:part1-discretization-invariance-and-continuum-li}
 then made exact the sense in which a trained network is a continuum object whose
 grid realizations converge to it, \eqref{eq:limit_commute}, and
@@ -54,8 +54,10 @@ the ``curse of regularity'' that replaces the finite-dimensional curse of
 dimensionality; Section~\ref{sec:ch09-shocks} computes how much of the
 Part~I machinery survives a jump discontinuity; Section~\ref{sec:ch09-rollouts}
 does the same for long autoregressive rollouts. This chapter introduces no new
-architecture and proves nothing Parts~II and~III depend on; it states what
-the book has not established, so that what follows is read with correct
+architecture and proves no representation or convergence result that
+Parts~II and~III depend on; its two labeled propositions are computations those
+parts lean on and had not supplied. What the chapter does is state
+what the book has not established, so that what follows is read with correct
 expectations.
 
 % -----------------------------------------------------------------------------
@@ -100,21 +102,36 @@ the asymptotics are
   \label{eq:ch09-entropy}
 \end{equation}
 \index{curse of dimensionality!in function space}\index{metric entropy}
-Balancing the two contributions in \eqref{eq:ch09-risk} --- setting
+Balancing the estimation and approximation contributions in
+\eqref{eq:ch09-risk} --- setting
 $\varepsilon \approx \varepsilon^{-d/(2s)}n^{-1/2}$ --- gives the accuracy a
 uniform consistency argument can deliver from $n$ samples,
 \begin{equation}
-  \varepsilon_n \asymp n^{-s/(2s+d)},
-  \qquad\text{i.e.}\qquad
+  \varepsilon_n \lesssim n^{-s/(2s+d)},
+  \qquad\text{so}\qquad
   \mathcal{R}(\hat{\mathcal{G}}) = O\!\left(n^{-2s/(2s+d)}\right).
   \label{eq:ch09-rate}
 \end{equation}
+The relation is written one-sided on purpose: whether an estimator can do
+better than \eqref{eq:ch09-rate} is exactly the second of the three gaps itemized
+below, and two-sidedness
+is not available. One silent premise also has to be named. The estimation term
+in \eqref{eq:ch09-risk} is governed by the entropy of the \emph{hypothesis
+class} $\mathcal{H}$ in $L^{2}(\mu)$, whereas the exponent $\varepsilon^{-d/s}$
+inserted at the balance is the entropy \eqref{eq:ch09-entropy} of the
+\emph{input} Sobolev ball; the derivation proceeds on the assumption that
+$\mathcal{H}$ is chosen so that
+$\log\mathcal{N}(\varepsilon,\mathcal{H},L^{2}(\mu)) \lesssim \varepsilon^{-d/s}$,
+and no FNO or DeepONet parameterization is presently known to satisfy such a
+condition --- the mismatch between what the risk bound controls and what the
+entropy estimate computes is itself part of the open territory this chapter is
+mapping.
 The quantity that plays the role of the dimension is not $d$ but $d/s$: the
 exponent is set by how many derivatives the data measure controls, not by how
 many coordinates the PDE writes down. It is therefore better to speak
 of a \emph{curse of regularity} than of a curse of dimensionality in function
 space.\index{curse of regularity} In two dimensions, a class with one square
-integrable derivative ($s=1$) yields $\varepsilon_n \sim n^{-1/4}$; a class with
+integrable derivative ($s=1$) yields $\varepsilon_n \lesssim n^{-1/4}$; a class with
 jumps, which Section~\ref{sec:ch09-shocks} shows to lie in $H^s$ only for
 $s<1/2$, yields $n^{-1/6}$; and as $s\downarrow 0$ the polynomial exponent
 disappears.
@@ -148,11 +165,14 @@ class $\mathcal{H}$ whose size the existence theorems leave unconstrained
 (Remark~\ref{rmk:ch09-universality}). \emph{Second, lower bounds.} For finite-dimensional
 nonparametric regression, matching minimax lower bounds are classical; for
 operator classes nothing of the form ``no estimator given $n$ paired grid
-samples from this class incurs error less than $\cdots$'' is known. Without
-them, we cannot tell whether \eqref{eq:ch09-rate} is an artifact of the entropy
-argument or a fact about the problem.\index{minimax lower bounds} The cleanest existing decomposition of
-this kind of error budget is in a linear, exactly tractable model
-\cite{subedi2024controlling}. \emph{Third, resolution-freeness.} The samples
+samples from this class incurs error less than $\cdots$'' is known beyond one
+exactly tractable model: the discrete-Fourier-transform least-squares estimator
+of the linear FNO layer, for which \cite{subedi2024controlling} proves lower
+bounds that match the truncation upper bound and fall strictly short of the
+statistical and discretization upper bounds. For a nonlinear, multilayer
+operator class no such statement is known, and without one we cannot tell
+whether \eqref{eq:ch09-rate} is an artifact of the entropy
+argument or a fact about the problem.\index{minimax lower bounds} \emph{Third, resolution-freeness.} The samples
 entering the estimation term of \eqref{eq:ch09-risk} are stored at $N$ grid
 points each, so a
 naive reading suggests that refining the grid improves that term. But
@@ -160,10 +180,10 @@ the $N$ values of one realization are strongly dependent, and the number of
 effectively independent quantities in $a|_{\mathcal{M}_N}$ is set by
 \eqref{eq:ch09-entropy}, not by $N$. A bound in which the estimation term
 depends on the parameter count and the entropy of $\mu$ but not on $N$ would
-turn the reported flatness of the error across mesh densities --- the identical
+make the observed flatness of the error across mesh densities --- the identical
 $0.0141$ at $N=64$ and $N=256$ quoted from Appendix~\ref{app:b} for a model trained
-at a single resolution, the phenomenon such a
-bound is meant to explain\index{discretization invariance!and generalization bounds} --- from an observation into a theorem.
+at a single resolution\index{discretization invariance!and generalization bounds} --- a
+consequence rather than an observation.
 There is structural reason to expect such a bound: the FNO parameter count
 \begin{equation}
   P \asymp L\,d_v^{2}\,(2k_{\max}+1)^{d}
@@ -173,8 +193,10 @@ There is structural reason to expect such a bound: the FNO parameter count
 contains no grid size, as the implementation of
 \chapref{ch:part2-fourier-neural-operators-fno-from-scratch} makes visible, and
 the gap between the grid network and its continuum realization is separately
-controlled, at the algebraic rate \eqref{eq:ch06-rate} of
-\chapref{ch:part1-discretization-invariance-and-continuum-li}. An architecture that attaches
+charged, at the algebraic rate \eqref{eq:ch06-rate} of
+\chapref{ch:part1-discretization-invariance-and-continuum-li} --- a rate proved
+there for the linear spectral layer and claimed, not proved, for the multi-layer
+network. An architecture that attaches
 a learnable bias per grid point carries $N$ degrees of freedom per
 channel, so it forfeits the grid independence of \eqref{eq:ch09-paramcount} and
 must be excluded from any such statement.
@@ -203,7 +225,7 @@ $H^s(\mathbb{T})$ for every $s>0$ when $\nu>0$, and that as $\nu\to 0^+$ steep
 gradients form and energy is transferred to arbitrarily high spatial
 frequencies. With viscosity present, everything Part~I needs is available: the
 operator smooths, the smoothing order $\alpha$ of
-Theorem~\ref{thm:fno_convergence} is positive, and $k_{\max}^{-\alpha}$ decays.
+Theorem~\ref{thm:fno_convergence} is positive, and $k_{\max}^{-(s+\alpha)}$ decays.
 In the inviscid limit the solution develops true
 jump discontinuities and must be selected by an entropy condition, and the
 machinery no longer applies;\index{entropy condition} the finite-volume literature is the reference for
@@ -247,11 +269,14 @@ severity. The first is a rate:
 $|\hat{u}(k)|\sim|k|^{-1}$ is the sharp decay a function of bounded variation can
 be forced to have --- membership in $L^2$ alone asks only that
 $\sum_k|\hat{u}(k)|^2$ converge, and fixes no pointwise rate at all --- and the
-tail it leaves behind decays like $k_{\max}^{-1/2}$, so the rate
-$k_{\max}^{-\alpha}$ of
-Theorem~\ref{thm:fno_convergence} must be read with $\alpha\le\tfrac12$ at a
-shock, and its constant $C_1$, priced by the $H^s$ norm of the target field for
-$s<\tfrac12$, blows up as $s\uparrow\tfrac12$.
+tail it leaves behind decays like $k_{\max}^{-1/2}$, so the exponent $s+\alpha$ of
+Theorem~\ref{thm:fno_convergence} --- the output regularity of the target ---
+must be read below $\tfrac12$ at a shock, and its constant $C_1$, priced by the
+$H^{\sigma}$ norm of the target field for $\sigma<\tfrac12$, blows up as
+$\sigma\uparrow\tfrac12$. The smoothing hypothesis itself fails outright: a
+solution operator that ends in a jump gains no derivatives, so
+\eqref{eq:ch05-error-decomposition} no longer applies and it is the tail
+estimate that survives.
 By \eqref{eq:ch09-entropy} the same penalty transfers to statistics: a data
 measure whose samples contain fronts has small $s$, and the achievable
 accuracy \eqref{eq:ch09-rate} degrades accordingly. The second conclusion is an
@@ -280,16 +305,22 @@ $L^\infty$ is controlled only through an embedding requiring $s>d/2$,
 the one regularity \eqref{eq:ch09-jump-tail} denies a discontinuous field.
 
 Why, then, do the benchmarks of \chapref{ch:part2-canonical-pde-benchmarks-and-reference-wor}
-report relative $L^2$ errors of order $1.5\%$ for Burgers---$0.0139$ to $0.0160$, at
+report relative $L^2$ errors of order $1.5\%$ for Burgers --- $0.0139$ to $0.0160$, at
 $\nu = 0.1$, on grids of $256$ to $8192$ points, for the solution at $t = 1$ alone
-\cite{li2021fourier}? Because that metric is forgiving of
-exactly the failure \eqref{eq:ch09-gibbs} describes: an overshoot of fixed
+\cite{li2021fourier}? The honest answer is that that benchmark does not exercise the
+failure just described. At $\nu = 0.1$ and $t = 1$ the heat factor
+$e^{-\nu(2\pi m)^2 t}$ is $\approx e^{-3.95 m^2}$: the target the error is scored
+against is a viscously smoothed field whose spectrum is negligible beyond a handful
+of modes, with smooth inputs as well, so the flatness across resolutions is the
+band-limited behavior of Proposition~\ref{prop:ch06-zeroshot}, not shock behavior
+surviving in the metric. The metric-blindness argument belongs to the inviscid and
+near-inviscid regime the cited columns do not test: an overshoot of fixed
 height on a set of measure $O(1/M)$ contributes $O(M^{-1/2})$, vanishing as $M$
 grows, and a unit jump displaced by $\delta$ contributes
 $\|u(\cdot+\delta)-u\|_{L^2}=\sqrt{2\delta}$, small for sub-grid displacement.
 Both defects are invisible in aggregate energy yet physically wrong --- a
 saturation ringing outside $[0,1]$, an interface at the wrong place --- and no
-$L^2$ number reports either. That is the substance of Part~III's finding
+$L^2$ number reports either; that is the regime of Part~III's finding
 that a plain FNO struggles with sharp saturation fronts and needs a multi-scale
 variant \cite{wen2022ufno}. \index{Burgers equation!inviscid limit}\index{shock wave}
 
@@ -302,8 +333,9 @@ $L^1$, and uniform bounds on total variation give precompactness in $L^1$ by
 Helly's selection theorem; the finite-volume literature develops both facts
 \cite{leveque2002finite}. The open problem is to
 \index{bounded variation}
-\emph{rebuild \eqref{eq:ch09-entropy}, and then
-Theorem~\ref{thm:no_universality}, over the pair $(BV, L^1)$ instead of $(H^s,
+\emph{rebuild the precompactness hypothesis of
+Theorem~\ref{thm:no_universality}, and with it the entropy estimate
+\eqref{eq:ch09-entropy} that makes it quantitative, over the pair $(BV, L^1)$ instead of $(H^s,
 L^2)$}, with three requirements attached, where $BV$ denotes the space of
 functions of bounded variation. First, a compactness hypothesis that
 is satisfied by the inviscid solution operators rather than their viscous
@@ -371,7 +403,8 @@ weights.
 \begin{proposition}[An explicit Lipschitz bound for a band-limited realization]
 \label{prop:ch09-lip}
 Let $\mathcal{G}_\theta=\mathcal{Q}\circ\mathcal{V}_{L-1}\circ\cdots\circ\mathcal{V}_0\circ\mathcal{P}$
-be an FNO on $L^2(\mathbb{T}^d;\mathbb{R}^{d_v})$, with $\mathcal{V}_\ell$ the
+be an FNO $\mathcal{G}_\theta : L^2(\mathbb{T}^d;\mathbb{R}^{d_a}) \to
+L^2(\mathbb{T}^d;\mathbb{R}^{d_u})$, with $\mathcal{V}_\ell$ the
 layer of \eqref{eq:fno_layer}, elementwise activation of
 Lipschitz constant $\ell_\sigma$, local maps $W_\ell$, spectral symbols
 $R_{\phi,\ell}$ supported on $Z_{k_{\max}}$, and lift $\mathcal{P}$ and
@@ -446,10 +479,14 @@ $v\mapsto\sigma(v)$ is bounded on $H^r$ for
 $0<r<1$ when $\sigma$ is Lipschitz, but at higher regularity composition demands
 differentiability of $\sigma$ that the piecewise-linear activations of Part~II do
 not have, though a smooth activation such as $\tanh$ does, so
-\eqref{eq:ch09-absorbing} must be imposed in the strongest norm in which it can
-be verified --- for the architectures of Part~II typically $L^2$ or $H^1$, and
-whether that suffices in three dimensions touches the unresolved regularity
-theory of Navier--Stokes itself. (ii) Existence of
+\eqref{eq:ch09-absorbing} must be imposed in a norm strictly above the one in
+which the dynamics are measured --- $L^2$ alone will not do, since an $L^2$
+absorbing bound buys no precompactness --- and for the architectures of Part~II
+the natural target is $H^1$. Whether the bound can be verified there is a
+finite-dimensional computation about the composed network, for which
+Proposition~\ref{prop:ch09-lip} already supplies the pieces; it is not the
+unresolved regularity theory of three-dimensional Navier--Stokes, a question
+about the PDE semigroup rather than about $\mathcal{G}_\theta$. (ii) Existence of
 $\mathcal{A}_\theta$ says nothing about its relation to the PDE attractor
 $\mathcal{A}$: upper semicontinuity, $\mathrm{dist}(\mathcal{A}_\theta,\mathcal{A})\to 0$,
 requires the approximation to hold in a \emph{neighborhood} of $\mathcal{A}$ with
