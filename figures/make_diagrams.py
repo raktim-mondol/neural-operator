@@ -128,33 +128,56 @@ PROMPTS: dict[str, dict] = {
     "fig_subsurface_geometry": {
         "host": "chapters/part3/04-subsurface-multiphase-flow-and-carbon-stor.tex",
         "text": (
-            "A single 2D geological cross-section, schematic, drawn only with lines and "
-            "labels. A rectangle. Inside it, from top to bottom, four horizontal layers "
-            "separated by thin lines, labelled on the right edge in this order: "
-            "'overburden', 'caprock', 'reservoir', 'base'. A single straight fault line "
-            "cuts diagonally through all four layers, offsetting the layer boundaries on "
-            "the right side downward, and is labelled 'fault'. A thin vertical-then-"
-            "horizontal line enters from the top and ends inside the reservoir layer, "
-            "labelled 'injection well'. A closed lens-shaped region drawn just below the "
-            "caprock inside the reservoir, adjacent to the fault, is labelled 'plume'.\n"
-            "No numbers, no depths, no distances, no axis ticks, no color, no shading, no "
-            "colorbar, no percentages, no time labels."
+            "Two panels side by side, labelled (a) and (b). Clean textbook cross-section, thin black "
+            "lines on white, generous spacing, no clutter.\n\n"
+            "PANEL (a) - the setting. A wide rectangle divided by three horizontal lines into four "
+            "stacked bands. Name each band inside its own band, left aligned, top to bottom: "
+            "'overburden', 'caprock', 'reservoir', 'basement'. One straight fault line runs "
+            "diagonally from the top edge to the bottom edge, cutting all four bands, and the bands "
+            "right of the fault are drawn slightly lower than left of it so the throw is visible. "
+            "Label it 'fault' with a short leader line onto the diagonal. A well enters vertically "
+            "through overburden and caprock, then turns horizontal inside the reservoir; label it "
+            "'injection well'. A shaded lens-shaped body sits in the reservoir touching the underside "
+            "of the caprock; label it 'CO2 plume'. Add a small upward arrow under the lens and a "
+            "rightward arrow along the top of the reservoir.\n\n"
+            "PANEL (b) - what must be resolved. Three small copies of the same layer stack side by "
+            "side, fault omitted for clarity. First: a small blob just above the well tip with an "
+            "upward arrow, captioned 'rises'. Second: the blob flattened against the underside of the "
+            "caprock, captioned 'arrests'. Third: a wide thin lens spread along the caprock, "
+            "captioned 'spreads'. Below the three, one line: 'the far edge, not the interior, is what "
+            "containment asks about'.\n\n"
+            "No numbers, no depths, no thicknesses, no distances, no years, no axis ticks, no "
+            "colorbar, no grayscale field. The only filled shape is the plume lens."
         ),
     },
     "fig_ct_geometry": {
         "host": "chapters/part3/06-medical-imaging-and-tomographic-reconstruc.tex",
         "text": (
-            "A single 2D schematic of a tomographic acquisition geometry. A circle in the "
-            "middle labelled 'object'. Around it, a broken ring of short radial line "
-            "segments indicating detector positions, with wide angular gaps left empty. "
-            "One leader line points to a segment labelled 'detector', one points to a "
-            "source position opposite it labelled 'source', and one points into an empty "
-            "gap labelled 'unmeasured angle'. A single straight line passes from a source "
-            "position through the circle to a detector position, labelled 'ray'.\n"
-            "No numbers, no counts, no color, no shading, no reconstructed image, no "
-            "grayscale phantom, no axis ticks."
+            "Two panels side by side, labelled (a) and (b). Clean textbook diagram of a computed "
+            "tomography scanner viewed from above. Thin black lines on white, no grayscale, no "
+            "anatomical detail, no clutter.\n\n"
+            "PANEL (a) - every angle measured. A circle in the middle labelled 'object', containing "
+            "two small inner ellipses so it reads as an object with structure. Around it, evenly "
+            "spaced all the way round, twelve source-detector pairs: each source is a small FILLED "
+            "TRIANGLE pointing inward, and directly opposite it a short THICK RECTANGULAR BAR as the "
+            "detector. Draw one straight line from one triangle through the object to its opposite "
+            "bar, and put the single word 'ray' beside the middle of that line. In the upper-left "
+            "corner place a two-row legend: first row a lone filled triangle followed by the word "
+            "'source', second row a lone thick bar followed by the word 'detector'. Do not draw any "
+            "leader line from those two words to the ring. Beneath the panel write 'every angle "
+            "measured'.\n\n"
+            "PANEL (b) - most angles missing. The same object circle with the same two inner "
+            "ellipses, but only four source-detector pairs, at top, right, bottom and left, leaving "
+            "wide empty gaps between them. Fill one of those empty wedge regions with light diagonal "
+            "hatching and write 'missing angular range' beside the hatched region. Beneath the panel "
+            "write 'most angles missing'.\n\n"
+            "Both panels use the same object size and the same triangle and bar shapes, so the only "
+            "visible difference is how many angles were sampled. The ray must be a plain thin line "
+            "with NO arrowhead at either end, so it cannot be mistaken for a source. No numbers, no "
+            "digits, no degrees, no axis ticks, no colorbar, no reconstructed image."
         ),
     },
+
 }
 
 

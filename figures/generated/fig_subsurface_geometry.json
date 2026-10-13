@@ -3,11 +3,12 @@
   "model": "gemini-3-pro-image",
   "host": "chapters/part3/04-subsurface-multiphase-flow-and-carbon-stor.tex",
   "content_class": "structural schematic; carries no measured value",
-  "prompt_sha256": "1f2de7343f4932fce8eb25d325196f52a098de61b28db080dd9f500b50b0ebe5",
-  "bytes": 119281,
-  "generated_utc": "2026-10-12T23:38:03+00:00",
+  "prompt_sha256": "cfb2a4c1e321cc646c608ac9dd41e2ad1186e6aa4105544bc5de92aee6d179dd",
+  "bytes": 172671,
   "pixels": [
-    1407,
-    768
-  ]
+    1394,
+    721
+  ],
+  "codec": "PNG (re-encoded from the model's JPEG; see refit)",
+  "generated_utc": "2026-10-13T03:03:05+00:00"
 }

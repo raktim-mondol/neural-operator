@@ -132,7 +132,15 @@ it.
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.92\textwidth]{fig_ct_geometry.png}
-\caption{\textbf{Sparse-view acquisition geometry, as a schematic.} Sources and detectors sample a set of angles around the object, and the gaps between them are the angles never measured; a single ray is drawn from a source position through the object to the detector opposite it. The plate shows no phantom, no reconstruction, no Hounsfield value and no error figure. Quantitative claims about reconstruction belong to the text and its citations, not to this figure.}
+\caption{\textbf{Sparse-view acquisition geometry, as a two-panel schematic.} A source is drawn as a
+filled triangle and its opposing detector as a thick bar, identified once by a legend rather than by
+arrows aimed at the ring. Panel~(a): twelve source-detector pairs spaced all the way round the object,
+with one ray drawn plainly through it --- every angle measured. Panel~(b): four pairs, at top, right,
+bottom and left, and the hatched wedge is the angular range no view ever crosses --- most angles
+missing. The contrast between the panels is the whole content, and it is the contrast
+\eqref{eq:ch36-slice} turns into a null space: what is not sampled is not recovered. The plate shows
+no phantom reconstruction, no Hounsfield value and no error figure; quantitative claims belong to the
+text and its citations, not to this figure.}
 \label{fig:vol3_ct}
 \end{figure}
 
