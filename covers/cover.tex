@@ -42,10 +42,15 @@
 \node[inner sep=0pt,anchor=north west] at (current page.north west)
   {\includegraphics[width=\paperwidth,height=\paperheight]{front_a4}};
 
-\node[inner sep=0pt,anchor=north west,text width=272pt,align=left]
+% "The Infinite-Dimensional" is 278 pt at 24 pt and 313 pt at 27 pt. The block is
+% 284 pt wide because that is what the pocket allows with its left edge kept on the
+% 43 % line, where the artwork's bands begin, so the title is set at 24 pt and the
+% compound is broken by hand rather than left to wrap.
+\node[inner sep=0pt,anchor=north west,text width=284pt,align=left]
   at ([xshift=258pt,yshift=-566pt]current page.north west)
   {\parindent=0pt
-   {\fontsize{27}{31}\selectfont\bfseries\color{primary} The Infinite-Dimensional Learner\par}
+   {\fontsize{24}{28.5}\selectfont\bfseries\color{primary} The Infinite-Dimensional\\
+    Learner\par}
    \vspace{13pt}
    {\color{secondary}\rule{58pt}{2.2pt}\par}
    \vspace{12pt}

@@ -28,10 +28,10 @@ file. If you only change the book text, the second command is enough.
 
 Each block is one TikZ node. The node options are the layout, the body is the copy.
 
-**Front, title block** (`cover.tex:45`)
+**Front, title block** (`cover.tex:49`)
 
 ```
-\node[inner sep=0pt,anchor=north west,text width=272pt,align=left]
+\node[inner sep=0pt,anchor=north west,text width=284pt,align=left]
   at ([xshift=258pt,yshift=-566pt]current page.north west)
 ```
 
@@ -39,13 +39,19 @@ Each block is one TikZ node. The node options are the layout, the body is the co
   the page, in pt. `yshift` is negative because it moves down. A4 is 595.276 × 841.89 pt.
 - `text width` — how wide the block is before it wraps. Keep `xshift + text width`
   under about 540 pt or the type runs into the right margin.
-- `\fontsize{27}{31}` — size over leading. Each line of the block has its own.
+- `\fontsize{24}{28.5}` — size over leading. Each line of the block has its own.
 - `\vspace{...}` — the gaps between title, rule, subtitle, author, edition.
+
+The title breaks by hand after "Infinite-Dimensional" so the compound stays on one
+line. It cannot be set larger than 24 pt at this measure: the phrase is 278 pt at
+24 pt and 313 pt at 27 pt, and the block is only 284 pt wide because its left edge
+is pinned to the 43 % line, where the artwork's bands start.
 
 Current copy, top to bottom:
 
 ```
-The Infinite-Dimensional Learner        27 pt bold, primary (navy)
+The Infinite-Dimensional                24 pt bold, primary (navy)
+Learner
 ——                                      58 pt × 2.2 pt rule, secondary (maroon)
 Neural Operators                        15.5 pt bold, secondary
 From Function Spaces to                 11.5 pt, accent (steel blue)
@@ -54,10 +60,10 @@ Dr Raktim Mondol                        13 pt, primary
 First Edition • 2026                    9 pt, 52 % black
 ```
 
-**Back, top-left running title** (`cover.tex:68`) — small caps title at 12 pt plus the
+**Back, top-left running title** (`cover.tex:73`) — small caps title at 12 pt plus the
 author at 9.5 pt, sitting in the clear space above the curve.
 
-**Back, blurb** (`cover.tex:75`) — 9.8 pt, 246 pt wide, in the pocket right of the dot
+**Back, blurb** (`cover.tex:80`) — 9.8 pt, 246 pt wide, in the pocket right of the dot
 field. Current copy:
 
 > A neural operator learns a map between function spaces. Its input is a coefficient
